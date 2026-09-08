@@ -1,0 +1,188 @@
+from schemas import (
+    CapabilityType,
+    ObjectDNA,
+    PhysicalTraitType,
+)
+
+
+def _trait_names(
+    dna: ObjectDNA,
+) -> set[PhysicalTraitType]:
+    return {
+        trait.trait
+        for trait in dna.physical_traits
+    }
+
+
+def _prioritize_strings(
+    required: list[str],
+    existing: list[str],
+    maximum: int,
+) -> list[str]:
+    """
+    Put required safety facts first, remove duplicates,
+    and stay inside the schema's maximum list length.
+    """
+
+    result: list[str] = []
+
+    for value in required + existing:
+        normalized = value.strip()
+
+        if not normalized:
+            continue
+
+        if normalized.lower() in {
+            item.lower()
+            for item in result
+        }:
+            continue
+
+        result.append(normalized)
+
+        if len(result) >= maximum:
+            break
+
+    return result
+
+
+def sanitize_object_dna(
+    dna: ObjectDNA,
+) -> ObjectDNA:
+    """
+    Apply deterministic ZERO guardrails.
+
+    This function is allowed to:
+
+    - remove affordances whose required physical evidence is missing
+    - preserve mandatory safety-related unknown properties
+    - preserve mandatory safety cautions
+
+    It does NOT invent new creative affordances.
+    """
+
+    traits = _trait_names(dna)
+
+    cleaned_affordances = []
+
+    for affordance in dna.affordances:
+        capability = affordance.capability
+
+        # ---------------------------------------------------------------
+        # Electrical
+        # ---------------------------------------------------------------
+
+        if capability == CapabilityType.PROVIDE_POWER_CONNECTION:
+            required = {
+                PhysicalTraitType.ELECTRICAL,
+                PhysicalTraitType.HAS_ELECTRICAL_OUTLETS,
+            }
+
+            if not required.issubset(traits):
+                continue
+
+        # ---------------------------------------------------------------
+        # Liquid handling
+        # ---------------------------------------------------------------
+
+        if capability == CapabilityType.DISPENSE_LIQUID:
+            required = {
+                PhysicalTraitType.HAS_NOZZLE,
+                PhysicalTraitType.CAN_DISPENSE_LIQUID,
+            }
+
+            if not required.issubset(traits):
+                continue
+
+        if capability == CapabilityType.CONTAIN:
+            if (
+                PhysicalTraitType.HOLLOW not in traits
+                and PhysicalTraitType.CAN_HOLD_LIQUID not in traits
+            ):
+                continue
+
+        # ---------------------------------------------------------------
+        # Physical reuse
+        # ---------------------------------------------------------------
+
+        if capability == CapabilityType.PROVIDE_WEIGHT:
+            if PhysicalTraitType.WEIGHTED not in traits:
+                continue
+
+        if capability == CapabilityType.BLOCK_LIGHT:
+            required = {
+                PhysicalTraitType.OPAQUE,
+                PhysicalTraitType.LARGE_SURFACE,
+            }
+
+            if not required.issubset(traits):
+                continue
+
+        if capability in {
+            CapabilityType.ABSORB_SOUND,
+            CapabilityType.DAMPEN_SOUND,
+        }:
+            if (
+                PhysicalTraitType.SOFT not in traits
+                and PhysicalTraitType.FLEXIBLE not in traits
+            ):
+                continue
+
+        cleaned_affordances.append(
+            affordance
+        )
+
+    # -------------------------------------------------------------------
+    # Required unknown physical properties
+    # -------------------------------------------------------------------
+
+    required_unknowns: list[str] = []
+
+    if PhysicalTraitType.ELECTRICAL in traits:
+        required_unknowns.append(
+            "electrical rating"
+        )
+        required_unknowns.append(
+            "electrical condition"
+        )
+
+    if PhysicalTraitType.CAN_HOLD_LIQUID in traits:
+        required_unknowns.append(
+            "current liquid contents"
+        )
+
+    unknown_properties = _prioritize_strings(
+        required=required_unknowns,
+        existing=dna.unknown_properties,
+        maximum=4,
+    )
+
+    # -------------------------------------------------------------------
+    # Required safety cautions
+    # -------------------------------------------------------------------
+
+    required_cautions: list[str] = []
+
+    if PhysicalTraitType.ELECTRICAL in traits:
+        required_cautions.append(
+            "Verify electrical rating and condition before reuse."
+        )
+
+    if PhysicalTraitType.CAN_HOLD_LIQUID in traits:
+        required_cautions.append(
+            "Identify the current liquid contents before reuse."
+        )
+
+    caution_notes = _prioritize_strings(
+        required=required_cautions,
+        existing=dna.caution_notes,
+        maximum=3,
+    )
+
+    return dna.model_copy(
+        update={
+            "affordances": cleaned_affordances,
+            "unknown_properties": unknown_properties,
+            "caution_notes": caution_notes,
+        }
+    )
