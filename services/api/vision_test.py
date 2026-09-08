@@ -6,7 +6,7 @@ from dotenv import load_dotenv
 from openai import OpenAI
 from model_json import parse_model_json
 from schemas import VisionObservationResponse
-
+from inventory import build_canonical_inventory
 
 load_dotenv()
 
@@ -103,4 +103,6 @@ validated = parse_model_json(
     VisionObservationResponse,
 )
 
-print(validated.model_dump_json(indent=2))
+inventory = build_canonical_inventory(validated)
+
+print(inventory.model_dump_json(indent=2))
