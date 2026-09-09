@@ -1,0 +1,28 @@
+{
+  "calibration_id": "C04",
+  "benchmark_case_id": "B04",
+  "name": "bad_overclaimed_surface",
+  "expected_accept": false,
+  "actual_accept": false,
+  "matched": true,
+  "medium_high_findings": 1,
+  "evaluation": {
+    "findings": [
+      {
+        "step_order": 1,
+        "claim": "Lay the blanket on the chair seat to create a waterproof, non-slip, impact-proof platform.",
+        "issue_type": "constraint_violation",
+        "severity": "high",
+        "explanation": "The blanket's validated traits do not include waterproof, non-slip, or impact‑proof properties; claiming these violates the user's constraint against unsupported protection claims."
+      }
+    ],
+    "medium_high_findings": 1,
+    "unlisted_resource_count": 0,
+    "unsupported_physical_claim_count": 0,
+    "unsupported_capability_count": 0,
+    "hidden_assumption_count": 0,
+    "safety_or_uncertainty_count": 0,
+    "constraint_violation_count": 1,
+    "accepted": false
+  }
+}

@@ -1,0 +1,56 @@
+{
+  "calibration_id": "C02",
+  "benchmark_case_id": "B03",
+  "name": "bad_unknown_weights",
+  "expected_accept": false,
+  "actual_accept": false,
+  "matched": true,
+  "medium_high_findings": 5,
+  "evaluation": {
+    "findings": [
+      {
+        "step_order": 1,
+        "claim": "Spray bottles used as heavy weights to stop blanket movement.",
+        "issue_type": "unsupported_capability",
+        "severity": "medium",
+        "explanation": "Spray bottles only validated to contain/dispense liquid; no evidence they provide sufficient weight to hold blanket edge."
+      },
+      {
+        "step_order": 1,
+        "claim": "Power strip used as heavy weight to stop blanket movement.",
+        "issue_type": "unsupported_capability",
+        "severity": "medium",
+        "explanation": "Power strip validated for electrical connection and reposition; no evidence it can serve as a weight to prevent blanket movement."
+      },
+      {
+        "step_order": 1,
+        "claim": "Their guaranteed weight and grip will keep the blanket completely fixed.",
+        "issue_type": "unsupported_physical_claim",
+        "severity": "medium",
+        "explanation": "No validated trait indicates sufficient weight or grip; assuming grip is unsupported."
+      },
+      {
+        "step_order": 1,
+        "claim": "Assumption that spray bottle contents are harmless.",
+        "issue_type": "safety_or_uncertainty",
+        "severity": "high",
+        "explanation": "Caution notes require identifying liquid contents before use; assuming harmless ignores safety caution and unknown contents."
+      },
+      {
+        "step_order": 1,
+        "claim": "Using spray bottles and power strip as weights without evidence.",
+        "issue_type": "constraint_violation",
+        "severity": "high",
+        "explanation": "Constraint requires any object used as a weight must have physical evidence supporting that use; none provided for these objects."
+      }
+    ],
+    "medium_high_findings": 5,
+    "unlisted_resource_count": 0,
+    "unsupported_physical_claim_count": 1,
+    "unsupported_capability_count": 2,
+    "hidden_assumption_count": 0,
+    "safety_or_uncertainty_count": 1,
+    "constraint_violation_count": 1,
+    "accepted": false
+  }
+}

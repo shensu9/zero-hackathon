@@ -1,0 +1,28 @@
+{
+  "calibration_id": "C03",
+  "benchmark_case_id": "B04",
+  "name": "good_soft_surface",
+  "expected_accept": true,
+  "actual_accept": false,
+  "matched": false,
+  "medium_high_findings": 1,
+  "evaluation": {
+    "findings": [
+      {
+        "step_order": null,
+        "claim": "Assumes blanket will stay in place on chair seat without sliding.",
+        "issue_type": "hidden_assumption",
+        "severity": "medium",
+        "explanation": "The blanket is flexible with no adhesion capability; it may shift when the object is placed, undermining the intended surface."
+      }
+    ],
+    "medium_high_findings": 1,
+    "unlisted_resource_count": 0,
+    "unsupported_physical_claim_count": 0,
+    "unsupported_capability_count": 0,
+    "hidden_assumption_count": 1,
+    "safety_or_uncertainty_count": 0,
+    "constraint_violation_count": 0,
+    "accepted": false
+  }
+}

@@ -1,0 +1,28 @@
+{
+  "calibration_id": "C01",
+  "benchmark_case_id": "B03",
+  "name": "good_blanket_edge_weight",
+  "expected_accept": true,
+  "actual_accept": false,
+  "matched": false,
+  "medium_high_findings": 1,
+  "evaluation": {
+    "findings": [
+      {
+        "step_order": null,
+        "claim": "Using books' weight to hold down the blanket edge prevents it from shifting.",
+        "issue_type": "unsupported_physical_claim",
+        "severity": "medium",
+        "explanation": "The plan asserts that placing books on the blanket edge will keep it from shifting, but no validated evidence shows that weight on a flexible blanket edge prevents movement; this effect is not established by the blanket's traits or capabilities."
+      }
+    ],
+    "medium_high_findings": 1,
+    "unlisted_resource_count": 0,
+    "unsupported_physical_claim_count": 1,
+    "unsupported_capability_count": 0,
+    "hidden_assumption_count": 0,
+    "safety_or_uncertainty_count": 0,
+    "constraint_violation_count": 0,
+    "accepted": false
+  }
+}

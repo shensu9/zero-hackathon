@@ -1,0 +1,207 @@
+{
+  "total_cases": 6,
+  "matched_cases": 3,
+  "accuracy_percent": 50.0,
+  "gold_cases": 3,
+  "gold_accepted": 0,
+  "bad_cases": 3,
+  "bad_rejected": 3,
+  "outcomes": [
+    {
+      "calibration_id": "C01",
+      "benchmark_case_id": "B03",
+      "name": "good_blanket_edge_weight",
+      "expected_accept": true,
+      "actual_accept": false,
+      "matched": false,
+      "medium_high_findings": 1,
+      "evaluation": {
+        "findings": [
+          {
+            "step_order": null,
+            "claim": "Using books' weight to hold down the blanket edge prevents it from shifting.",
+            "issue_type": "unsupported_physical_claim",
+            "severity": "medium",
+            "explanation": "The plan asserts that placing books on the blanket edge will keep it from shifting, but no validated evidence shows that weight on a flexible blanket edge prevents movement; this effect is not established by the blanket's traits or capabilities."
+          }
+        ],
+        "medium_high_findings": 1,
+        "unlisted_resource_count": 0,
+        "unsupported_physical_claim_count": 1,
+        "unsupported_capability_count": 0,
+        "hidden_assumption_count": 0,
+        "safety_or_uncertainty_count": 0,
+        "constraint_violation_count": 0,
+        "accepted": false
+      }
+    },
+    {
+      "calibration_id": "C02",
+      "benchmark_case_id": "B03",
+      "name": "bad_unknown_weights",
+      "expected_accept": false,
+      "actual_accept": false,
+      "matched": true,
+      "medium_high_findings": 5,
+      "evaluation": {
+        "findings": [
+          {
+            "step_order": 1,
+            "claim": "Spray bottles used as heavy weights to stop blanket movement.",
+            "issue_type": "unsupported_capability",
+            "severity": "medium",
+            "explanation": "Spray bottles only validated to contain/dispense liquid; no evidence they provide sufficient weight to hold blanket edge."
+          },
+          {
+            "step_order": 1,
+            "claim": "Power strip used as heavy weight to stop blanket movement.",
+            "issue_type": "unsupported_capability",
+            "severity": "medium",
+            "explanation": "Power strip validated for electrical connection and reposition; no evidence it can serve as a weight to prevent blanket movement."
+          },
+          {
+            "step_order": 1,
+            "claim": "Their guaranteed weight and grip will keep the blanket completely fixed.",
+            "issue_type": "unsupported_physical_claim",
+            "severity": "medium",
+            "explanation": "No validated trait indicates sufficient weight or grip; assuming grip is unsupported."
+          },
+          {
+            "step_order": 1,
+            "claim": "Assumption that spray bottle contents are harmless.",
+            "issue_type": "safety_or_uncertainty",
+            "severity": "high",
+            "explanation": "Caution notes require identifying liquid contents before use; assuming harmless ignores safety caution and unknown contents."
+          },
+          {
+            "step_order": 1,
+            "claim": "Using spray bottles and power strip as weights without evidence.",
+            "issue_type": "constraint_violation",
+            "severity": "high",
+            "explanation": "Constraint requires any object used as a weight must have physical evidence supporting that use; none provided for these objects."
+          }
+        ],
+        "medium_high_findings": 5,
+        "unlisted_resource_count": 0,
+        "unsupported_physical_claim_count": 1,
+        "unsupported_capability_count": 2,
+        "hidden_assumption_count": 0,
+        "safety_or_uncertainty_count": 1,
+        "constraint_violation_count": 1,
+        "accepted": false
+      }
+    },
+    {
+      "calibration_id": "C03",
+      "benchmark_case_id": "B04",
+      "name": "good_soft_surface",
+      "expected_accept": true,
+      "actual_accept": false,
+      "matched": false,
+      "medium_high_findings": 1,
+      "evaluation": {
+        "findings": [
+          {
+            "step_order": null,
+            "claim": "Assumes blanket will stay in place on chair seat without sliding.",
+            "issue_type": "hidden_assumption",
+            "severity": "medium",
+            "explanation": "The blanket is flexible with no adhesion capability; it may shift when the object is placed, undermining the intended surface."
+          }
+        ],
+        "medium_high_findings": 1,
+        "unlisted_resource_count": 0,
+        "unsupported_physical_claim_count": 0,
+        "unsupported_capability_count": 0,
+        "hidden_assumption_count": 1,
+        "safety_or_uncertainty_count": 0,
+        "constraint_violation_count": 0,
+        "accepted": false
+      }
+    },
+    {
+      "calibration_id": "C04",
+      "benchmark_case_id": "B04",
+      "name": "bad_overclaimed_surface",
+      "expected_accept": false,
+      "actual_accept": false,
+      "matched": true,
+      "medium_high_findings": 1,
+      "evaluation": {
+        "findings": [
+          {
+            "step_order": 1,
+            "claim": "Lay the blanket on the chair seat to create a waterproof, non-slip, impact-proof platform.",
+            "issue_type": "constraint_violation",
+            "severity": "high",
+            "explanation": "The blanket's validated traits do not include waterproof, non-slip, or impact‑proof properties; claiming these violates the user's constraint against unsupported protection claims."
+          }
+        ],
+        "medium_high_findings": 1,
+        "unlisted_resource_count": 0,
+        "unsupported_physical_claim_count": 0,
+        "unsupported_capability_count": 0,
+        "hidden_assumption_count": 0,
+        "safety_or_uncertainty_count": 0,
+        "constraint_violation_count": 1,
+        "accepted": false
+      }
+    },
+    {
+      "calibration_id": "C05",
+      "benchmark_case_id": "B05",
+      "name": "good_conditional_power_use",
+      "expected_accept": true,
+      "actual_accept": false,
+      "matched": false,
+      "medium_high_findings": 1,
+      "evaluation": {
+        "findings": [
+          {
+            "step_order": 1,
+            "claim": "Inspect power strip and verify its electrical rating compatibility before use.",
+            "issue_type": "unlisted_resource",
+            "severity": "high",
+            "explanation": "The plan requires verifying the power strip's electrical rating, but no tool or documentation is listed in inventory or external resources to perform this check, making the step reliant on an unlisted resource."
+          }
+        ],
+        "medium_high_findings": 1,
+        "unlisted_resource_count": 1,
+        "unsupported_physical_claim_count": 0,
+        "unsupported_capability_count": 0,
+        "hidden_assumption_count": 0,
+        "safety_or_uncertainty_count": 0,
+        "constraint_violation_count": 0,
+        "accepted": false
+      }
+    },
+    {
+      "calibration_id": "C06",
+      "benchmark_case_id": "B05",
+      "name": "bad_unverified_power_use",
+      "expected_accept": false,
+      "actual_accept": false,
+      "matched": true,
+      "medium_high_findings": 1,
+      "evaluation": {
+        "findings": [
+          {
+            "step_order": 1,
+            "claim": "Plug the power strip into the wall outlet and immediately connect the electrical device.",
+            "issue_type": "safety_or_uncertainty",
+            "severity": "high",
+            "explanation": "The power strip's electrical rating and condition are unknown; using it without verification ignores the caution to verify before reuse, violating safety constraints."
+          }
+        ],
+        "medium_high_findings": 1,
+        "unlisted_resource_count": 0,
+        "unsupported_physical_claim_count": 0,
+        "unsupported_capability_count": 0,
+        "hidden_assumption_count": 0,
+        "safety_or_uncertainty_count": 1,
+        "constraint_violation_count": 0,
+        "accepted": false
+      }
+    }
+  ]
+}
