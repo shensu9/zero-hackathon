@@ -216,7 +216,7 @@ REPAIR RULES
 - No purchases.
 - No permanent modifications.
 - No intentional damage.
-- Phone camera is explicitly available.
+- Only the explicitly listed external resources may be treated as available without inventory IDs.
 - Maximum 5 steps.
 - Maximum about 22 words per action.
 - Maximum about 12 words per capability purpose.
