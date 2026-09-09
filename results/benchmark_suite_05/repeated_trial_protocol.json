@@ -1,0 +1,18 @@
+{
+  "trial_id": "benchmark_suite_05",
+  "repeated_benchmark_id": "benchmark_repeated_01",
+  "evaluator_version": "neutral_evaluator_v2",
+  "evaluator_policy": "frozen neutral evaluator v2; no evaluator changes between trials",
+  "object_dna_policy": "same frozen validated fixture cache",
+  "benchmark_cases": [
+    "B01",
+    "B02",
+    "B03",
+    "B04",
+    "B05"
+  ],
+  "generation_policy": "fresh baseline and fresh ZERO generation for every benchmark case",
+  "external_resource_normalization": "enabled",
+  "comparative_scoring": "neutral evaluator only",
+  "prior_trial_results_reused_for_generation": false
+}

@@ -1,0 +1,199 @@
+{
+  "case_id": "B03",
+  "case_name": "secure_blanket_edge",
+  "expectation": "feasible",
+  "repair_attempts": 2,
+  "repair_validation_failures": 0,
+  "baseline_plan": {
+    "title": "Weight blanket edge with books",
+    "summary": "Place a stack of books on the overhanging edge of the blanket on the office chair to prevent it from shifting.",
+    "item_ids_used": [
+      "blanket_01",
+      "books_01",
+      "office_chair_01"
+    ],
+    "steps": [
+      {
+        "order": 1,
+        "action": "Drape blanket over office chair seat so that one edge extends beyond the seat.",
+        "item_ids": [
+          "office_chair_01",
+          "blanket_01"
+        ],
+        "capability_uses": [],
+        "why_it_helps": "Positions the blanket ready for weighting."
+      },
+      {
+        "order": 2,
+        "action": "Place the stack of books on the overhanging blanket edge to weigh it down.",
+        "item_ids": [
+          "books_01",
+          "blanket_01"
+        ],
+        "capability_uses": [],
+        "why_it_helps": "The weight of the books holds the blanket edge in place, preventing shift."
+      }
+    ],
+    "assumptions": [
+      "Blanket is large enough to overhang the chair seat.",
+      "Books have sufficient mass to act as a weight.",
+      "Chair seat surface is flat and stable enough to support books without sliding."
+    ],
+    "unresolved_risks": [
+      "Books may slide off if not balanced.",
+      "Chair may roll if not locked, causing blanket to shift.",
+      "Blanket may still shift if weight insufficient."
+    ],
+    "constraint_check": [
+      "Budget: $0 - no purchases made.",
+      "Used only inventory objects: office_chair_01, blanket_01, books_01.",
+      "No tape, adhesives, fasteners, clamps, or unlisted objects used.",
+      "No permanent modifications made to any object.",
+      "No damage to any listed object.",
+      "Did not rely on unknown liquid contents (spray bottles not used).",
+      "Did not rely on electrical properties (power strip not used).",
+      "Books used as weight have physical evidence (known mass)."
+    ]
+  },
+  "zero_initial_plan": {
+    "title": "Blanket edge stabilizer",
+    "summary": "Use a stack of books as a weight to hold one edge of the blanket in place on the office chair seat.",
+    "item_ids_used": [
+      "books_01"
+    ],
+    "steps": [
+      {
+        "order": 1,
+        "action": "Place the stack of books on the blanket edge resting on the office chair seat to weigh it down.",
+        "item_ids": [
+          "books_01"
+        ],
+        "capability_uses": [
+          {
+            "item_id": "books_01",
+            "capability": "provide_weight",
+            "purpose": "Hold blanket edge down to prevent shifting"
+          }
+        ],
+        "why_it_helps": "Weighted books create downward force that stops the blanket edge from sliding on the chair seat."
+      }
+    ],
+    "assumptions": [],
+    "unresolved_risks": [],
+    "constraint_check": [
+      "Budget $0 satisfied",
+      "No tape, adhesives, fasteners, clamps used",
+      "No permanent modifications",
+      "No damage to any listed object",
+      "No reliance on unknown liquid contents",
+      "No reliance on electrical properties",
+      "Weight use supported by books' provide_weight capability"
+    ]
+  },
+  "zero_initial_critic": {
+    "passed": false,
+    "findings": [
+      {
+        "step_order": null,
+        "claim": "Weighted books create downward force that stops blanket edge sliding on chair seat.",
+        "issue_type": "unsupported_physical_claim",
+        "severity": "high",
+        "explanation": "The plan asserts weight prevents sliding, but no trait or capability establishes friction or slip resistance; weight alone does not guarantee edge stability.",
+        "recommended_fix": "Add a known friction-enhancing method (e.g., fold blanket edge under chair leg) or verify that existing friction suffices before relying on weight alone."
+      }
+    ]
+  },
+  "zero_final_plan": {
+    "title": "Blanket edge stabilizer with weight and tuck",
+    "summary": "Use books as weight and tuck the blanket edge under the chair leg to secure it via mechanical interlock.",
+    "item_ids_used": [
+      "blanket_01",
+      "books_01",
+      "office_chair_01"
+    ],
+    "steps": [
+      {
+        "order": 1,
+        "action": "Place the stack of books on the blanket edge resting on the office chair seat to weigh it down.",
+        "item_ids": [
+          "books_01"
+        ],
+        "capability_uses": [
+          {
+            "item_id": "books_01",
+            "capability": "provide_weight",
+            "purpose": "Hold blanket edge down to increase normal force"
+          }
+        ],
+        "why_it_helps": "Added weight raises normal force, which may increase friction if the blanket and seat surfaces are not slippery."
+      },
+      {
+        "order": 2,
+        "action": "Tuck the folded blanket edge under the front leg of the office chair to secure it.",
+        "item_ids": [
+          "blanket_01",
+          "office_chair_01"
+        ],
+        "capability_uses": [
+          {
+            "item_id": "blanket_01",
+            "capability": "fold",
+            "purpose": "Create a folded edge to tuck under chair leg"
+          },
+          {
+            "item_id": "office_chair_01",
+            "capability": "support",
+            "purpose": "Provide a surface to hold the folded edge"
+          }
+        ],
+        "why_it_helps": "Tucking the folded edge under the chair leg creates a mechanical interlock that holds the edge."
+      }
+    ],
+    "assumptions": [],
+    "unresolved_risks": [],
+    "constraint_check": []
+  },
+  "zero_final_critic": {
+    "passed": false,
+    "findings": [
+      {
+        "step_order": null,
+        "claim": "Tucking creates a mechanical interlock that holds the blanket edge.",
+        "issue_type": "unsupported_physical_claim",
+        "severity": "medium",
+        "explanation": "The plan asserts a hold from tucking, but only fold and support capabilities are verified; no evidence shows the interlock prevents slipping.",
+        "recommended_fix": "Replace claim with that tucking secures edge via friction or geometry, or add a capability like 'hold' if justified."
+      }
+    ]
+  },
+  "baseline_evaluation": {
+    "findings": [
+      {
+        "step_order": 1,
+        "claim": "Blanket is large enough to overhang the chair seat.",
+        "issue_type": "hidden_assumption",
+        "severity": "medium",
+        "explanation": "The plan assumes the blanket is large enough to overhang the chair seat, but size is not established in inventory."
+      }
+    ],
+    "medium_high_findings": 1,
+    "unlisted_resource_count": 0,
+    "unsupported_physical_claim_count": 0,
+    "unsupported_capability_count": 0,
+    "hidden_assumption_count": 1,
+    "safety_or_uncertainty_count": 0,
+    "constraint_violation_count": 0,
+    "accepted": false
+  },
+  "zero_evaluation": {
+    "findings": [],
+    "medium_high_findings": 0,
+    "unlisted_resource_count": 0,
+    "unsupported_physical_claim_count": 0,
+    "unsupported_capability_count": 0,
+    "hidden_assumption_count": 0,
+    "safety_or_uncertainty_count": 0,
+    "constraint_violation_count": 0,
+    "accepted": true
+  }
+}

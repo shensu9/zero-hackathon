@@ -1,0 +1,273 @@
+{
+  "repeated_benchmark_id": "benchmark_repeated_01",
+  "evaluator_version": "neutral_evaluator_v2",
+  "trial_ids": [
+    "benchmark_suite_03",
+    "benchmark_suite_04",
+    "benchmark_suite_05"
+  ],
+  "trials": 3,
+  "benchmark_cases_per_trial": 5,
+  "paired_case_runs": 15,
+  "rows": [
+    {
+      "trial_id": "benchmark_suite_03",
+      "case_id": "B01",
+      "case_name": "product_photography",
+      "baseline_medium_high": 2,
+      "zero_medium_high": 1,
+      "baseline_accepted": false,
+      "zero_accepted": false
+    },
+    {
+      "trial_id": "benchmark_suite_03",
+      "case_id": "B02",
+      "case_name": "raised_display_platform",
+      "baseline_medium_high": 1,
+      "zero_medium_high": 0,
+      "baseline_accepted": false,
+      "zero_accepted": true
+    },
+    {
+      "trial_id": "benchmark_suite_03",
+      "case_id": "B03",
+      "case_name": "secure_blanket_edge",
+      "baseline_medium_high": 1,
+      "zero_medium_high": 1,
+      "baseline_accepted": false,
+      "zero_accepted": false
+    },
+    {
+      "trial_id": "benchmark_suite_03",
+      "case_id": "B04",
+      "case_name": "soft_protective_surface",
+      "baseline_medium_high": 0,
+      "zero_medium_high": 0,
+      "baseline_accepted": true,
+      "zero_accepted": true
+    },
+    {
+      "trial_id": "benchmark_suite_03",
+      "case_id": "B05",
+      "case_name": "safe_power_connection",
+      "baseline_medium_high": 1,
+      "zero_medium_high": 1,
+      "baseline_accepted": false,
+      "zero_accepted": false
+    },
+    {
+      "trial_id": "benchmark_suite_04",
+      "case_id": "B01",
+      "case_name": "product_photography",
+      "baseline_medium_high": 2,
+      "zero_medium_high": 0,
+      "baseline_accepted": false,
+      "zero_accepted": true
+    },
+    {
+      "trial_id": "benchmark_suite_04",
+      "case_id": "B02",
+      "case_name": "raised_display_platform",
+      "baseline_medium_high": 1,
+      "zero_medium_high": 0,
+      "baseline_accepted": false,
+      "zero_accepted": true
+    },
+    {
+      "trial_id": "benchmark_suite_04",
+      "case_id": "B03",
+      "case_name": "secure_blanket_edge",
+      "baseline_medium_high": 2,
+      "zero_medium_high": 0,
+      "baseline_accepted": false,
+      "zero_accepted": true
+    },
+    {
+      "trial_id": "benchmark_suite_04",
+      "case_id": "B04",
+      "case_name": "soft_protective_surface",
+      "baseline_medium_high": 0,
+      "zero_medium_high": 1,
+      "baseline_accepted": true,
+      "zero_accepted": false
+    },
+    {
+      "trial_id": "benchmark_suite_04",
+      "case_id": "B05",
+      "case_name": "safe_power_connection",
+      "baseline_medium_high": 2,
+      "zero_medium_high": 1,
+      "baseline_accepted": false,
+      "zero_accepted": false
+    },
+    {
+      "trial_id": "benchmark_suite_05",
+      "case_id": "B01",
+      "case_name": "product_photography",
+      "baseline_medium_high": 3,
+      "zero_medium_high": 1,
+      "baseline_accepted": false,
+      "zero_accepted": false
+    },
+    {
+      "trial_id": "benchmark_suite_05",
+      "case_id": "B02",
+      "case_name": "raised_display_platform",
+      "baseline_medium_high": 0,
+      "zero_medium_high": 0,
+      "baseline_accepted": true,
+      "zero_accepted": true
+    },
+    {
+      "trial_id": "benchmark_suite_05",
+      "case_id": "B03",
+      "case_name": "secure_blanket_edge",
+      "baseline_medium_high": 1,
+      "zero_medium_high": 0,
+      "baseline_accepted": false,
+      "zero_accepted": true
+    },
+    {
+      "trial_id": "benchmark_suite_05",
+      "case_id": "B04",
+      "case_name": "soft_protective_surface",
+      "baseline_medium_high": 1,
+      "zero_medium_high": 0,
+      "baseline_accepted": false,
+      "zero_accepted": true
+    },
+    {
+      "trial_id": "benchmark_suite_05",
+      "case_id": "B05",
+      "case_name": "safe_power_connection",
+      "baseline_medium_high": 2,
+      "zero_medium_high": 1,
+      "baseline_accepted": false,
+      "zero_accepted": false
+    }
+  ],
+  "aggregate": {
+    "baseline_total_medium_high": 19,
+    "zero_total_medium_high": 7,
+    "absolute_reduction": 12,
+    "reduction_percent": 63.1578947368421,
+    "baseline_mean_per_case_run": 1.2666666666666666,
+    "zero_mean_per_case_run": 0.4666666666666667,
+    "baseline_median_per_case_run": 1.0,
+    "zero_median_per_case_run": 0.0,
+    "zero_wins": 10,
+    "ties": 4,
+    "baseline_wins": 1,
+    "baseline_accepted_runs": 3,
+    "zero_accepted_runs": 8,
+    "baseline_acceptance_rate": 20.0,
+    "zero_acceptance_rate": 53.333333333333336
+  },
+  "per_case": [
+    {
+      "case_id": "B01",
+      "case_name": "product_photography",
+      "baseline_values": [
+        2,
+        2,
+        3
+      ],
+      "zero_values": [
+        1,
+        0,
+        1
+      ],
+      "baseline_mean": 2.3333333333333335,
+      "zero_mean": 0.6666666666666666,
+      "baseline_median": 2.0,
+      "zero_median": 1.0,
+      "zero_wins": 3,
+      "ties": 0,
+      "baseline_wins": 0
+    },
+    {
+      "case_id": "B02",
+      "case_name": "raised_display_platform",
+      "baseline_values": [
+        1,
+        1,
+        0
+      ],
+      "zero_values": [
+        0,
+        0,
+        0
+      ],
+      "baseline_mean": 0.6666666666666666,
+      "zero_mean": 0.0,
+      "baseline_median": 1.0,
+      "zero_median": 0.0,
+      "zero_wins": 2,
+      "ties": 1,
+      "baseline_wins": 0
+    },
+    {
+      "case_id": "B03",
+      "case_name": "secure_blanket_edge",
+      "baseline_values": [
+        1,
+        2,
+        1
+      ],
+      "zero_values": [
+        1,
+        0,
+        0
+      ],
+      "baseline_mean": 1.3333333333333333,
+      "zero_mean": 0.3333333333333333,
+      "baseline_median": 1.0,
+      "zero_median": 0.0,
+      "zero_wins": 2,
+      "ties": 1,
+      "baseline_wins": 0
+    },
+    {
+      "case_id": "B04",
+      "case_name": "soft_protective_surface",
+      "baseline_values": [
+        0,
+        0,
+        1
+      ],
+      "zero_values": [
+        0,
+        1,
+        0
+      ],
+      "baseline_mean": 0.3333333333333333,
+      "zero_mean": 0.3333333333333333,
+      "baseline_median": 0.0,
+      "zero_median": 0.0,
+      "zero_wins": 1,
+      "ties": 1,
+      "baseline_wins": 1
+    },
+    {
+      "case_id": "B05",
+      "case_name": "safe_power_connection",
+      "baseline_values": [
+        1,
+        2,
+        2
+      ],
+      "zero_values": [
+        1,
+        1,
+        1
+      ],
+      "baseline_mean": 1.6666666666666667,
+      "zero_mean": 1.0,
+      "baseline_median": 2.0,
+      "zero_median": 1.0,
+      "zero_wins": 2,
+      "ties": 1,
+      "baseline_wins": 0
+    }
+  ]
+}

@@ -1,0 +1,196 @@
+{
+  "case_id": "B02",
+  "case_name": "raised_display_platform",
+  "expectation": "feasible",
+  "repair_attempts": 1,
+  "repair_validation_failures": 0,
+  "baseline_plan": {
+    "title": "Book Stack Platform on Office Chair",
+    "summary": "Create a raised flat surface by stacking books on the office chair seat to display a small lightweight object.",
+    "item_ids_used": [
+      "books_01",
+      "office_chair_01"
+    ],
+    "steps": [
+      {
+        "order": 1,
+        "action": "Stack the books neatly on the office chair seat to form a flat, level surface.",
+        "item_ids": [
+          "office_chair_01",
+          "books_01"
+        ],
+        "capability_uses": [],
+        "why_it_helps": "Provides elevation and a flat platform for the object."
+      },
+      {
+        "order": 2,
+        "action": "Place the small lightweight object on top of the stacked books.",
+        "item_ids": [
+          "books_01"
+        ],
+        "capability_uses": [],
+        "why_it_helps": "Positions the object above the chair seat as required."
+      }
+    ],
+    "assumptions": [
+      "The books are sturdy enough to support the weight of the small lightweight object without collapsing."
+    ],
+    "unresolved_risks": [
+      "The stacked books may shift or slide off the chair seat if not balanced, potentially causing the object to fall."
+    ],
+    "constraint_check": [
+      "Budget: $0 – no purchases or costs incurred.",
+      "Used only listed inventory objects: office_chair_01 and books_01.",
+      "No adhesives, tape, fasteners, or stands were used.",
+      "No permanent modifications made to any object.",
+      "No damage to listed objects; books remain intact.",
+      "Stability claims are limited to the assumption and noted risk; no overstatement of strength.",
+      "The small lightweight object is treated as an external resource as permitted."
+    ]
+  },
+  "zero_initial_plan": {
+    "title": "Raise Object on Chair Using Book Stack",
+    "summary": "Stack books on the office chair seat to create a flat, elevated platform for displaying a small lightweight object, using only available inventory items.",
+    "item_ids_used": [
+      "books_01",
+      "office_chair_01"
+    ],
+    "steps": [
+      {
+        "order": 1,
+        "action": "Stack the books neatly onto the center of the office chair seat to form a stable, flat base.",
+        "item_ids": [
+          "books_01",
+          "office_chair_01"
+        ],
+        "capability_uses": [
+          {
+            "item_id": "books_01",
+            "capability": "stack",
+            "purpose": "arrange books into a stable pile"
+          },
+          {
+            "item_id": "office_chair_01",
+            "capability": "support",
+            "purpose": "hold the book stack in place"
+          }
+        ],
+        "why_it_helps": "Creates an elevated, level surface on the chair for placing the display object."
+      },
+      {
+        "order": 2,
+        "action": "Place the small lightweight object onto the stacked books, centering it on the top surface.",
+        "item_ids": [
+          "books_01"
+        ],
+        "capability_uses": [
+          {
+            "item_id": "books_01",
+            "capability": "provide_surface",
+            "purpose": "offer a flat area to support the object"
+          }
+        ],
+        "why_it_helps": "Raises the object above the chair seat while keeping it secure and visible."
+      }
+    ],
+    "assumptions": [],
+    "unresolved_risks": [],
+    "constraint_check": []
+  },
+  "zero_initial_critic": {
+    "passed": false,
+    "findings": [
+      {
+        "step_order": 1,
+        "claim": "form a stable, flat base",
+        "issue_type": "unsupported_physical_claim",
+        "severity": "medium",
+        "explanation": "The plan asserts stability but no trait or capability guarantees the book stack will not wobble or slip on the chair seat.",
+        "recommended_fix": "Replace 'stable' with 'level' or add a step to adjust books for balance, or note that stability is not guaranteed."
+      },
+      {
+        "step_order": 2,
+        "claim": "keeping it secure and visible",
+        "issue_type": "unsupported_physical_claim",
+        "severity": "medium",
+        "explanation": "Claim of security implies the object will not move; no evidence that the book stack prevents sliding or tipping.",
+        "recommended_fix": "Change 'secure' to 'supported' or add a note that the object should be light and centered to minimize movement."
+      }
+    ]
+  },
+  "zero_final_plan": {
+    "title": "Raise Object on Chair Using Book Stack",
+    "summary": "Stack books on the office chair seat to create a flat, elevated platform for displaying a small lightweight object, using only available inventory items.",
+    "item_ids_used": [
+      "books_01",
+      "office_chair_01"
+    ],
+    "steps": [
+      {
+        "order": 1,
+        "action": "Stack the books neatly onto the center of the office chair seat to form a level, flat base.",
+        "item_ids": [
+          "books_01",
+          "office_chair_01"
+        ],
+        "capability_uses": [
+          {
+            "item_id": "books_01",
+            "capability": "stack",
+            "purpose": "arrange books into a stable pile"
+          },
+          {
+            "item_id": "office_chair_01",
+            "capability": "support",
+            "purpose": "hold the book stack in place"
+          }
+        ],
+        "why_it_helps": "Creates an elevated, level surface on the chair for placing the display object."
+      },
+      {
+        "order": 2,
+        "action": "Place the small lightweight object onto the stacked books, centering it on the top surface.",
+        "item_ids": [
+          "books_01"
+        ],
+        "capability_uses": [
+          {
+            "item_id": "books_01",
+            "capability": "provide_surface",
+            "purpose": "offer a flat area to support the object"
+          }
+        ],
+        "why_it_helps": "Raises the object above the chair seat while keeping it supported and visible."
+      }
+    ],
+    "assumptions": [],
+    "unresolved_risks": [],
+    "constraint_check": []
+  },
+  "zero_final_critic": {
+    "passed": true,
+    "findings": []
+  },
+  "baseline_evaluation": {
+    "findings": [],
+    "medium_high_findings": 0,
+    "unlisted_resource_count": 0,
+    "unsupported_physical_claim_count": 0,
+    "unsupported_capability_count": 0,
+    "hidden_assumption_count": 0,
+    "safety_or_uncertainty_count": 0,
+    "constraint_violation_count": 0,
+    "accepted": true
+  },
+  "zero_evaluation": {
+    "findings": [],
+    "medium_high_findings": 0,
+    "unlisted_resource_count": 0,
+    "unsupported_physical_claim_count": 0,
+    "unsupported_capability_count": 0,
+    "hidden_assumption_count": 0,
+    "safety_or_uncertainty_count": 0,
+    "constraint_violation_count": 0,
+    "accepted": true
+  }
+}

@@ -1,0 +1,157 @@
+{
+  "case_id": "B04",
+  "case_name": "soft_protective_surface",
+  "expectation": "feasible",
+  "repair_attempts": 0,
+  "repair_validation_failures": 0,
+  "baseline_plan": {
+    "title": "Soft Blanket Cushion for Chair Seat",
+    "summary": "Place the blanket on the office chair seat to create a soft resting surface for the small fragile object.",
+    "item_ids_used": [
+      "blanket_01",
+      "office_chair_01"
+    ],
+    "steps": [
+      {
+        "order": 1,
+        "action": "Unfold blanket_01 and adjust its size to match the chair seat dimensions.",
+        "item_ids": [
+          "blanket_01"
+        ],
+        "capability_uses": [],
+        "why_it_helps": "Prepares the blanket for placement as a cushion."
+      },
+      {
+        "order": 2,
+        "action": "Lay the adjusted blanket flat on the seat of office_chair_01, smoothing out wrinkles.",
+        "item_ids": [
+          "office_chair_01",
+          "blanket_01"
+        ],
+        "capability_uses": [],
+        "why_it_helps": "Creates a soft surface for the fragile object to rest on."
+      }
+    ],
+    "assumptions": [
+      "The blanket provides adequate softness to protect the fragile object.",
+      "The small fragile object is light enough not to compress the blanket excessively."
+    ],
+    "unresolved_risks": [
+      "The blanket may shift during use, potentially exposing the object to the hard chair surface.",
+      "The object may slide off the blanket if not centered."
+    ],
+    "constraint_check": [
+      "Budget: $0 - no purchases made.",
+      "No permanent modifications - blanket placed loosely on chair.",
+      "No damage to inventory objects - blanket and chair remain unchanged.",
+      "Only listed inventory objects used - office_chair_01 and blanket_01.",
+      "External resource (small fragile object) not modified."
+    ]
+  },
+  "zero_initial_plan": {
+    "title": "Soft Blanket Surface on Chair Seat",
+    "summary": "Place a folded blanket on the office chair seat to provide a soft, protective resting area for a small fragile object.",
+    "item_ids_used": [
+      "blanket_01",
+      "office_chair_01"
+    ],
+    "steps": [
+      {
+        "order": 1,
+        "action": "Fold the blanket and lay it flat on the office chair seat.",
+        "item_ids": [
+          "blanket_01",
+          "office_chair_01"
+        ],
+        "capability_uses": [
+          {
+            "item_id": "blanket_01",
+            "capability": "cushion",
+            "purpose": "provide a soft layer for the fragile object"
+          },
+          {
+            "item_id": "office_chair_01",
+            "capability": "support",
+            "purpose": "hold the blanket in place on the seat"
+          }
+        ],
+        "why_it_helps": "Creates a cushioned surface without altering or damaging any inventory items."
+      }
+    ],
+    "assumptions": [],
+    "unresolved_risks": [],
+    "constraint_check": []
+  },
+  "zero_initial_critic": {
+    "passed": true,
+    "findings": []
+  },
+  "zero_final_plan": {
+    "title": "Soft Blanket Surface on Chair Seat",
+    "summary": "Place a folded blanket on the office chair seat to provide a soft, protective resting area for a small fragile object.",
+    "item_ids_used": [
+      "blanket_01",
+      "office_chair_01"
+    ],
+    "steps": [
+      {
+        "order": 1,
+        "action": "Fold the blanket and lay it flat on the office chair seat.",
+        "item_ids": [
+          "blanket_01",
+          "office_chair_01"
+        ],
+        "capability_uses": [
+          {
+            "item_id": "blanket_01",
+            "capability": "cushion",
+            "purpose": "provide a soft layer for the fragile object"
+          },
+          {
+            "item_id": "office_chair_01",
+            "capability": "support",
+            "purpose": "hold the blanket in place on the seat"
+          }
+        ],
+        "why_it_helps": "Creates a cushioned surface without altering or damaging any inventory items."
+      }
+    ],
+    "assumptions": [],
+    "unresolved_risks": [],
+    "constraint_check": []
+  },
+  "zero_final_critic": {
+    "passed": true,
+    "findings": []
+  },
+  "baseline_evaluation": {
+    "findings": [
+      {
+        "step_order": null,
+        "claim": "The small fragile object is light enough not to compress the blanket excessively.",
+        "issue_type": "hidden_assumption",
+        "severity": "medium",
+        "explanation": "The plan assumes the external object's weight is low enough to avoid excessive compression, but its weight is unknown and not verified."
+      }
+    ],
+    "medium_high_findings": 1,
+    "unlisted_resource_count": 0,
+    "unsupported_physical_claim_count": 0,
+    "unsupported_capability_count": 0,
+    "hidden_assumption_count": 1,
+    "safety_or_uncertainty_count": 0,
+    "constraint_violation_count": 0,
+    "accepted": false
+  },
+  "zero_evaluation": {
+    "findings": [],
+    "medium_high_findings": 0,
+    "unlisted_resource_count": 0,
+    "unsupported_physical_claim_count": 0,
+    "unsupported_capability_count": 0,
+    "hidden_assumption_count": 0,
+    "safety_or_uncertainty_count": 0,
+    "constraint_violation_count": 0,
+    "accepted": true
+  }
+}

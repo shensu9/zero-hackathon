@@ -1,0 +1,187 @@
+{
+  "case_id": "B03",
+  "case_name": "secure_blanket_edge",
+  "expectation": "feasible",
+  "repair_attempts": 1,
+  "repair_validation_failures": 0,
+  "baseline_plan": {
+    "title": "Blanket edge stabilizer using books",
+    "summary": "Place the blanket on the office chair seat and weigh down one edge with a stack of books to prevent shifting.",
+    "item_ids_used": [
+      "blanket_01",
+      "books_01",
+      "office_chair_01"
+    ],
+    "steps": [
+      {
+        "order": 1,
+        "action": "Unfold or lay the blanket flat on the seat of the office chair, ensuring it covers the seat area.",
+        "item_ids": [
+          "blanket_01",
+          "office_chair_01"
+        ],
+        "capability_uses": [],
+        "why_it_helps": "Positions the blanket so its edge can be secured."
+      },
+      {
+        "order": 2,
+        "action": "Place the stack of books onto the blanket's edge that hangs over the chair seat, distributing the weight evenly along that edge.",
+        "item_ids": [
+          "books_01",
+          "blanket_01"
+        ],
+        "capability_uses": [],
+        "why_it_helps": "The books act as a weight, using their known mass to hold the blanket edge in place without adhesives or fasteners."
+      }
+    ],
+    "assumptions": [
+      "The blanket is large enough to extend beyond the chair seat on at least one edge.",
+      "The stack of books provides sufficient weight to resist typical shifting forces.",
+      "The chair seat surface is flat enough for the blanket to lie without bunching."
+    ],
+    "unresolved_risks": [
+      "If the blanket material is very smooth, the books may slide off.",
+      "If the chair is moved or rolled, the weighted edge may still shift.",
+      "Uneven weight distribution could cause the blanket to wrinkle or bunch."
+    ],
+    "constraint_check": [
+      "No tape, adhesives, fasteners, clamps, or unlisted objects were used.",
+      "Total cost is $0 (only existing inventory objects used).",
+      "Only listed physical inventory objects (office_chair_01, blanket_01, books_01) were utilized.",
+      "No permanent modifications were made to any object.",
+      "No damage was inflicted on any listed object.",
+      "No reliance on unknown liquid contents (spray bottles not used).",
+      "No reliance on electrical properties (power strip not used).",
+      "The books used as a weight have physical evidence of mass (hardcover/paperback objects)."
+    ]
+  },
+  "zero_initial_plan": {
+    "title": "Secure blanket edge with book weight",
+    "summary": "Fold the blanket edge over a stack of books on the chair seat to weigh it down and prevent shifting.",
+    "item_ids_used": [
+      "blanket_01",
+      "books_01"
+    ],
+    "steps": [
+      {
+        "order": 1,
+        "action": "Fold the edge of the blanket over a stack of books placed on the chair seat to secure the edge.",
+        "item_ids": [
+          "blanket_01",
+          "books_01"
+        ],
+        "capability_uses": [
+          {
+            "item_id": "blanket_01",
+            "capability": "fold",
+            "purpose": "Create a folded flap that holds books in place and weights the blanket edge."
+          },
+          {
+            "item_id": "books_01",
+            "capability": "provide_weight",
+            "purpose": "Provide downward force to prevent the blanket edge from shifting."
+          }
+        ],
+        "why_it_helps": "The folded flap keeps books from sliding, and their weight holds the blanket edge down."
+      }
+    ],
+    "assumptions": [],
+    "unresolved_risks": [],
+    "constraint_check": []
+  },
+  "zero_initial_critic": {
+    "passed": false,
+    "findings": [
+      {
+        "step_order": null,
+        "claim": "Folded blanket flap holds books in place.",
+        "issue_type": "unsupported_physical_claim",
+        "severity": "medium",
+        "explanation": "The blanket's fold capability does not ensure the flap can retain objects; no evidence of sufficient friction or rigidity to hold books.",
+        "recommended_fix": "Remove the claim that the flap holds books; rely only on book weight to secure blanket edge."
+      }
+    ]
+  },
+  "zero_final_plan": {
+    "title": "Blanket edge secured with book weight",
+    "summary": "Fold the blanket edge over a stack of books on the chair seat to weigh it down and prevent shifting.",
+    "item_ids_used": [
+      "blanket_01",
+      "books_01"
+    ],
+    "steps": [
+      {
+        "order": 1,
+        "action": "Fold the blanket edge over a stack of books on the chair seat to weigh it down.",
+        "item_ids": [
+          "blanket_01",
+          "books_01"
+        ],
+        "capability_uses": [
+          {
+            "item_id": "blanket_01",
+            "capability": "fold",
+            "purpose": "Create a flap that positions books to apply weight."
+          },
+          {
+            "item_id": "books_01",
+            "capability": "provide_weight",
+            "purpose": "Provide downward force to secure blanket edge."
+          }
+        ],
+        "why_it_helps": "The books' weight holds the blanket edge down, preventing it from shifting on the seat."
+      }
+    ],
+    "assumptions": [],
+    "unresolved_risks": [],
+    "constraint_check": []
+  },
+  "zero_final_critic": {
+    "passed": true,
+    "findings": []
+  },
+  "baseline_evaluation": {
+    "findings": [
+      {
+        "step_order": 2,
+        "claim": "Assumes blanket is larger than chair seat to create an overhanging edge.",
+        "issue_type": "hidden_assumption",
+        "severity": "medium",
+        "explanation": "Inventory does not specify blanket dimensions; plan requires overhang to place books, which may not be true."
+      },
+      {
+        "step_order": 2,
+        "claim": "Assumes stack of books provides enough weight to prevent edge shifting.",
+        "issue_type": "unsupported_physical_claim",
+        "severity": "medium",
+        "explanation": "No weight data for books; sufficiency is unverified and may be insufficient for typical forces."
+      },
+      {
+        "step_order": 1,
+        "claim": "Assumes chair seat surface is flat enough for blanket to lie without bunching.",
+        "issue_type": "hidden_assumption",
+        "severity": "low",
+        "explanation": "Inventory does not confirm seat flatness; uneven surface could cause blanket to wrinkle, reducing effectiveness."
+      }
+    ],
+    "medium_high_findings": 2,
+    "unlisted_resource_count": 0,
+    "unsupported_physical_claim_count": 1,
+    "unsupported_capability_count": 0,
+    "hidden_assumption_count": 2,
+    "safety_or_uncertainty_count": 0,
+    "constraint_violation_count": 0,
+    "accepted": false
+  },
+  "zero_evaluation": {
+    "findings": [],
+    "medium_high_findings": 0,
+    "unlisted_resource_count": 0,
+    "unsupported_physical_claim_count": 0,
+    "unsupported_capability_count": 0,
+    "hidden_assumption_count": 0,
+    "safety_or_uncertainty_count": 0,
+    "constraint_violation_count": 0,
+    "accepted": true
+  }
+}

@@ -1,0 +1,104 @@
+{
+  "suite_id": "benchmark_suite_04",
+  "protocol_note": "Baseline and ZERO are evaluated by the same neutral evaluator against the same frozen Object DNA world model. ZERO internal critic results are not used as comparative scores.",
+  "total_cases": 5,
+  "completed_cases": 5,
+  "failed_cases": 0,
+  "failed_case_details": [],
+  "case_summaries": [
+    {
+      "case_id": "B01",
+      "case_name": "product_photography",
+      "expectation": "conditionally_feasible",
+      "baseline_medium_high": 2,
+      "zero_medium_high": 0,
+      "difference_positive_favors_zero": 2,
+      "baseline_accepted": false,
+      "zero_accepted": true,
+      "zero_internal_critic_passed": true,
+      "repair_attempts": 2,
+      "repair_validation_failures": 0
+    },
+    {
+      "case_id": "B02",
+      "case_name": "raised_display_platform",
+      "expectation": "feasible",
+      "baseline_medium_high": 1,
+      "zero_medium_high": 0,
+      "difference_positive_favors_zero": 1,
+      "baseline_accepted": false,
+      "zero_accepted": true,
+      "zero_internal_critic_passed": false,
+      "repair_attempts": 2,
+      "repair_validation_failures": 0
+    },
+    {
+      "case_id": "B03",
+      "case_name": "secure_blanket_edge",
+      "expectation": "feasible",
+      "baseline_medium_high": 2,
+      "zero_medium_high": 0,
+      "difference_positive_favors_zero": 2,
+      "baseline_accepted": false,
+      "zero_accepted": true,
+      "zero_internal_critic_passed": true,
+      "repair_attempts": 1,
+      "repair_validation_failures": 0
+    },
+    {
+      "case_id": "B04",
+      "case_name": "soft_protective_surface",
+      "expectation": "feasible",
+      "baseline_medium_high": 0,
+      "zero_medium_high": 1,
+      "difference_positive_favors_zero": -1,
+      "baseline_accepted": true,
+      "zero_accepted": false,
+      "zero_internal_critic_passed": true,
+      "repair_attempts": 1,
+      "repair_validation_failures": 0
+    },
+    {
+      "case_id": "B05",
+      "case_name": "safe_power_connection",
+      "expectation": "conditionally_feasible",
+      "baseline_medium_high": 2,
+      "zero_medium_high": 1,
+      "difference_positive_favors_zero": 1,
+      "baseline_accepted": false,
+      "zero_accepted": false,
+      "zero_internal_critic_passed": true,
+      "repair_attempts": 1,
+      "repair_validation_failures": 0
+    }
+  ],
+  "aggregate": {
+    "baseline_medium_high_findings": 7,
+    "zero_medium_high_findings": 2,
+    "absolute_medium_high_reduction": 5,
+    "medium_high_reduction_percent": 71.42857142857143,
+    "baseline_accepted_cases": 1,
+    "zero_accepted_cases": 3,
+    "zero_wins_by_medium_high": 4,
+    "ties_by_medium_high": 0,
+    "baseline_wins_by_medium_high": 1,
+    "baseline_issue_totals": {
+      "unlisted_resource": 0,
+      "unsupported_physical_claim": 2,
+      "unsupported_capability": 1,
+      "hidden_assumption": 4,
+      "safety_or_uncertainty": 1,
+      "constraint_violation": 0
+    },
+    "zero_issue_totals": {
+      "unlisted_resource": 0,
+      "unsupported_physical_claim": 1,
+      "unsupported_capability": 0,
+      "hidden_assumption": 0,
+      "safety_or_uncertainty": 0,
+      "constraint_violation": 1
+    },
+    "zero_total_repair_attempts": 7,
+    "zero_repair_validation_failures": 0
+  }
+}

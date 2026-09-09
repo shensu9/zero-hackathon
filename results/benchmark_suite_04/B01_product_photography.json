@@ -1,0 +1,285 @@
+{
+  "case_id": "B01",
+  "case_name": "product_photography",
+  "expectation": "conditionally_feasible",
+  "repair_attempts": 2,
+  "repair_validation_failures": 0,
+  "baseline_plan": {
+    "title": "DIY Tabletop Photo Studio with Chair, Books, Blanket",
+    "summary": "Use stacked books as a platform for the object, a blanket as a seamless backdrop, and an office chair to hold the phone camera at a fixed angle for consistent framing.",
+    "item_ids_used": [
+      "blanket_01",
+      "books_01",
+      "office_chair_01",
+      "power_strip_01"
+    ],
+    "steps": [
+      {
+        "order": 1,
+        "action": "Lay the blanket flat on the floor to create a smooth, neutral backdrop.",
+        "item_ids": [
+          "blanket_01"
+        ],
+        "capability_uses": [],
+        "why_it_helps": "Provides a clean background that minimizes distractions and reflects light evenly."
+      },
+      {
+        "order": 2,
+        "action": "Stack several books to form a stable platform of appropriate height for the small object.",
+        "item_ids": [
+          "books_01"
+        ],
+        "capability_uses": [],
+        "why_it_helps": "Elevates the object to eye level with the phone camera and provides a sturdy surface."
+      },
+      {
+        "order": 3,
+        "action": "Place the small object centered on the book platform.",
+        "item_ids": [],
+        "capability_uses": [],
+        "why_it_helps": "Positions the subject correctly for framing and ensures it remains stationary during shooting."
+      },
+      {
+        "order": 4,
+        "action": "Position the office chair so its seat faces the setup, then place the phone on the chair seat; add a few books under the phone if needed to adjust the angle and aim at the object.",
+        "item_ids": [
+          "office_chair_01",
+          "books_01"
+        ],
+        "capability_uses": [],
+        "why_it_helps": "Uses the chair as a stable mount for the phone, allowing consistent framing without hand shake."
+      },
+      {
+        "order": 5,
+        "action": "Place the power strip on the corners or edges of the blanket to weigh it down and prevent shifting.",
+        "item_ids": [
+          "power_strip_01"
+        ],
+        "capability_uses": [],
+        "why_it_helps": "Keeps the backdrop taut and flat, reducing wrinkles that could appear in photos."
+      }
+    ],
+    "assumptions": [
+      "The floor is clean, flat, and provides sufficient friction to keep the blanket and book stack in place.",
+      "Ambient indoor lighting is adequate for a decent exposure; no additional light sources are required.",
+      "The phone camera can focus at the close distance required for the small object.",
+      "The blanket is large enough to cover the backdrop area behind the object."
+    ],
+    "unresolved_risks": [
+      "If the blanket is slippery, it may shift despite the power strip weights.",
+      "The phone may slide off the chair seat if the surface is smooth or the angle is steep.",
+      "The small object could roll off the book stack if not perfectly centered or if the stack is uneven.",
+      "Unknown contents of the spray bottles are not used, but if accidentally sprayed they could damage objects."
+    ],
+    "constraint_check": [
+      "Budget: $0 – no purchases or costs involved.",
+      "Only listed inventory objects (office_chair_01, blanket_01, books_01, power_strip_01) and external resources (phone camera, small object) are used.",
+      "No permanent modifications: all items are placed using gravity and friction only.",
+      "No damage: objects are not altered, cut, or affixed.",
+      "No unlisted resources such as lamps, windows, tape, tripod, stand, shelf, fastener, table, or tabletop are assumed or used.",
+      "Setup is simple and can be assembled by a typical person without special tools."
+    ]
+  },
+  "zero_initial_plan": {
+    "title": "Simple tabletop product photo setup",
+    "summary": "Use books as a raised platform, blanket draped over a chair as a backdrop, and photograph the object with a phone camera.",
+    "item_ids_used": [
+      "blanket_01",
+      "books_01",
+      "office_chair_01"
+    ],
+    "steps": [
+      {
+        "order": 1,
+        "action": "Stack several books to form a flat, raised platform for the object.",
+        "item_ids": [
+          "books_01"
+        ],
+        "capability_uses": [
+          {
+            "item_id": "books_01",
+            "capability": "provide_surface",
+            "purpose": "Create a stable, level surface at a convenient height."
+          }
+        ],
+        "why_it_helps": "Provides a firm base so the object stays steady and is elevated for better framing."
+      },
+      {
+        "order": 2,
+        "action": "Drape the blanket over the office chair to create a vertical backdrop.",
+        "item_ids": [
+          "blanket_01",
+          "office_chair_01"
+        ],
+        "capability_uses": [
+          {
+            "item_id": "blanket_01",
+            "capability": "block_light",
+            "purpose": "Create a dark, non-reflective background behind the object."
+          },
+          {
+            "item_id": "office_chair_01",
+            "capability": "support",
+            "purpose": "Hold the blanket in place as a backdrop."
+          }
+        ],
+        "why_it_helps": "Provides a clean, uniform background that isolates the object and reduces distractions."
+      },
+      {
+        "order": 3,
+        "action": "Place the small object onto the book platform, centered in front of the blanket.",
+        "item_ids": [],
+        "capability_uses": [],
+        "why_it_helps": "Positions the object correctly for photography, ensuring it is visible against the backdrop."
+      },
+      {
+        "order": 4,
+        "action": "Aim the phone camera at the object, filling the frame with the object and backdrop.",
+        "item_ids": [],
+        "capability_uses": [],
+        "why_it_helps": "Ensures the object is the main subject with consistent background for a clear product shot."
+      },
+      {
+        "order": 5,
+        "action": "Capture the photograph using the phone camera.",
+        "item_ids": [],
+        "capability_uses": [],
+        "why_it_helps": "Records the final image for review or use."
+      }
+    ],
+    "assumptions": [],
+    "unresolved_risks": [
+      "Insufficient ambient light may result in underexposed photos."
+    ],
+    "constraint_check": [
+      "All constraints satisfied: $0 budget, only listed inventory used, no unlisted resources, no permanent modifications, no damage."
+    ]
+  },
+  "zero_initial_critic": {
+    "passed": false,
+    "findings": [
+      {
+        "step_order": 2,
+        "claim": "Create a dark, non-reflective background behind the object.",
+        "issue_type": "unsupported_physical_claim",
+        "severity": "medium",
+        "explanation": "The blanket's block_light capability only ensures darkness; no trait or capability confirms the blanket is non-reflective.",
+        "recommended_fix": "Remove 'non-reflective' or rephrase to state the blanket provides a dark background, noting reflectivity is unknown."
+      }
+    ]
+  },
+  "zero_final_plan": {
+    "title": "Simple tabletop product photo setup",
+    "summary": "Use books as a raised platform, blanket draped over a chair to block light behind the object, and photograph the object with a phone camera.",
+    "item_ids_used": [
+      "blanket_01",
+      "books_01",
+      "office_chair_01"
+    ],
+    "steps": [
+      {
+        "order": 1,
+        "action": "Stack several books to form a flat, raised platform for the object.",
+        "item_ids": [
+          "books_01"
+        ],
+        "capability_uses": [
+          {
+            "item_id": "books_01",
+            "capability": "provide_surface",
+            "purpose": "Create a stable, level surface at a convenient height."
+          }
+        ],
+        "why_it_helps": "Provides a firm base so the object stays steady and is elevated for better framing."
+      },
+      {
+        "order": 2,
+        "action": "Drape the blanket over the office chair to block light behind the object.",
+        "item_ids": [
+          "blanket_01",
+          "office_chair_01"
+        ],
+        "capability_uses": [
+          {
+            "item_id": "blanket_01",
+            "capability": "block_light",
+            "purpose": "Block light transmission behind the object."
+          },
+          {
+            "item_id": "office_chair_01",
+            "capability": "support",
+            "purpose": "Hold the blanket in place as a backdrop."
+          }
+        ],
+        "why_it_helps": "Reduces light spill and helps the object stand out against the backdrop."
+      },
+      {
+        "order": 3,
+        "action": "Place the small object onto the book platform, centered in front of the blanket.",
+        "item_ids": [],
+        "capability_uses": [],
+        "why_it_helps": "Positions the object correctly for photography, ensuring it is visible against the backdrop."
+      },
+      {
+        "order": 4,
+        "action": "Aim the phone camera at the object, filling the frame with the object and backdrop.",
+        "item_ids": [],
+        "capability_uses": [],
+        "why_it_helps": "Ensures the object is the main subject with consistent background for a clear product shot."
+      },
+      {
+        "order": 5,
+        "action": "Capture the photograph using the phone camera.",
+        "item_ids": [],
+        "capability_uses": [],
+        "why_it_helps": "Records the final image for review or use."
+      }
+    ],
+    "assumptions": [],
+    "unresolved_risks": [
+      "Insufficient ambient light may result in underexposed photos."
+    ],
+    "constraint_check": []
+  },
+  "zero_final_critic": {
+    "passed": true,
+    "findings": []
+  },
+  "baseline_evaluation": {
+    "findings": [
+      {
+        "step_order": null,
+        "claim": "Chair provides a stable mount preventing phone movement",
+        "issue_type": "unsupported_physical_claim",
+        "severity": "medium",
+        "explanation": "The chair only offers support, not guaranteed non‑slip or immobilization; the phone could slide on the seat."
+      },
+      {
+        "step_order": null,
+        "claim": "Power strip weighs down blanket to prevent shifting",
+        "issue_type": "unsupported_capability",
+        "severity": "medium",
+        "explanation": "Power strip lacks a validated weight‑providing capability; it cannot be relied upon to hold the blanket down."
+      }
+    ],
+    "medium_high_findings": 2,
+    "unlisted_resource_count": 0,
+    "unsupported_physical_claim_count": 1,
+    "unsupported_capability_count": 1,
+    "hidden_assumption_count": 0,
+    "safety_or_uncertainty_count": 0,
+    "constraint_violation_count": 0,
+    "accepted": false
+  },
+  "zero_evaluation": {
+    "findings": [],
+    "medium_high_findings": 0,
+    "unlisted_resource_count": 0,
+    "unsupported_physical_claim_count": 0,
+    "unsupported_capability_count": 0,
+    "hidden_assumption_count": 0,
+    "safety_or_uncertainty_count": 0,
+    "constraint_violation_count": 0,
+    "accepted": true
+  }
+}

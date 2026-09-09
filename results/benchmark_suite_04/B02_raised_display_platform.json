@@ -1,0 +1,246 @@
+{
+  "case_id": "B02",
+  "case_name": "raised_display_platform",
+  "expectation": "feasible",
+  "repair_attempts": 2,
+  "repair_validation_failures": 0,
+  "baseline_plan": {
+    "title": "Book stack platform on chair seat",
+    "summary": "Create a raised flat surface by stacking books on the office chair seat, then place the lightweight object on top.",
+    "item_ids_used": [
+      "books_01",
+      "office_chair_01"
+    ],
+    "steps": [
+      {
+        "order": 1,
+        "action": "Place the stack of books flat on the office chair seat, arranging them to form a level surface.",
+        "item_ids": [
+          "books_01",
+          "office_chair_01"
+        ],
+        "capability_uses": [],
+        "why_it_helps": "The books provide a rigid, flat platform that raises the object above the chair seat."
+      },
+      {
+        "order": 2,
+        "action": "Center the small lightweight object on top of the book stack.",
+        "item_ids": [
+          "books_01"
+        ],
+        "capability_uses": [],
+        "why_it_helps": "Positions the object at the desired height for display."
+      }
+    ],
+    "assumptions": [
+      "The book stack is stable enough to support the lightweight object without sliding.",
+      "The chair seat can bear the combined weight of the books and object."
+    ],
+    "unresolved_risks": [
+      "If the chair seat is smooth, the book stack may slip; friction may be insufficient.",
+      "Uneven book stacking could create an unstable platform."
+    ],
+    "constraint_check": [
+      "No adhesives, tape, fasteners, or stands used.",
+      "No permanent modifications made.",
+      "No damage to inventory objects.",
+      "Budget $0 respected.",
+      "Only listed inventory objects used."
+    ]
+  },
+  "zero_initial_plan": {
+    "title": "Book‑Based Chair Platform",
+    "summary": "Uses stacked books on the office chair seat to create a raised flat platform for displaying a small lightweight object.",
+    "item_ids_used": [
+      "books_01",
+      "office_chair_01"
+    ],
+    "steps": [
+      {
+        "order": 1,
+        "action": "Stack the books and place them onto the office chair seat.",
+        "item_ids": [
+          "books_01",
+          "office_chair_01"
+        ],
+        "capability_uses": [
+          {
+            "item_id": "books_01",
+            "capability": "provide_surface",
+            "purpose": "create flat raised surface"
+          },
+          {
+            "item_id": "office_chair_01",
+            "capability": "support",
+            "purpose": "hold books in place"
+          }
+        ],
+        "why_it_helps": "Places books on chair seat to form a stable base for the platform."
+      },
+      {
+        "order": 2,
+        "action": "Center the small lightweight object on top of the stacked books.",
+        "item_ids": [
+          "books_01",
+          "office_chair_01"
+        ],
+        "capability_uses": [
+          {
+            "item_id": "books_01",
+            "capability": "support",
+            "purpose": "support lightweight object"
+          },
+          {
+            "item_id": "office_chair_01",
+            "capability": "support",
+            "purpose": "maintain platform stability"
+          }
+        ],
+        "why_it_helps": "Places the lightweight object onto the book platform to raise it above the chair seat."
+      }
+    ],
+    "assumptions": [],
+    "unresolved_risks": [],
+    "constraint_check": []
+  },
+  "zero_initial_critic": {
+    "passed": false,
+    "findings": [
+      {
+        "step_order": 1,
+        "claim": "form a stable base for the platform",
+        "issue_type": "unsupported_physical_claim",
+        "severity": "medium",
+        "explanation": "The chair's support capability holds weight but does not guarantee stability against tipping or rolling; no evidence of wheel lock or friction.",
+        "recommended_fix": "Replace claim with 'hold books in place' and add a note to ensure the chair is stationary (e.g., apply brakes or place against a wall)."
+      },
+      {
+        "step_order": 2,
+        "claim": "maintain platform stability",
+        "issue_type": "unsupported_physical_claim",
+        "severity": "medium",
+        "explanation": "The chair's support capability holds weight but does not guarantee stability against tipping or rolling; no evidence of wheel lock or friction.",
+        "recommended_fix": "Change purpose to 'hold platform in place' and note to lock wheels or brace chair to prevent movement."
+      }
+    ]
+  },
+  "zero_final_plan": {
+    "title": "Book-Based Chair Platform with Wheel Brace",
+    "summary": "Uses books to brace chair wheels, then stacks books on the seat to create a raised flat platform for a small lightweight object.",
+    "item_ids_used": [
+      "books_01",
+      "office_chair_01"
+    ],
+    "steps": [
+      {
+        "order": 1,
+        "action": "Place books against the chair wheels to prevent rolling.",
+        "item_ids": [
+          "books_01",
+          "office_chair_01"
+        ],
+        "capability_uses": [
+          {
+            "item_id": "books_01",
+            "capability": "provide_weight",
+            "purpose": "add weight to block wheels"
+          },
+          {
+            "item_id": "office_chair_01",
+            "capability": "support",
+            "purpose": "keep chair stable while books brace wheels"
+          }
+        ],
+        "why_it_helps": "Prevents chair from rolling during platform assembly."
+      },
+      {
+        "order": 2,
+        "action": "Stack books onto the office chair seat to form a raised platform.",
+        "item_ids": [
+          "books_01",
+          "office_chair_01"
+        ],
+        "capability_uses": [
+          {
+            "item_id": "books_01",
+            "capability": "provide_surface",
+            "purpose": "create flat raised surface"
+          },
+          {
+            "item_id": "office_chair_01",
+            "capability": "support",
+            "purpose": "hold stacked books in place"
+          }
+        ],
+        "why_it_helps": "Elevates the surface above the chair seat for object display."
+      },
+      {
+        "order": 3,
+        "action": "Center the small lightweight object on the stacked books.",
+        "item_ids": [
+          "books_01",
+          "office_chair_01"
+        ],
+        "capability_uses": [
+          {
+            "item_id": "books_01",
+            "capability": "support",
+            "purpose": "support lightweight object"
+          },
+          {
+            "item_id": "office_chair_01",
+            "capability": "support",
+            "purpose": "hold book platform steady"
+          }
+        ],
+        "why_it_helps": "Places object on the raised platform, raising it above the chair seat."
+      }
+    ],
+    "assumptions": [],
+    "unresolved_risks": [],
+    "constraint_check": []
+  },
+  "zero_final_critic": {
+    "passed": false,
+    "findings": [
+      {
+        "step_order": null,
+        "claim": "Books placed against wheels prevent chair from rolling.",
+        "issue_type": "unsupported_physical_claim",
+        "severity": "medium",
+        "explanation": "The plan claims books stop wheel movement, but only weight capability is cited; no evidence that weight alone blocks rolling.",
+        "recommended_fix": "Add a physical blocker or note that wheel lock is required; otherwise rely on chair's brake if present."
+      }
+    ]
+  },
+  "baseline_evaluation": {
+    "findings": [
+      {
+        "step_order": null,
+        "claim": "Assumes sufficient friction between book stack and chair seat to prevent slipping.",
+        "issue_type": "hidden_assumption",
+        "severity": "medium",
+        "explanation": "The plan relies on friction to keep the stack stable, but no evidence or verification of friction is provided; unknown surface properties could cause slipping."
+      }
+    ],
+    "medium_high_findings": 1,
+    "unlisted_resource_count": 0,
+    "unsupported_physical_claim_count": 0,
+    "unsupported_capability_count": 0,
+    "hidden_assumption_count": 1,
+    "safety_or_uncertainty_count": 0,
+    "constraint_violation_count": 0,
+    "accepted": false
+  },
+  "zero_evaluation": {
+    "findings": [],
+    "medium_high_findings": 0,
+    "unlisted_resource_count": 0,
+    "unsupported_physical_claim_count": 0,
+    "unsupported_capability_count": 0,
+    "hidden_assumption_count": 0,
+    "safety_or_uncertainty_count": 0,
+    "constraint_violation_count": 0,
+    "accepted": true
+  }
+}

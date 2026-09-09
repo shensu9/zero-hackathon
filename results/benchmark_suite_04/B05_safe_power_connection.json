@@ -1,0 +1,237 @@
+{
+  "case_id": "B05",
+  "case_name": "safe_power_connection",
+  "expectation": "conditionally_feasible",
+  "repair_attempts": 1,
+  "repair_validation_failures": 0,
+  "baseline_plan": {
+    "title": "Add a power outlet using existing power strip",
+    "summary": "Use the available power strip to provide an extra socket for the small electrical device by connecting the strip to the wall outlet and then plugging the device into the strip, while performing basic safety checks.",
+    "item_ids_used": [
+      "power_strip_01"
+    ],
+    "steps": [
+      {
+        "order": 1,
+        "action": "Visually inspect the power strip for any signs of damage, wear, or exposed conductors.",
+        "item_ids": [
+          "power_strip_01"
+        ],
+        "capability_uses": [],
+        "why_it_helps": "Identifies obvious safety issues before energizing the strip."
+      },
+      {
+        "order": 2,
+        "action": "Insert the power strip's plug into the compatible wall power outlet.",
+        "item_ids": [
+          "power_strip_01"
+        ],
+        "capability_uses": [],
+        "why_it_helps": "Supplies power to the strip from the external outlet."
+      },
+      {
+        "order": 3,
+        "action": "Plug the small electrical device's plug into one of the power strip's socket outlets.",
+        "item_ids": [
+          "power_strip_01"
+        ],
+        "capability_uses": [],
+        "why_it_helps": "Provides the device with an additional power connection via the strip."
+      },
+      {
+        "order": 4,
+        "action": "Observe the device for normal operation (no sparks, smoke, unusual heat, or odd sounds) for a short period.",
+        "item_ids": [
+          "power_strip_01"
+        ],
+        "capability_uses": [],
+        "why_it_helps": "Verifies that the connection is safe before continued use."
+      }
+    ],
+    "assumptions": [
+      "The wall outlet is functional and provides the expected voltage and frequency.",
+      "The device's plug is physically compatible with the power strip's sockets.",
+      "The power strip's cord and internal wiring are intact enough to carry the device's load (rating unknown)."
+    ],
+    "unresolved_risks": [
+      "The electrical rating (maximum current/power) of the power strip is unknown; it may be insufficient for the device's load.",
+      "Internal condition of the power strip (e.g., loose connections, degraded components) cannot be verified without testing.",
+      "If the strip's rating is exceeded, overheating or fire could occur."
+    ],
+    "constraint_check": [
+      "No purchases made; budget remains $0.",
+      "No permanent modification or damage to any item.",
+      "Safety verification (visual inspection and operational observation) performed before powered use."
+    ]
+  },
+  "zero_initial_plan": {
+    "title": "Add one power outlet using existing power strip",
+    "summary": "Visually inspect the power strip for safety, position it to reach the wall outlet, then plug the small device into the strip to gain an extra socket without modification.",
+    "item_ids_used": [
+      "power_strip_01"
+    ],
+    "steps": [
+      {
+        "order": 1,
+        "action": "Inspect power strip for voltage/current rating label and check for visible damage, moisture, or corrosion.",
+        "item_ids": [],
+        "capability_uses": [],
+        "why_it_helps": "Ensures safe operation before energizing the strip, preventing overload or shock hazards."
+      },
+      {
+        "order": 2,
+        "action": "Move power strip so its plug aligns with the wall outlet socket.",
+        "item_ids": [
+          "power_strip_01"
+        ],
+        "capability_uses": [
+          {
+            "item_id": "power_strip_01",
+            "capability": "reposition",
+            "purpose": "Position strip's plug for electrical connection to wall outlet."
+          }
+        ],
+        "why_it_helps": "Aligns plug with outlet to enable power transfer without straining cord or socket."
+      },
+      {
+        "order": 3,
+        "action": "Insert small electrical device plug into an available socket on the power strip.",
+        "item_ids": [
+          "power_strip_01"
+        ],
+        "capability_uses": [
+          {
+            "item_id": "power_strip_01",
+            "capability": "provide_power_connection",
+            "purpose": "Supply power to device while leaving at least one socket free for extra connection."
+          }
+        ],
+        "why_it_helps": "Provides an additional usable outlet for the device without altering existing wiring."
+      }
+    ],
+    "assumptions": [],
+    "unresolved_risks": [
+      "Internal wiring quality/gauge of power strip remains unknown despite visual inspection."
+    ],
+    "constraint_check": [
+      "Budget $0: no purchased items used.",
+      "No permanent modification or damage: only plugging/unplugging.",
+      "Electrical rating/condition not assumed: verified via visual inspection.",
+      "Safety verification performed before powered use: step 1 inspection.",
+      "Unknown property (internal wiring quality/gauge) preserved as unresolved risk, not assumed safe."
+    ]
+  },
+  "zero_initial_critic": {
+    "passed": false,
+    "findings": [
+      {
+        "step_order": 1,
+        "claim": "Ensures safe operation before energizing, preventing overload or shock hazards.",
+        "issue_type": "unsupported_physical_claim",
+        "severity": "medium",
+        "explanation": "Visual inspection cannot confirm internal wiring quality/gauge, so the claim of preventing overload/shock hazards exceeds verified evidence.",
+        "recommended_fix": "Revise to state inspection reduces obvious hazards but does not guarantee safety; keep unresolved risk note."
+      }
+    ]
+  },
+  "zero_final_plan": {
+    "title": "Add one power outlet using existing power strip",
+    "summary": "Visually inspect the power strip for obvious safety issues, position it to reach the wall outlet, then plug the small device into the strip to gain an extra socket without modification.",
+    "item_ids_used": [
+      "power_strip_01"
+    ],
+    "steps": [
+      {
+        "order": 1,
+        "action": "Inspect power strip for voltage/current rating label and check for visible damage, moisture, or corrosion.",
+        "item_ids": [],
+        "capability_uses": [],
+        "why_it_helps": "Reduces obvious hazards like missing rating or visible damage but does not guarantee internal safety."
+      },
+      {
+        "order": 2,
+        "action": "Move power strip so its plug aligns with the wall outlet socket.",
+        "item_ids": [
+          "power_strip_01"
+        ],
+        "capability_uses": [
+          {
+            "item_id": "power_strip_01",
+            "capability": "reposition",
+            "purpose": "Position strip's plug for electrical connection to wall outlet."
+          }
+        ],
+        "why_it_helps": "Aligns plug with outlet to enable power transfer without straining cord or socket."
+      },
+      {
+        "order": 3,
+        "action": "Insert small electrical device plug into an available socket on the power strip.",
+        "item_ids": [
+          "power_strip_01"
+        ],
+        "capability_uses": [
+          {
+            "item_id": "power_strip_01",
+            "capability": "provide_power_connection",
+            "purpose": "Provide power to device."
+          }
+        ],
+        "why_it_helps": "Provides an additional usable outlet for the device without altering existing wiring."
+      }
+    ],
+    "assumptions": [],
+    "unresolved_risks": [
+      "Internal wiring quality/gauge of power strip remains unknown despite visual inspection."
+    ],
+    "constraint_check": []
+  },
+  "zero_final_critic": {
+    "passed": true,
+    "findings": []
+  },
+  "baseline_evaluation": {
+    "findings": [
+      {
+        "step_order": 2,
+        "claim": "Assumes wall outlet is functional and provides expected voltage/frequency.",
+        "issue_type": "hidden_assumption",
+        "severity": "medium",
+        "explanation": "No step verifies outlet functionality; plan relies on it working to power the device."
+      },
+      {
+        "step_order": 3,
+        "claim": "Uses power strip without verifying its electrical rating or condition despite caution.",
+        "issue_type": "safety_or_uncertainty",
+        "severity": "medium",
+        "explanation": "Caution notes require verifying rating and condition before reuse; plan only does visual inspection and observation."
+      }
+    ],
+    "medium_high_findings": 2,
+    "unlisted_resource_count": 0,
+    "unsupported_physical_claim_count": 0,
+    "unsupported_capability_count": 0,
+    "hidden_assumption_count": 1,
+    "safety_or_uncertainty_count": 1,
+    "constraint_violation_count": 0,
+    "accepted": false
+  },
+  "zero_evaluation": {
+    "findings": [
+      {
+        "step_order": null,
+        "claim": "Assumes power strip safe after visual inspection without verifying electrical rating/condition.",
+        "issue_type": "constraint_violation",
+        "severity": "medium",
+        "explanation": "User constraints prohibit assuming unknown electrical rating/condition; plan uses strip after only visual check, violating that rule."
+      }
+    ],
+    "medium_high_findings": 1,
+    "unlisted_resource_count": 0,
+    "unsupported_physical_claim_count": 0,
+    "unsupported_capability_count": 0,
+    "hidden_assumption_count": 0,
+    "safety_or_uncertainty_count": 0,
+    "constraint_violation_count": 1,
+    "accepted": false
+  }
+}
