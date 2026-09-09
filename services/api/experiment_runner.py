@@ -19,7 +19,10 @@ from json_format_repair import load_or_repair_json
 from object_dna_fixture import OBJECT_DNA_FIXTURE
 from object_dna_service import generate_object_dna
 from plan_evaluator import evaluate_plan
-from plan_normalizer import normalize_plan_payload
+from plan_normalizer import (
+    normalize_external_resource_ids,
+    normalize_plan_payload,
+)
 from plan_repair import repair_plan
 from plan_schemas import PhysicalPlan
 from plan_validator import (
@@ -729,6 +732,11 @@ def run_benchmark_case(
         )
     )
 
+    baseline_plan = normalize_external_resource_ids(
+        baseline_plan,
+        case.external_resources,
+    )
+
     baseline_plan = normalize_plan_item_ids(
         baseline_plan
     )
@@ -761,6 +769,11 @@ def run_benchmark_case(
             case,
             object_dna,
         )
+    )
+
+    zero_plan = normalize_external_resource_ids(
+        zero_plan,
+        case.external_resources,
     )
 
     zero_plan = normalize_plan_item_ids(
@@ -864,6 +877,13 @@ def run_benchmark_case(
             external_resources=list(
                 case.external_resources
             ),
+        )
+
+        repaired_candidate = (
+            normalize_external_resource_ids(
+                repaired_candidate,
+                case.external_resources,
+            )
         )
 
         repaired_candidate = (
