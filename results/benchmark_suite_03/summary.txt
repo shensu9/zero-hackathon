@@ -1,0 +1,58 @@
+========================================================================
+ZERO MULTI-GOAL BENCHMARK
+========================================================================
+Suite: benchmark_suite_03
+Completed: 5/5
+Failed cases: 0
+
+PER-CASE RESULTS
+------------------------------------------------------------------------
+B01 product_photography: baseline=2 ZERO=1 difference=+1
+    accepted: baseline=False ZERO=False | repairs=2 | hard repair failures=0
+B02 raised_display_platform: baseline=1 ZERO=0 difference=+1
+    accepted: baseline=False ZERO=True | repairs=0 | hard repair failures=0
+B03 secure_blanket_edge: baseline=1 ZERO=1 difference=+0
+    accepted: baseline=False ZERO=False | repairs=2 | hard repair failures=0
+B04 soft_protective_surface: baseline=0 ZERO=0 difference=+0
+    accepted: baseline=True ZERO=True | repairs=0 | hard repair failures=0
+B05 safe_power_connection: baseline=1 ZERO=1 difference=+0
+    accepted: baseline=False ZERO=False | repairs=2 | hard repair failures=1
+
+AGGREGATE
+------------------------------------------------------------------------
+Baseline medium/high findings: 5
+ZERO medium/high findings: 3
+Absolute reduction: 2
+Reduction percentage: 40.0%
+
+Accepted cases — baseline: 1
+Accepted cases — ZERO: 2
+
+Cases favoring ZERO: 2
+Ties: 3
+Cases favoring baseline: 0
+
+BASELINE ISSUE TOTALS
+{
+  "unlisted_resource": 0,
+  "unsupported_physical_claim": 0,
+  "unsupported_capability": 0,
+  "hidden_assumption": 3,
+  "safety_or_uncertainty": 1,
+  "constraint_violation": 1
+}
+
+ZERO ISSUE TOTALS
+{
+  "unlisted_resource": 0,
+  "unsupported_physical_claim": 3,
+  "unsupported_capability": 0,
+  "hidden_assumption": 0,
+  "safety_or_uncertainty": 1,
+  "constraint_violation": 0
+}
+
+ZERO total repair attempts: 6
+ZERO hard repair validation failures: 1
+
+Comparative scores above come from the neutral evaluator, not ZERO's internal critic.

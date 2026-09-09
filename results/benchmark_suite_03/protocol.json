@@ -1,0 +1,21 @@
+{
+  "suite_id": "benchmark_suite_03",
+  "evaluator_version": "neutral_evaluator_v2",
+  "evaluator_status": "frozen after 6/6 calibration and 6/6 independent holdout",
+  "benchmark_case_ids": [
+    "B01",
+    "B02",
+    "B03",
+    "B04",
+    "B05"
+  ],
+  "benchmark_case_count": 5,
+  "object_dna_policy": "fixed validated fixture cache",
+  "baseline_policy": "fresh generation for every case",
+  "zero_policy": "fresh capability-bound generation, deterministic validation, semantic critic, maximum two repair attempts",
+  "external_resource_normalization": "enabled symmetrically for baseline, ZERO initial plans, and repair candidates",
+  "external_resource_normalization_rule": "exact explicit external resources are removed from inventory-ID fields; unknown resources remain so hard validation can reject them",
+  "comparative_scoring": "neutral evaluator only; ZERO internal critic is not the benchmark judge",
+  "prior_suite_results_reused": false,
+  "note": "First clean post-calibration five-case benchmark after fixing explicit external-resource ID handling."
+}

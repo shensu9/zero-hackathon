@@ -1,0 +1,126 @@
+{
+  "case_id": "B04",
+  "case_name": "soft_protective_surface",
+  "expectation": "feasible",
+  "repair_attempts": 0,
+  "repair_validation_failures": 0,
+  "baseline_plan": {
+    "title": "Soft blanket layer on chair seat",
+    "summary": "Place a folded blanket on the office chair seat to create a soft resting surface for a small fragile object.",
+    "item_ids_used": [
+      "blanket_01",
+      "office_chair_01"
+    ],
+    "steps": [
+      {
+        "order": 1,
+        "action": "Unfold blanket_01 and lay it flat on the seat of office_chair_01",
+        "item_ids": [
+          "blanket_01",
+          "office_chair_01"
+        ],
+        "capability_uses": [],
+        "why_it_helps": "Provides a soft cushioning layer to protect the fragile object from the hard chair surface."
+      }
+    ],
+    "assumptions": [
+      "The blanket provides adequate cushioning for the fragile object.",
+      "The chair seat is clean and can support the blanket without slipping."
+    ],
+    "unresolved_risks": [
+      "The blanket may shift during use, potentially exposing the object to the hard chair surface.",
+      "The fragile object may roll or slide off the blanket if not centered."
+    ],
+    "constraint_check": [
+      "No cost incurred (budget $0).",
+      "Only used inventory objects: blanket_01 and office_chair_01 (external resource: small fragile object).",
+      "No permanent modifications made; items are placed temporarily.",
+      "No damage to any listed object anticipated.",
+      "No claims made about slip, water, impact protection beyond providing soft cushioning."
+    ]
+  },
+  "zero_initial_plan": {
+    "title": "Soft blanket surface on chair",
+    "summary": "Place a folded blanket on the office chair seat to create a soft protective resting area for the fragile object.",
+    "item_ids_used": [
+      "blanket_01"
+    ],
+    "steps": [
+      {
+        "order": 1,
+        "action": "Unfold blanket and place it flat on the office chair seat.",
+        "item_ids": [
+          "blanket_01"
+        ],
+        "capability_uses": [
+          {
+            "item_id": "blanket_01",
+            "capability": "cushion",
+            "purpose": "provide soft protective layer"
+          }
+        ],
+        "why_it_helps": "Creates a soft surface to protect the fragile object from hard chair."
+      }
+    ],
+    "assumptions": [],
+    "unresolved_risks": [],
+    "constraint_check": []
+  },
+  "zero_initial_critic": {
+    "passed": true,
+    "findings": []
+  },
+  "zero_final_plan": {
+    "title": "Soft blanket surface on chair",
+    "summary": "Place a folded blanket on the office chair seat to create a soft protective resting area for the fragile object.",
+    "item_ids_used": [
+      "blanket_01"
+    ],
+    "steps": [
+      {
+        "order": 1,
+        "action": "Unfold blanket and place it flat on the office chair seat.",
+        "item_ids": [
+          "blanket_01"
+        ],
+        "capability_uses": [
+          {
+            "item_id": "blanket_01",
+            "capability": "cushion",
+            "purpose": "provide soft protective layer"
+          }
+        ],
+        "why_it_helps": "Creates a soft surface to protect the fragile object from hard chair."
+      }
+    ],
+    "assumptions": [],
+    "unresolved_risks": [],
+    "constraint_check": []
+  },
+  "zero_final_critic": {
+    "passed": true,
+    "findings": []
+  },
+  "baseline_evaluation": {
+    "findings": [],
+    "medium_high_findings": 0,
+    "unlisted_resource_count": 0,
+    "unsupported_physical_claim_count": 0,
+    "unsupported_capability_count": 0,
+    "hidden_assumption_count": 0,
+    "safety_or_uncertainty_count": 0,
+    "constraint_violation_count": 0,
+    "accepted": true
+  },
+  "zero_evaluation": {
+    "findings": [],
+    "medium_high_findings": 0,
+    "unlisted_resource_count": 0,
+    "unsupported_physical_claim_count": 0,
+    "unsupported_capability_count": 0,
+    "hidden_assumption_count": 0,
+    "safety_or_uncertainty_count": 0,
+    "constraint_violation_count": 0,
+    "accepted": true
+  }
+}

@@ -1,0 +1,182 @@
+{
+  "case_id": "B03",
+  "case_name": "secure_blanket_edge",
+  "expectation": "feasible",
+  "repair_attempts": 2,
+  "repair_validation_failures": 0,
+  "baseline_plan": {
+    "title": "Weight blanket edge with books",
+    "summary": "Drape the blanket over the chair seat and place a stack of books on the overhanging edge to hold it down using only weight.",
+    "item_ids_used": [
+      "blanket_01",
+      "books_01",
+      "office_chair_01"
+    ],
+    "steps": [
+      {
+        "order": 1,
+        "action": "Drape the blanket over the office chair seat so that one edge extends beyond the seat.",
+        "item_ids": [
+          "blanket_01",
+          "office_chair_01"
+        ],
+        "capability_uses": [],
+        "why_it_helps": "Positions the blanket edge to be secured."
+      },
+      {
+        "order": 2,
+        "action": "Place the stack of books on the overhanging edge of the blanket to act as a weight.",
+        "item_ids": [
+          "books_01",
+          "blanket_01"
+        ],
+        "capability_uses": [],
+        "why_it_helps": "The weight of the books prevents the blanket edge from shifting."
+      }
+    ],
+    "assumptions": [
+      "The blanket is thick enough that the books will not slide off easily.",
+      "The books provide sufficient weight to hold the blanket edge in place.",
+      "The chair seat is flat and stable, allowing the blanket to lie smoothly."
+    ],
+    "unresolved_risks": [
+      "If the blanket surface is very smooth, the books may still slide off.",
+      "If the books are too light, the edge may still shift under minor disturbances."
+    ],
+    "constraint_check": [
+      "Budget $0: no cost incurred.",
+      "Only listed inventory objects used (office_chair_01, blanket_01, books_01).",
+      "No tape, adhesives, fasteners, or clamps used.",
+      "No permanent modifications made to any object.",
+      "No damage to any listed object.",
+      "No reliance on unknown liquid contents (spray bottles not used).",
+      "No reliance on electrical properties (power strip not used).",
+      "Object used as weight (books) has physical evidence of mass (hardcover/paperback books)."
+    ]
+  },
+  "zero_initial_plan": {
+    "title": "Blanket edge stabilizer",
+    "summary": "Use books as a weight to hold down one edge of the blanket on the office chair seat, preventing it from shifting.",
+    "item_ids_used": [
+      "books_01"
+    ],
+    "steps": [
+      {
+        "order": 1,
+        "action": "Place a stack of books on the edge of the blanket resting on the office chair seat to prevent shifting.",
+        "item_ids": [
+          "books_01"
+        ],
+        "capability_uses": [
+          {
+            "item_id": "books_01",
+            "capability": "provide_weight",
+            "purpose": "Hold down blanket edge"
+          }
+        ],
+        "why_it_helps": "Weight prevents blanket edge from moving on chair seat."
+      }
+    ],
+    "assumptions": [],
+    "unresolved_risks": [],
+    "constraint_check": []
+  },
+  "zero_initial_critic": {
+    "passed": false,
+    "findings": [
+      {
+        "step_order": null,
+        "claim": "Weight of books prevents blanket edge from shifting on chair seat.",
+        "issue_type": "unsupported_physical_claim",
+        "severity": "medium",
+        "explanation": "The plan asserts that added weight stops movement, but no evidence shows sufficient friction between blanket and chair seat to prevent sliding; weight alone does not guarantee non‑slippage.",
+        "recommended_fix": "Demonstrate or add a mechanism to increase friction (e.g., rough surface) or verify that chair seat texture provides enough grip for the blanket edge when weighted."
+      }
+    ]
+  },
+  "zero_final_plan": {
+    "title": "Blanket edge stabilizer",
+    "summary": "Use books as weight to hold the blanket edge down on the office chair seat, preventing shift.",
+    "item_ids_used": [
+      "blanket_01",
+      "books_01"
+    ],
+    "steps": [
+      {
+        "order": 1,
+        "action": "Place a stack of books on the blanket edge and fold the blanket edge over the books on the chair seat.",
+        "item_ids": [
+          "books_01",
+          "blanket_01"
+        ],
+        "capability_uses": [
+          {
+            "item_id": "books_01",
+            "capability": "provide_weight",
+            "purpose": "Hold down blanket edge"
+          },
+          {
+            "item_id": "blanket_01",
+            "capability": "fold",
+            "purpose": "Secure edge over books to prevent shift"
+          }
+        ],
+        "why_it_helps": "Weight holds the edge down, preventing it from sliding on the chair seat."
+      }
+    ],
+    "assumptions": [],
+    "unresolved_risks": [],
+    "constraint_check": []
+  },
+  "zero_final_critic": {
+    "passed": false,
+    "findings": [
+      {
+        "step_order": 1,
+        "claim": "Weight holds blanket edge down, preventing slide.",
+        "issue_type": "unsupported_physical_claim",
+        "severity": "medium",
+        "explanation": "The plan assumes weight alone prevents sliding, but no evidence shows sufficient friction between blanket and chair seat to guarantee no shift.",
+        "recommended_fix": "Add a folded blanket layer under the edge to increase friction, or use books to create a small barrier that physically blocks movement."
+      }
+    ]
+  },
+  "baseline_evaluation": {
+    "findings": [
+      {
+        "step_order": 2,
+        "claim": "Placing books on the blanket edge will prevent the blanket edge from shifting.",
+        "issue_type": "hidden_assumption",
+        "severity": "medium",
+        "explanation": "The plan assumes the books will not slide off the blanket, but no friction or non‑slip property is established for the blanket or books."
+      }
+    ],
+    "medium_high_findings": 1,
+    "unlisted_resource_count": 0,
+    "unsupported_physical_claim_count": 0,
+    "unsupported_capability_count": 0,
+    "hidden_assumption_count": 1,
+    "safety_or_uncertainty_count": 0,
+    "constraint_violation_count": 0,
+    "accepted": false
+  },
+  "zero_evaluation": {
+    "findings": [
+      {
+        "step_order": 1,
+        "claim": "Weight holds the edge down, preventing it from sliding on the chair seat.",
+        "issue_type": "unsupported_physical_claim",
+        "severity": "medium",
+        "explanation": "The books' provide_weight capability does not guarantee non‑slip or immobilization; sliding would defeat the goal."
+      }
+    ],
+    "medium_high_findings": 1,
+    "unlisted_resource_count": 0,
+    "unsupported_physical_claim_count": 1,
+    "unsupported_capability_count": 0,
+    "hidden_assumption_count": 0,
+    "safety_or_uncertainty_count": 0,
+    "constraint_violation_count": 0,
+    "accepted": false
+  }
+}

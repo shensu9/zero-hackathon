@@ -1,0 +1,224 @@
+{
+  "case_id": "B05",
+  "case_name": "safe_power_connection",
+  "expectation": "conditionally_feasible",
+  "repair_attempts": 2,
+  "repair_validation_failures": 1,
+  "baseline_plan": {
+    "title": "Add a power outlet using a power strip",
+    "summary": "Inspect the power strip for ratings, plug it into the wall outlet, then connect the small electrical device to the strip to gain an extra socket without modification or cost.",
+    "item_ids_used": [
+      "power_strip_01"
+    ],
+    "steps": [
+      {
+        "order": 1,
+        "action": "Visually inspect the power strip and the small electrical device for voltage, current, and power rating labels.",
+        "item_ids": [
+          "power_strip_01"
+        ],
+        "capability_uses": [],
+        "why_it_helps": "Verifies compatibility before energizing to prevent overload or damage."
+      },
+      {
+        "order": 2,
+        "action": "Plug the power strip into the compatible wall power outlet.",
+        "item_ids": [
+          "power_strip_01"
+        ],
+        "capability_uses": [],
+        "why_it_helps": "Provides multiple sockets from the single wall outlet."
+      },
+      {
+        "order": 3,
+        "action": "Plug the small electrical device into one of the outlets on the power strip.",
+        "item_ids": [
+          "power_strip_01"
+        ],
+        "capability_uses": [],
+        "why_it_helps": "Supplies power to the device using the newly available connection."
+      }
+    ],
+    "assumptions": [
+      "The wall external resource is a functional, compatible outlet providing the expected voltage."
+    ],
+    "unresolved_risks": [
+      "The power strip's electrical rating is unknown; if it does not match the outlet or device, overload or insufficient power could occur.",
+      "The small electrical device's rating is unknown; connecting it without verification may exceed the strip's capacity."
+    ],
+    "constraint_check": [
+      "Budget: $0 – no purchases made.",
+      "No permanent modification or damage – only removable connections used.",
+      "Safety verification (rating inspection) performed before powered use.",
+      "Only listed inventory and explicit external resources used.",
+      "Did not assume unknown electrical ratings; uncertainties retained in unresolved_risks."
+    ]
+  },
+  "zero_initial_plan": {
+    "title": "Add power outlet using power strip",
+    "summary": "Plug the power strip into the wall outlet, then plug the small device into the strip to gain one extra power connection without modifying anything.",
+    "item_ids_used": [
+      "power_strip_01"
+    ],
+    "steps": [
+      {
+        "order": 1,
+        "action": "Plug the power strip into the compatible wall power outlet.",
+        "item_ids": [
+          "power_strip_01"
+        ],
+        "capability_uses": [
+          {
+            "item_id": "power_strip_01",
+            "capability": "provide_power_connection",
+            "purpose": "Connect strip to wall outlet to source power"
+          }
+        ],
+        "why_it_helps": "Provides a powered source for the strip's outlets."
+      },
+      {
+        "order": 2,
+        "action": "Plug the small electrical device into an outlet on the power strip.",
+        "item_ids": [
+          "power_strip_01"
+        ],
+        "capability_uses": [
+          {
+            "item_id": "power_strip_01",
+            "capability": "provide_power_connection",
+            "purpose": "Draw power from strip to operate device"
+          }
+        ],
+        "why_it_helps": "Adds one additional power connection for the device."
+      }
+    ],
+    "assumptions": [],
+    "unresolved_risks": [
+      "Unknown electrical rating and condition of power strip may pose safety hazard if used without verification per caution note."
+    ],
+    "constraint_check": []
+  },
+  "zero_initial_critic": {
+    "passed": false,
+    "findings": [
+      {
+        "step_order": null,
+        "claim": "Assumes power strip is safe to use without verification",
+        "issue_type": "safety_or_uncertainty",
+        "severity": "medium",
+        "explanation": "The plan uses the power strip's power connection capability but does not verify its unknown electrical rating or condition, violating the safety requirement.",
+        "recommended_fix": "Add a step to check the power strip's rating and condition before use, or explicitly state that verification is required."
+      }
+    ]
+  },
+  "zero_final_plan": {
+    "title": "Add power connection using power strip with visual check",
+    "summary": "Visually inspect and reposition the power strip, then plug it into the wall outlet and connect the small device for an extra power source.",
+    "item_ids_used": [
+      "power_strip_01"
+    ],
+    "steps": [
+      {
+        "order": 1,
+        "action": "Reposition the power strip to a well-lit area and visually inspect for damage, rating labels, wear.",
+        "item_ids": [
+          "power_strip_01"
+        ],
+        "capability_uses": [
+          {
+            "item_id": "power_strip_01",
+            "capability": "reposition",
+            "purpose": "Move strip to visible location for inspection"
+          }
+        ],
+        "why_it_helps": "Allows visual check of strip condition before use."
+      },
+      {
+        "order": 2,
+        "action": "Plug the power strip into the compatible wall power outlet.",
+        "item_ids": [
+          "power_strip_01"
+        ],
+        "capability_uses": [
+          {
+            "item_id": "power_strip_01",
+            "capability": "provide_power_connection",
+            "purpose": "Connect strip to wall outlet to source power"
+          }
+        ],
+        "why_it_helps": "Provides a powered source for the strip's outlets."
+      },
+      {
+        "order": 3,
+        "action": "Plug the small electrical device into an outlet on the power strip.",
+        "item_ids": [
+          "power_strip_01"
+        ],
+        "capability_uses": [
+          {
+            "item_id": "power_strip_01",
+            "capability": "provide_power_connection",
+            "purpose": "Draw power from strip to operate device"
+          }
+        ],
+        "why_it_helps": "Adds one additional power connection for the device."
+      }
+    ],
+    "assumptions": [],
+    "unresolved_risks": [
+      "Internal electrical condition of power strip cannot be fully verified without testing equipment."
+    ],
+    "constraint_check": []
+  },
+  "zero_final_critic": {
+    "passed": false,
+    "findings": [
+      {
+        "step_order": 1,
+        "claim": "Assumes a well-lit area exists for visual inspection.",
+        "issue_type": "unsupported_physical_claim",
+        "severity": "medium",
+        "explanation": "No inventory or external resource provides illumination; the plan requires light to see damage, labels, wear but none is confirmed.",
+        "recommended_fix": "Add a portable light source (e.g., lamp) to inventory or rely on ambient light and state that assumption."
+      }
+    ]
+  },
+  "baseline_evaluation": {
+    "findings": [
+      {
+        "step_order": 1,
+        "claim": "Assumes visual inspection guarantees safe power strip use without confirming ratings.",
+        "issue_type": "safety_or_uncertainty",
+        "severity": "medium",
+        "explanation": "The plan inspects for labels but does not condition subsequent steps on verified compatibility, leaving unknown electrical rating unaddressed before powered use."
+      }
+    ],
+    "medium_high_findings": 1,
+    "unlisted_resource_count": 0,
+    "unsupported_physical_claim_count": 0,
+    "unsupported_capability_count": 0,
+    "hidden_assumption_count": 0,
+    "safety_or_uncertainty_count": 1,
+    "constraint_violation_count": 0,
+    "accepted": false
+  },
+  "zero_evaluation": {
+    "findings": [
+      {
+        "step_order": null,
+        "claim": "Assumes strip safe after visual check without verifying rating, condition, or load capacity.",
+        "issue_type": "safety_or_uncertainty",
+        "severity": "medium",
+        "explanation": "The plan energizes the strip based only on visual inspection, which cannot confirm unknown electrical rating, condition, or load capacity, violating safety cautions."
+      }
+    ],
+    "medium_high_findings": 1,
+    "unlisted_resource_count": 0,
+    "unsupported_physical_claim_count": 0,
+    "unsupported_capability_count": 0,
+    "hidden_assumption_count": 0,
+    "safety_or_uncertainty_count": 1,
+    "constraint_violation_count": 0,
+    "accepted": false
+  }
+}

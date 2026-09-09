@@ -1,0 +1,188 @@
+{
+  "case_id": "B02",
+  "case_name": "raised_display_platform",
+  "expectation": "feasible",
+  "repair_attempts": 0,
+  "repair_validation_failures": 0,
+  "baseline_plan": {
+    "title": "Book Stack Platform on Office Chair",
+    "summary": "Create a raised flat surface by stacking books on the office chair seat and placing the lightweight object on top.",
+    "item_ids_used": [
+      "books_01",
+      "office_chair_01"
+    ],
+    "steps": [
+      {
+        "order": 1,
+        "action": "Stack the books neatly on the office chair seat to form a flat, stable platform.",
+        "item_ids": [
+          "books_01",
+          "office_chair_01"
+        ],
+        "capability_uses": [],
+        "why_it_helps": "Elevates the surface above the chair seat using only available books."
+      },
+      {
+        "order": 2,
+        "action": "Place the small lightweight object on top of the stacked books.",
+        "item_ids": [
+          "books_01"
+        ],
+        "capability_uses": [],
+        "why_it_helps": "Positions the object at the desired height for display."
+      }
+    ],
+    "assumptions": [
+      "Books are rigid enough to support the lightweight object without deforming.",
+      "The chair seat can bear the combined weight of the books and the object."
+    ],
+    "unresolved_risks": [
+      "Books may shift or slide off the chair if not balanced, potentially causing the object to fall.",
+      "Uneven book stacking could create an unstable surface leading to wobbling."
+    ],
+    "constraint_check": [
+      "Budget $0: no cost incurred.",
+      "Only listed inventory objects used (office_chair_01, books_01).",
+      "No adhesives, tape, fasteners, or stands used.",
+      "No permanent modifications made.",
+      "No damage to inventory objects claimed.",
+      "External lightweight object used as specified."
+    ]
+  },
+  "zero_initial_plan": {
+    "title": "Raise a lightweight object on an office chair using books",
+    "summary": "Stack books on the chair seat to create a flat, elevated platform, then place the object on top.",
+    "item_ids_used": [
+      "books_01",
+      "office_chair_01"
+    ],
+    "steps": [
+      {
+        "order": 1,
+        "action": "Stack books onto the office chair seat to form a flat raised surface.",
+        "item_ids": [
+          "office_chair_01",
+          "books_01"
+        ],
+        "capability_uses": [
+          {
+            "item_id": "office_chair_01",
+            "capability": "support",
+            "purpose": "provide base for book stack"
+          },
+          {
+            "item_id": "books_01",
+            "capability": "provide_surface",
+            "purpose": "create flat elevated platform"
+          }
+        ],
+        "why_it_helps": "Raises the surface above the chair seat for displaying the object."
+      },
+      {
+        "order": 2,
+        "action": "Place the small lightweight object onto the stacked books on the chair seat.",
+        "item_ids": [
+          "books_01"
+        ],
+        "capability_uses": [
+          {
+            "item_id": "books_01",
+            "capability": "support",
+            "purpose": "hold the lightweight object"
+          }
+        ],
+        "why_it_helps": "Positions the object at the desired height for display."
+      }
+    ],
+    "assumptions": [],
+    "unresolved_risks": [],
+    "constraint_check": []
+  },
+  "zero_initial_critic": {
+    "passed": true,
+    "findings": []
+  },
+  "zero_final_plan": {
+    "title": "Raise a lightweight object on an office chair using books",
+    "summary": "Stack books on the chair seat to create a flat, elevated platform, then place the object on top.",
+    "item_ids_used": [
+      "books_01",
+      "office_chair_01"
+    ],
+    "steps": [
+      {
+        "order": 1,
+        "action": "Stack books onto the office chair seat to form a flat raised surface.",
+        "item_ids": [
+          "office_chair_01",
+          "books_01"
+        ],
+        "capability_uses": [
+          {
+            "item_id": "office_chair_01",
+            "capability": "support",
+            "purpose": "provide base for book stack"
+          },
+          {
+            "item_id": "books_01",
+            "capability": "provide_surface",
+            "purpose": "create flat elevated platform"
+          }
+        ],
+        "why_it_helps": "Raises the surface above the chair seat for displaying the object."
+      },
+      {
+        "order": 2,
+        "action": "Place the small lightweight object onto the stacked books on the chair seat.",
+        "item_ids": [
+          "books_01"
+        ],
+        "capability_uses": [
+          {
+            "item_id": "books_01",
+            "capability": "support",
+            "purpose": "hold the lightweight object"
+          }
+        ],
+        "why_it_helps": "Positions the object at the desired height for display."
+      }
+    ],
+    "assumptions": [],
+    "unresolved_risks": [],
+    "constraint_check": []
+  },
+  "zero_final_critic": {
+    "passed": true,
+    "findings": []
+  },
+  "baseline_evaluation": {
+    "findings": [
+      {
+        "step_order": 1,
+        "claim": "claiming the stacked books form a flat, stable platform",
+        "issue_type": "constraint_violation",
+        "severity": "medium",
+        "explanation": "The plan asserts stability without evidence; books may shift or slide, risking object fall, violating the constraint against overclaiming stability."
+      }
+    ],
+    "medium_high_findings": 1,
+    "unlisted_resource_count": 0,
+    "unsupported_physical_claim_count": 0,
+    "unsupported_capability_count": 0,
+    "hidden_assumption_count": 0,
+    "safety_or_uncertainty_count": 0,
+    "constraint_violation_count": 1,
+    "accepted": false
+  },
+  "zero_evaluation": {
+    "findings": [],
+    "medium_high_findings": 0,
+    "unlisted_resource_count": 0,
+    "unsupported_physical_claim_count": 0,
+    "unsupported_capability_count": 0,
+    "hidden_assumption_count": 0,
+    "safety_or_uncertainty_count": 0,
+    "constraint_violation_count": 0,
+    "accepted": true
+  }
+}
