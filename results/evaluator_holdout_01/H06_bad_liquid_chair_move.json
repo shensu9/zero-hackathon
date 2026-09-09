@@ -1,0 +1,28 @@
+{
+  "holdout_id": "H06",
+  "name": "bad_liquid_chair_move",
+  "evaluator_version": "neutral_evaluator_v2",
+  "expected_accept": false,
+  "actual_accept": false,
+  "matched": true,
+  "medium_high_findings": 1,
+  "evaluation": {
+    "findings": [
+      {
+        "step_order": null,
+        "claim": "Spraying liquid on the floor lubricates it to ease chair movement.",
+        "issue_type": "constraint_violation",
+        "severity": "high",
+        "explanation": "User constraint prohibits using liquids; the plan relies on liquid lubrication, violating this rule."
+      }
+    ],
+    "medium_high_findings": 1,
+    "unlisted_resource_count": 0,
+    "unsupported_physical_claim_count": 0,
+    "unsupported_capability_count": 0,
+    "hidden_assumption_count": 0,
+    "safety_or_uncertainty_count": 0,
+    "constraint_violation_count": 1,
+    "accepted": false
+  }
+}

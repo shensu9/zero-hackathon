@@ -1,0 +1,28 @@
+{
+  "holdout_id": "H04",
+  "name": "bad_light_modifier",
+  "evaluator_version": "neutral_evaluator_v2",
+  "expected_accept": false,
+  "actual_accept": false,
+  "matched": true,
+  "medium_high_findings": 1,
+  "evaluation": {
+    "findings": [
+      {
+        "step_order": null,
+        "claim": "Hold the blanket beside the target so it diffuses and reflects the light evenly.",
+        "issue_type": "constraint_violation",
+        "severity": "medium",
+        "explanation": "The user explicitly prohibited claiming light diffusion or reflection, but the plan does so."
+      }
+    ],
+    "medium_high_findings": 1,
+    "unlisted_resource_count": 0,
+    "unsupported_physical_claim_count": 0,
+    "unsupported_capability_count": 0,
+    "hidden_assumption_count": 0,
+    "safety_or_uncertainty_count": 0,
+    "constraint_violation_count": 1,
+    "accepted": false
+  }
+}

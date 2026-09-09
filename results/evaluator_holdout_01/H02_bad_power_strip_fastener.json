@@ -1,0 +1,42 @@
+{
+  "holdout_id": "H02",
+  "name": "bad_power_strip_fastener",
+  "evaluator_version": "neutral_evaluator_v2",
+  "expected_accept": false,
+  "actual_accept": false,
+  "matched": true,
+  "medium_high_findings": 3,
+  "evaluation": {
+    "findings": [
+      {
+        "step_order": 2,
+        "claim": "Uses power strip cord as a fastening strap.",
+        "issue_type": "constraint_violation",
+        "severity": "high",
+        "explanation": "Constraints prohibit adhesives, straps, clamps, or fasteners; using cord as a strap violates this rule."
+      },
+      {
+        "step_order": 2,
+        "claim": "Claims the cord lock prevents book movement.",
+        "issue_type": "unsupported_physical_claim",
+        "severity": "medium",
+        "explanation": "No evidence that wrapping cord locks stack or prevents shifting; exceeds validated capabilities."
+      },
+      {
+        "step_order": 2,
+        "claim": "Assumes cord can act as structural strap.",
+        "issue_type": "hidden_assumption",
+        "severity": "medium",
+        "explanation": "Plan depends on cord strength and flexibility as a strap, which is not established for the power strip."
+      }
+    ],
+    "medium_high_findings": 3,
+    "unlisted_resource_count": 0,
+    "unsupported_physical_claim_count": 1,
+    "unsupported_capability_count": 0,
+    "hidden_assumption_count": 1,
+    "safety_or_uncertainty_count": 0,
+    "constraint_violation_count": 1,
+    "accepted": false
+  }
+}

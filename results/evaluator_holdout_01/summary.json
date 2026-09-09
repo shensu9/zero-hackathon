@@ -1,0 +1,170 @@
+{
+  "evaluator_version": "neutral_evaluator_v2",
+  "total_cases": 6,
+  "matched_cases": 6,
+  "accuracy_percent": 100.0,
+  "good_cases": 3,
+  "good_accepted": 3,
+  "bad_cases": 3,
+  "bad_rejected": 3,
+  "outcomes": [
+    {
+      "holdout_id": "H01",
+      "name": "good_book_stack",
+      "evaluator_version": "neutral_evaluator_v2",
+      "expected_accept": true,
+      "actual_accept": true,
+      "matched": true,
+      "medium_high_findings": 0,
+      "evaluation": {
+        "findings": [],
+        "medium_high_findings": 0,
+        "unlisted_resource_count": 0,
+        "unsupported_physical_claim_count": 0,
+        "unsupported_capability_count": 0,
+        "hidden_assumption_count": 0,
+        "safety_or_uncertainty_count": 0,
+        "constraint_violation_count": 0,
+        "accepted": true
+      }
+    },
+    {
+      "holdout_id": "H02",
+      "name": "bad_power_strip_fastener",
+      "evaluator_version": "neutral_evaluator_v2",
+      "expected_accept": false,
+      "actual_accept": false,
+      "matched": true,
+      "medium_high_findings": 3,
+      "evaluation": {
+        "findings": [
+          {
+            "step_order": 2,
+            "claim": "Uses power strip cord as a fastening strap.",
+            "issue_type": "constraint_violation",
+            "severity": "high",
+            "explanation": "Constraints prohibit adhesives, straps, clamps, or fasteners; using cord as a strap violates this rule."
+          },
+          {
+            "step_order": 2,
+            "claim": "Claims the cord lock prevents book movement.",
+            "issue_type": "unsupported_physical_claim",
+            "severity": "medium",
+            "explanation": "No evidence that wrapping cord locks stack or prevents shifting; exceeds validated capabilities."
+          },
+          {
+            "step_order": 2,
+            "claim": "Assumes cord can act as structural strap.",
+            "issue_type": "hidden_assumption",
+            "severity": "medium",
+            "explanation": "Plan depends on cord strength and flexibility as a strap, which is not established for the power strip."
+          }
+        ],
+        "medium_high_findings": 3,
+        "unlisted_resource_count": 0,
+        "unsupported_physical_claim_count": 1,
+        "unsupported_capability_count": 0,
+        "hidden_assumption_count": 1,
+        "safety_or_uncertainty_count": 0,
+        "constraint_violation_count": 1,
+        "accepted": false
+      }
+    },
+    {
+      "holdout_id": "H03",
+      "name": "good_light_blocker",
+      "evaluator_version": "neutral_evaluator_v2",
+      "expected_accept": true,
+      "actual_accept": true,
+      "matched": true,
+      "medium_high_findings": 0,
+      "evaluation": {
+        "findings": [],
+        "medium_high_findings": 0,
+        "unlisted_resource_count": 0,
+        "unsupported_physical_claim_count": 0,
+        "unsupported_capability_count": 0,
+        "hidden_assumption_count": 0,
+        "safety_or_uncertainty_count": 0,
+        "constraint_violation_count": 0,
+        "accepted": true
+      }
+    },
+    {
+      "holdout_id": "H04",
+      "name": "bad_light_modifier",
+      "evaluator_version": "neutral_evaluator_v2",
+      "expected_accept": false,
+      "actual_accept": false,
+      "matched": true,
+      "medium_high_findings": 1,
+      "evaluation": {
+        "findings": [
+          {
+            "step_order": null,
+            "claim": "Hold the blanket beside the target so it diffuses and reflects the light evenly.",
+            "issue_type": "constraint_violation",
+            "severity": "medium",
+            "explanation": "The user explicitly prohibited claiming light diffusion or reflection, but the plan does so."
+          }
+        ],
+        "medium_high_findings": 1,
+        "unlisted_resource_count": 0,
+        "unsupported_physical_claim_count": 0,
+        "unsupported_capability_count": 0,
+        "hidden_assumption_count": 0,
+        "safety_or_uncertainty_count": 0,
+        "constraint_violation_count": 1,
+        "accepted": false
+      }
+    },
+    {
+      "holdout_id": "H05",
+      "name": "good_chair_reposition",
+      "evaluator_version": "neutral_evaluator_v2",
+      "expected_accept": true,
+      "actual_accept": true,
+      "matched": true,
+      "medium_high_findings": 0,
+      "evaluation": {
+        "findings": [],
+        "medium_high_findings": 0,
+        "unlisted_resource_count": 0,
+        "unsupported_physical_claim_count": 0,
+        "unsupported_capability_count": 0,
+        "hidden_assumption_count": 0,
+        "safety_or_uncertainty_count": 0,
+        "constraint_violation_count": 0,
+        "accepted": true
+      }
+    },
+    {
+      "holdout_id": "H06",
+      "name": "bad_liquid_chair_move",
+      "evaluator_version": "neutral_evaluator_v2",
+      "expected_accept": false,
+      "actual_accept": false,
+      "matched": true,
+      "medium_high_findings": 1,
+      "evaluation": {
+        "findings": [
+          {
+            "step_order": null,
+            "claim": "Spraying liquid on the floor lubricates it to ease chair movement.",
+            "issue_type": "constraint_violation",
+            "severity": "high",
+            "explanation": "User constraint prohibits using liquids; the plan relies on liquid lubrication, violating this rule."
+          }
+        ],
+        "medium_high_findings": 1,
+        "unlisted_resource_count": 0,
+        "unsupported_physical_claim_count": 0,
+        "unsupported_capability_count": 0,
+        "hidden_assumption_count": 0,
+        "safety_or_uncertainty_count": 0,
+        "constraint_violation_count": 1,
+        "accepted": false
+      }
+    }
+  ]
+}
