@@ -67,7 +67,7 @@ class PhysicalPlan(BaseModel):
 
     assumptions: list[str] = Field(
         default_factory=list,
-        max_length=5,
+        max_length=8,
     )
 
     unresolved_risks: list[str] = Field(

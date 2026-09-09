@@ -4,9 +4,11 @@ import os
 from dotenv import load_dotenv
 from openai import OpenAI
 
-from model_json import load_model_json
+from json_format_repair import load_or_repair_json
 from object_dna_fixture import OBJECT_DNA_FIXTURE
 from object_dna_service import generate_object_dna
+from plan_normalizer import normalize_plan_payload
+from plan_repair import repair_plan
 from plan_schemas import PhysicalPlan
 from plan_validator import (
     normalize_plan_item_ids,
@@ -36,6 +38,8 @@ client = OpenAI(
 
 MODEL = "nvidia/nemotron-3-super-120b-a12b"
 
+MAX_REPAIR_ATTEMPTS = 2
+
 
 GOAL = """
 Create a practical tabletop product-photography setup for photographing
@@ -52,6 +56,11 @@ Constraints:
 - Do not damage the listed objects.
 - Prefer a simple setup that a normal person could actually assemble.
 """.strip()
+
+
+EXTERNAL_RESOURCES = [
+    "phone camera",
+]
 
 
 inventory_payload = [
@@ -109,8 +118,11 @@ def call_planner(
             "Planner returned no final content."
         )
 
-    payload = load_model_json(
-        raw_output
+    payload = load_or_repair_json(
+    raw_output
+    )
+    payload = normalize_plan_payload(
+        payload
     )
 
     return PhysicalPlan.model_validate(
@@ -217,6 +229,11 @@ object_dna = ObjectDNAResponse(
 )
 
 
+# ---------------------------------------------------------------------------
+# COMPACT CAPABILITY GRAPH
+# ---------------------------------------------------------------------------
+
+
 planner_dna_payload = []
 
 for dna in object_dna.objects:
@@ -309,7 +326,7 @@ HARD RULES
 - Respect caution_notes.
 
 - Do not convert an unknown property into an assumption just because
-  it would make the plan easier.
+  it makes the plan easier.
 
 - Do not claim physical properties that Object DNA does not establish.
 
@@ -317,7 +334,7 @@ Examples of forbidden unsupported claims:
 - "non-slip" without friction evidence
 - "well-lit" without illumination evidence
 - "minimal shadow" without lighting evidence
-- "stable" unless relevant support/stability is grounded
+- "stable" unless relevant stability is grounded
 - "reflective" without reflect_light evidence
 - "diffused light" without diffuse_light evidence
 
@@ -338,7 +355,12 @@ Examples of forbidden unsupported claims:
 - Budget is $0.
 - No permanent modifications.
 - No intentional damage.
-- Maximum 8 steps.
+
+- Maximum 6 steps.
+- Keep each action concise: maximum about 25 words.
+- Keep each capability purpose concise: maximum about 15 words.
+- Keep each why_it_helps concise: maximum about 20 words.
+- Do not repeat Object DNA descriptions in the plan.
 
 Return JSON only.
 
@@ -353,7 +375,7 @@ Canonical inventory:
 {json.dumps(inventory_payload, indent=2)}
 
 
-Validated Object DNA:
+Validated capability graph:
 
 {json.dumps(planner_dna_payload, indent=2)}
 """.strip()
@@ -380,7 +402,7 @@ zero_plan = validate_zero_plan(
 
 
 # ---------------------------------------------------------------------------
-# ZERO SEMANTIC CRITIC
+# INITIAL SEMANTIC CRITIC
 # ---------------------------------------------------------------------------
 
 
@@ -391,10 +413,70 @@ critic_result = audit_plan_semantics(
     goal=GOAL,
     inventory=OBJECT_DNA_FIXTURE.items,
     object_dna=object_dna,
-    external_resources=[
-        "phone camera",
-    ],
+    external_resources=EXTERNAL_RESOURCES,
 )
+
+
+# ---------------------------------------------------------------------------
+# AUTOMATIC REPAIR LOOP
+# ---------------------------------------------------------------------------
+
+
+repair_attempt = 0
+
+
+while (
+    not critic_result.passed
+    and repair_attempt < MAX_REPAIR_ATTEMPTS
+):
+    repair_attempt += 1
+
+    print()
+    print(
+        f"ZERO semantic critic rejected plan. "
+        f"Repair attempt {repair_attempt}/"
+        f"{MAX_REPAIR_ATTEMPTS}..."
+    )
+
+    repaired_plan = repair_plan(
+        plan=zero_plan,
+        critic=critic_result,
+        goal=GOAL,
+        inventory=OBJECT_DNA_FIXTURE.items,
+        object_dna=object_dna,
+        external_resources=EXTERNAL_RESOURCES,
+    )
+
+    repaired_plan = normalize_plan_item_ids(
+        repaired_plan
+    )
+
+    print(
+        f"Running deterministic validation "
+        f"after repair attempt {repair_attempt}..."
+    )
+
+    repaired_plan = validate_zero_plan(
+        repaired_plan,
+        object_dna,
+        VALID_ITEM_IDS,
+    )
+
+    print(
+        f"Running semantic critic "
+        f"after repair attempt {repair_attempt}..."
+    )
+
+    repaired_critic = audit_plan_semantics(
+        plan=repaired_plan,
+        goal=GOAL,
+        inventory=OBJECT_DNA_FIXTURE.items,
+        object_dna=object_dna,
+        external_resources=EXTERNAL_RESOURCES,
+    )
+
+    zero_plan = repaired_plan
+    critic_result = repaired_critic
 
 
 # ---------------------------------------------------------------------------
@@ -416,7 +498,7 @@ print(
 
 print()
 print("=" * 70)
-print("CAPABILITY-BOUND ZERO")
+print("FINAL ZERO PLAN")
 print("=" * 70)
 
 print(
@@ -428,7 +510,7 @@ print(
 
 print()
 print("=" * 70)
-print("ZERO SEMANTIC CRITIC")
+print("FINAL ZERO SEMANTIC CRITIC")
 print("=" * 70)
 
 print(
@@ -438,13 +520,23 @@ print(
 )
 
 
-if not critic_result.passed:
-    print()
+print()
+print("=" * 70)
+print("ZERO REPAIR SUMMARY")
+print("=" * 70)
+
+print(
+    f"Repair attempts used: "
+    f"{repair_attempt}/{MAX_REPAIR_ATTEMPTS}"
+)
+
+
+if critic_result.passed:
     print(
-        "ZERO PLAN STATUS: REJECTED BY SEMANTIC CRITIC"
+        "ZERO FINAL STATUS: ACCEPTED"
     )
 else:
-    print()
     print(
-        "ZERO PLAN STATUS: ACCEPTED"
+        "ZERO FINAL STATUS: REJECTED "
+        "AFTER MAXIMUM REPAIR ATTEMPTS"
     )
