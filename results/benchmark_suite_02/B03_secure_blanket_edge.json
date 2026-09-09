@@ -1,0 +1,181 @@
+{
+  "case_id": "B03",
+  "case_name": "secure_blanket_edge",
+  "expectation": "feasible",
+  "repair_attempts": 2,
+  "repair_validation_failures": 0,
+  "baseline_plan": {
+    "title": "Secure blanket edge with book weight",
+    "summary": "Place a stack of books on the blanket edge resting on the office chair seat to prevent it from shifting.",
+    "item_ids_used": [
+      "books_01"
+    ],
+    "steps": [
+      {
+        "order": 1,
+        "action": "Place the stack of books onto the blanket edge that lies on the chair seat.",
+        "item_ids": [
+          "books_01"
+        ],
+        "capability_uses": [],
+        "why_it_helps": "The weight of the books holds the blanket edge down, preventing it from slipping off the seat."
+      }
+    ],
+    "assumptions": [
+      "The blanket edge is positioned on the chair seat and can be held down by a modest weight.",
+      "The books provide sufficient weight to resist typical shifting forces."
+    ],
+    "unresolved_risks": [
+      "If the books are not heavy enough or shift themselves, the blanket edge may still move.",
+      "Placing books could cause uneven pressure and potentially wrinkle the blanket."
+    ],
+    "constraint_check": [
+      "Budget: $0 - no purchases made.",
+      "Only listed inventory objects used (office_chair_01, blanket_01, books_01).",
+      "No tape, adhesives, fasteners, or clamps used.",
+      "No permanent modifications made.",
+      "No damage to any object.",
+      "Did not rely on unknown liquid contents (spray bottles not used).",
+      "Did not rely on electrical properties (power strip not used).",
+      "Books used as weight have evident mass (physical evidence of weight)."
+    ]
+  },
+  "zero_initial_plan": {
+    "title": "Weight blanket edge with books",
+    "summary": "Place a stack of books on the blanket's edge on the office chair seat to prevent shifting.",
+    "item_ids_used": [
+      "blanket_01",
+      "books_01",
+      "office_chair_01"
+    ],
+    "steps": [
+      {
+        "order": 1,
+        "action": "Place the stack of books on the edge of the blanket sitting on the office chair seat.",
+        "item_ids": [
+          "books_01",
+          "blanket_01",
+          "office_chair_01"
+        ],
+        "capability_uses": [
+          {
+            "item_id": "books_01",
+            "capability": "provide_weight",
+            "purpose": "Add weight to prevent the blanket edge from shifting."
+          },
+          {
+            "item_id": "blanket_01",
+            "capability": "cushion",
+            "purpose": "Provide a compliant surface that conforms to the weight, helping hold the edge."
+          },
+          {
+            "item_id": "office_chair_01",
+            "capability": "support",
+            "purpose": "Support the blanket and books, keeping them stable on the seat."
+          }
+        ],
+        "why_it_helps": "The books' weight holds the blanket edge down, while the chair supports both items without shifting."
+      }
+    ],
+    "assumptions": [],
+    "unresolved_risks": [],
+    "constraint_check": []
+  },
+  "zero_initial_critic": {
+    "passed": false,
+    "findings": [
+      {
+        "step_order": 1,
+        "claim": "Chair supports items without shifting",
+        "issue_type": "unsupported_physical_claim",
+        "severity": "medium",
+        "explanation": "The chair's support capability ensures weight-bearing but does not guarantee prevention of sliding or shifting.",
+        "recommended_fix": "Remove claim that chair prevents shifting; rely on books' weight to hold blanket edge."
+      }
+    ]
+  },
+  "zero_final_plan": {
+    "title": "Weight blanket edge with books",
+    "summary": "Place a sufficient stack of books on the blanket's edge on the office chair seat to increase normal force and friction, preventing shifting.",
+    "item_ids_used": [
+      "blanket_01",
+      "books_01",
+      "office_chair_01"
+    ],
+    "steps": [
+      {
+        "order": 1,
+        "action": "Place a sufficient stack of books on the blanket edge on the office chair seat to increase normal force and friction.",
+        "item_ids": [
+          "books_01",
+          "blanket_01",
+          "office_chair_01"
+        ],
+        "capability_uses": [
+          {
+            "item_id": "books_01",
+            "capability": "provide_weight",
+            "purpose": "Increase normal force to enhance friction preventing shift."
+          },
+          {
+            "item_id": "blanket_01",
+            "capability": "cushion",
+            "purpose": "Provide a surface that conforms to the weight, helping hold the edge."
+          },
+          {
+            "item_id": "office_chair_01",
+            "capability": "support",
+            "purpose": "Support the blanket and books on the seat."
+          }
+        ],
+        "why_it_helps": "The added weight increases normal force, boosting friction to keep the blanket edge from shifting."
+      }
+    ],
+    "assumptions": [],
+    "unresolved_risks": [],
+    "constraint_check": []
+  },
+  "zero_final_critic": {
+    "passed": false,
+    "findings": [
+      {
+        "step_order": null,
+        "claim": "Assumes blanket will not slip on chair seat when weighted.",
+        "issue_type": "hidden_assumption",
+        "severity": "medium",
+        "explanation": "The plan relies on increased normal force to prevent slipping, but does not establish that the blanket‑chair interface provides sufficient friction.",
+        "recommended_fix": "Add a non‑slip material or increase friction interface, or test that the blanket‑chair friction is sufficient."
+      }
+    ]
+  },
+  "baseline_evaluation": {
+    "findings": [
+      {
+        "step_order": null,
+        "claim": "Plan asserts no damage to any object.",
+        "issue_type": "unsupported_physical_claim",
+        "severity": "medium",
+        "explanation": "The plan acknowledges that placing books could wrinkle the blanket, which may be considered damage, yet the constraint check claims no damage to any object."
+      }
+    ],
+    "medium_high_findings": 1,
+    "unlisted_resource_count": 0,
+    "unsupported_physical_claim_count": 1,
+    "unsupported_capability_count": 0,
+    "hidden_assumption_count": 0,
+    "safety_or_uncertainty_count": 0,
+    "constraint_violation_count": 0,
+    "accepted": false
+  },
+  "zero_evaluation": {
+    "findings": [],
+    "medium_high_findings": 0,
+    "unlisted_resource_count": 0,
+    "unsupported_physical_claim_count": 0,
+    "unsupported_capability_count": 0,
+    "hidden_assumption_count": 0,
+    "safety_or_uncertainty_count": 0,
+    "constraint_violation_count": 0,
+    "accepted": true
+  }
+}

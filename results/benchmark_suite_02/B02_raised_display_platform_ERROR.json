@@ -1,0 +1,7 @@
+{
+  "case_id": "B02",
+  "case_name": "raised_display_platform",
+  "error_type": "PlanValidationError",
+  "error_message": "Plan item_ids_used contains unknown items: ['small lightweight object'] | Step 4 references unknown items: ['small lightweight object']",
+  "traceback": "Traceback (most recent call last):\n  File \"C:\\Users\\bhsu0\\Documents\\Codex\\ZERO\\zero-hackathon\\services\\api\\benchmark_suite.py\", line 865, in main\n    result = run_benchmark_case(\n        case,\n        object_dna=object_dna,\n    )\n  File \"C:\\Users\\bhsu0\\Documents\\Codex\\ZERO\\zero-hackathon\\services\\api\\experiment_runner.py\", line 736, in run_benchmark_case\n    validate_inventory_grounding(\n    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~^\n        baseline_plan,\n        ^^^^^^^^^^^^^^\n        VALID_ITEM_IDS,\n        ^^^^^^^^^^^^^^^\n    )\n    ^\n  File \"C:\\Users\\bhsu0\\Documents\\Codex\\ZERO\\zero-hackathon\\services\\api\\plan_validator.py\", line 93, in validate_inventory_grounding\n    raise PlanValidationError(\n        \" | \".join(errors)\n    )\nplan_validator.PlanValidationError: Plan item_ids_used contains unknown items: ['small lightweight object'] | Step 4 references unknown items: ['small lightweight object']\n"
+}

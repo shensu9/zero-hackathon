@@ -1,0 +1,18 @@
+{
+  "suite_id": "benchmark_suite_02",
+  "evaluator_version": "neutral_evaluator_v2",
+  "benchmark_case_ids": [
+    "B01",
+    "B02",
+    "B03",
+    "B04",
+    "B05"
+  ],
+  "benchmark_case_count": 5,
+  "object_dna_policy": "fixed validated fixture cache",
+  "baseline_policy": "fresh generation for every case",
+  "zero_policy": "fresh capability-bound generation, deterministic validation, semantic critic, maximum two repair attempts",
+  "comparative_scoring": "neutral evaluator only; ZERO internal critic is not the benchmark judge",
+  "suite_01_results_reused": false,
+  "note": "Post-calibration exploratory benchmark. Evaluator v2 is frozen before this run."
+}

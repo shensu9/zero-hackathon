@@ -1,0 +1,389 @@
+{
+  "case_id": "B01",
+  "case_name": "product_photography",
+  "expectation": "conditionally_feasible",
+  "repair_attempts": 2,
+  "repair_validation_failures": 0,
+  "baseline_plan": {
+    "title": "DIY phone photography stand using chair and books",
+    "summary": "Use the office chair seat as a shooting surface, the blanket as a backdrop, stacked books to elevate the phone, and optionally mist the object with a spray bottle for enhanced appearance.",
+    "item_ids_used": [
+      "blanket_01",
+      "books_01",
+      "office_chair_01",
+      "spray_bottles_01"
+    ],
+    "steps": [
+      {
+        "order": 1,
+        "action": "Position the office chair upright and lock its wheels if possible to create a stable base.",
+        "item_ids": [
+          "office_chair_01"
+        ],
+        "capability_uses": [],
+        "why_it_helps": "Provides a stable flat surface for the setup."
+      },
+      {
+        "order": 2,
+        "action": "Drape the blanket over the top of the chair back so it hangs behind the seat, forming a seamless backdrop.",
+        "item_ids": [
+          "blanket_01"
+        ],
+        "capability_uses": [],
+        "why_it_helps": "Creates a neutral background for product photography."
+      },
+      {
+        "order": 3,
+        "action": "Stack the books on the chair seat to raise the phone to the desired height, then place the phone camera on top of the stack with the lens facing downward.",
+        "item_ids": [
+          "books_01"
+        ],
+        "capability_uses": [],
+        "why_it_helps": "Elevates the phone for consistent framing and reduces hand shake."
+      },
+      {
+        "order": 4,
+        "action": "Place the small object being photographed on the chair seat, centered in front of the blanket backdrop.",
+        "item_ids": [],
+        "capability_uses": [],
+        "why_it_helps": "Positions the subject correctly for the shot."
+      },
+      {
+        "order": 5,
+        "action": "Lightly mist the small object with the spray bottle (if desired) to add subtle shine or texture.",
+        "item_ids": [
+          "spray_bottles_01"
+        ],
+        "capability_uses": [],
+        "why_it_helps": "Can improve visual appeal by adding moisture or reducing glare."
+      },
+      {
+        "order": 6,
+        "action": "Adjust the phone camera angle on the book stack to frame the object, then capture images using the phone camera.",
+        "item_ids": [],
+        "capability_uses": [],
+        "why_it_helps": "Final step to take the product photographs."
+      }
+    ],
+    "assumptions": [
+      "The office chair seat is flat and sturdy enough to support the object and phone stack.",
+      "The chair wheels can be locked or are sufficiently stationary to prevent movement during shooting.",
+      "The blanket will stay draped without slipping.",
+      "The book stack is stable enough to hold the phone without slipping.",
+      "The phone camera can be balanced on the book stack securely."
+    ],
+    "unresolved_risks": [
+      "Phone may slip off the book stack if not properly balanced.",
+      "The small object may roll or slide off the chair seat.",
+      "The blanket may shift during shooting, altering the background.",
+      "The liquid in the spray bottles is unknown and could potentially damage or stain the object."
+    ],
+    "constraint_check": [
+      "Only listed inventory objects were used (office_chair_01, blanket_01, books_01, spray_bottles_01).",
+      "No unlisted resources such as tape, tripod, window, lamp, shelf, fastener, table, or tabletop were assumed.",
+      "No permanent modifications or damage to the objects are required.",
+      "The setup incurs no cost ($0 budget).",
+      "A phone camera and the small object being photographed are used as explicit external resources."
+    ]
+  },
+  "zero_initial_plan": {
+    "title": "Simple tabletop product photo setup",
+    "summary": "Use books as a platform, an office chair to hold the phone, and a blanket as a backdrop to photograph a small object with no extra cost or modifications.",
+    "item_ids_used": [
+      "blanket_01",
+      "books_01",
+      "office_chair_01"
+    ],
+    "steps": [
+      {
+        "order": 1,
+        "action": "Stack the books to form a stable, flat platform on the floor.",
+        "item_ids": [
+          "books_01"
+        ],
+        "capability_uses": [
+          {
+            "item_id": "books_01",
+            "capability": "stack",
+            "purpose": "create a stable base"
+          },
+          {
+            "item_id": "books_01",
+            "capability": "provide_surface",
+            "purpose": "offer a flat surface for the object"
+          },
+          {
+            "item_id": "books_01",
+            "capability": "elevate",
+            "purpose": "raise the object to a suitable height"
+          }
+        ],
+        "why_it_helps": "Provides a level, elevated surface for the small object without needing a table."
+      },
+      {
+        "order": 2,
+        "action": "Reposition the office chair so its seat faces the platform, then place the phone camera on the seat.",
+        "item_ids": [
+          "office_chair_01"
+        ],
+        "capability_uses": [
+          {
+            "item_id": "office_chair_01",
+            "capability": "reposition",
+            "purpose": "position chair for optimal shooting angle"
+          },
+          {
+            "item_id": "office_chair_01",
+            "capability": "support",
+            "purpose": "hold phone camera steady on chair seat"
+          },
+          {
+            "item_id": "office_chair_01",
+            "capability": "elevate",
+            "purpose": "raise phone to align with object height"
+          }
+        ],
+        "why_it_helps": "Provides a stable, adjustable height for the phone camera, eliminating the need for a tripod."
+      },
+      {
+        "order": 3,
+        "action": "Drape the blanket behind the platform to create a smooth, non-reflective background.",
+        "item_ids": [
+          "blanket_01"
+        ],
+        "capability_uses": [
+          {
+            "item_id": "blanket_01",
+            "capability": "block_light",
+            "purpose": "reduce glare and create uniform backdrop"
+          },
+          {
+            "item_id": "blanket_01",
+            "capability": "cover",
+            "purpose": "provide background surface behind object"
+          }
+        ],
+        "why_it_helps": "Gives a clean, consistent backdrop that improves product photo quality."
+      }
+    ],
+    "assumptions": [],
+    "unresolved_risks": [],
+    "constraint_check": [
+      "No unlisted resources used",
+      "No permanent modifications",
+      "Budget $0 respected"
+    ]
+  },
+  "zero_initial_critic": {
+    "passed": false,
+    "findings": [
+      {
+        "step_order": 1,
+        "claim": "Claims the stacked books form a stable platform.",
+        "issue_type": "unsupported_physical_claim",
+        "severity": "medium",
+        "explanation": "Books are flat and can stack, but stability is not a listed trait or capability; stacked books may wobble.",
+        "recommended_fix": "Add a check to ensure the stack is stable (e.g., center weight, verify no wobble) or note the need for a level surface."
+      },
+      {
+        "step_order": 2,
+        "claim": "Claims the phone will be steady on the office chair seat.",
+        "issue_type": "unsupported_physical_claim",
+        "severity": "medium",
+        "explanation": "The chair can support weight, but its wheels may move; steadiness is not guaranteed by support capability.",
+        "recommended_fix": "Recommend chocking the chair wheels or placing the chair against a wall to prevent movement."
+      },
+      {
+        "step_order": 3,
+        "claim": "Claims the blanket provides a smooth, non-reflective background.",
+        "issue_type": "unsupported_physical_claim",
+        "severity": "medium",
+        "explanation": "Blanket is opaque and flexible, but smoothness and non-reflectivity are not traits; texture may cause reflections.",
+        "recommended_fix": "Suggest inspecting the blanket for texture, using the less reflective side, or adding a diffusing layer if needed."
+      }
+    ]
+  },
+  "zero_final_plan": {
+    "title": "Zero-cost tabletop product photo setup",
+    "summary": "Use books as a platform, an office chair to hold the phone, and books to chock wheels and weigh blanket edges, with blanket as backdrop.",
+    "item_ids_used": [
+      "blanket_01",
+      "books_01",
+      "office_chair_01"
+    ],
+    "steps": [
+      {
+        "order": 1,
+        "action": "Stack the books and adjust to center weight, ensuring a stable, flat platform.",
+        "item_ids": [
+          "books_01"
+        ],
+        "capability_uses": [
+          {
+            "item_id": "books_01",
+            "capability": "stack",
+            "purpose": "create a stable base"
+          },
+          {
+            "item_id": "books_01",
+            "capability": "provide_surface",
+            "purpose": "offer a flat surface for the object"
+          },
+          {
+            "item_id": "books_01",
+            "capability": "elevate",
+            "purpose": "raise the object to a suitable height"
+          }
+        ],
+        "why_it_helps": "Provides a level, elevated surface for the small object without needing a table."
+      },
+      {
+        "order": 2,
+        "action": "Reposition office chair so seat faces platform, then place books against rear wheels to chock them, and set phone camera on seat.",
+        "item_ids": [
+          "office_chair_01",
+          "books_01"
+        ],
+        "capability_uses": [
+          {
+            "item_id": "office_chair_01",
+            "capability": "reposition",
+            "purpose": "face seat toward platform"
+          },
+          {
+            "item_id": "office_chair_01",
+            "capability": "support",
+            "purpose": "hold phone camera steady"
+          },
+          {
+            "item_id": "office_chair_01",
+            "capability": "elevate",
+            "purpose": "raise phone to suitable height"
+          },
+          {
+            "item_id": "books_01",
+            "capability": "provide_weight",
+            "purpose": "chock rear wheels to prevent sliding"
+          }
+        ],
+        "why_it_helps": "Keeps chair stationary while holding phone at a fixed height for consistent framing."
+      },
+      {
+        "order": 3,
+        "action": "Smooth blanket by hand, then place books on its edges to weigh them down for a flatter backdrop.",
+        "item_ids": [
+          "blanket_01",
+          "books_01"
+        ],
+        "capability_uses": [
+          {
+            "item_id": "blanket_01",
+            "capability": "block_light",
+            "purpose": "reduce glare and create uniform backdrop"
+          },
+          {
+            "item_id": "blanket_01",
+            "capability": "cover",
+            "purpose": "provide background surface behind object"
+          },
+          {
+            "item_id": "books_01",
+            "capability": "provide_weight",
+            "purpose": "hold blanket edges flat"
+          }
+        ],
+        "why_it_helps": "Creates a smoother, more uniform background by flattening the blanket and securing its edges."
+      }
+    ],
+    "assumptions": [],
+    "unresolved_risks": [],
+    "constraint_check": []
+  },
+  "zero_final_critic": {
+    "passed": false,
+    "findings": [
+      {
+        "step_order": 1,
+        "claim": "ensuring a stable, flat platform",
+        "issue_type": "unsupported_physical_claim",
+        "severity": "medium",
+        "explanation": "The plan asserts stability but no capability or trait guarantees a stacked book platform is stable under use.",
+        "recommended_fix": "Add a verification step or use additional weight/interlocking to increase platform stability, or explicitly note the stability assumption."
+      },
+      {
+        "step_order": 2,
+        "claim": "Keeps chair stationary while holding phone at a fixed height",
+        "issue_type": "hidden_assumption",
+        "severity": "medium",
+        "explanation": "Assuming books provide enough weight to chock the chair's rear wheels prevents sliding; this is not validated by inventory or capabilities.",
+        "recommended_fix": "Verify required weight to chock wheels or add another item to lock wheels, and state the assumption about chocking."
+      },
+      {
+        "step_order": 3,
+        "claim": "Creates a smoother, more uniform background by flattening the blanket and securing its edges",
+        "issue_type": "hidden_assumption",
+        "severity": "medium",
+        "explanation": "Assuming that placing books on blanket edges will flatten it sufficiently for a uniform backdrop is not guaranteed by any capability or trait.",
+        "recommended_fix": "Add further smoothing or distribute weight more evenly across blanket edges, and note that flattening is assumed."
+      }
+    ]
+  },
+  "baseline_evaluation": {
+    "findings": [
+      {
+        "step_order": 1,
+        "claim": "Chair wheels can be locked or stationary for stability.",
+        "issue_type": "hidden_assumption",
+        "severity": "medium",
+        "explanation": "The plan assumes wheel lock or stationarity, but chair lacks verified wheel‑lock capability; stability depends on this."
+      },
+      {
+        "step_order": 2,
+        "claim": "Blanket will stay draped without slipping as backdrop.",
+        "issue_type": "hidden_assumption",
+        "severity": "medium",
+        "explanation": "The plan assumes the blanket remains positioned, but no capability guarantees it will not slip during shooting."
+      },
+      {
+        "step_order": 3,
+        "claim": "Phone camera can be balanced securely on the book stack without slipping.",
+        "issue_type": "hidden_assumption",
+        "severity": "medium",
+        "explanation": "The plan relies on friction and stack stability to hold the phone, which is not guaranteed by the books’ capabilities."
+      },
+      {
+        "step_order": 2,
+        "claim": "The blanket forms a seamless backdrop.",
+        "issue_type": "unsupported_physical_claim",
+        "severity": "low",
+        "explanation": "The blanket may wrinkle or shift; a perfectly seamless appearance is not assured by its traits."
+      },
+      {
+        "step_order": 5,
+        "claim": "Lightly mist the object with the spray bottle to add shine/texture.",
+        "issue_type": "safety_or_uncertainty",
+        "severity": "medium",
+        "explanation": "The plan uses an unknown liquid without verifying contents, ignoring the caution to identify liquid before reuse, risking object damage."
+      }
+    ],
+    "medium_high_findings": 4,
+    "unlisted_resource_count": 0,
+    "unsupported_physical_claim_count": 1,
+    "unsupported_capability_count": 0,
+    "hidden_assumption_count": 3,
+    "safety_or_uncertainty_count": 1,
+    "constraint_violation_count": 0,
+    "accepted": false
+  },
+  "zero_evaluation": {
+    "findings": [],
+    "medium_high_findings": 0,
+    "unlisted_resource_count": 0,
+    "unsupported_physical_claim_count": 0,
+    "unsupported_capability_count": 0,
+    "hidden_assumption_count": 0,
+    "safety_or_uncertainty_count": 0,
+    "constraint_violation_count": 0,
+    "accepted": true
+  }
+}

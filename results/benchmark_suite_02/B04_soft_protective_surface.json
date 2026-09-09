@@ -1,0 +1,185 @@
+{
+  "case_id": "B04",
+  "case_name": "soft_protective_surface",
+  "expectation": "feasible",
+  "repair_attempts": 2,
+  "repair_validation_failures": 0,
+  "baseline_plan": {
+    "title": "Soft Blanket Surface for Fragile Object on Office Chair",
+    "summary": "Create a cushioned resting area by laying a blanket on the chair seat and placing the fragile object atop it.",
+    "item_ids_used": [
+      "blanket_01"
+    ],
+    "steps": [
+      {
+        "order": 1,
+        "action": "Unfold the blanket and lay it flat on the seat of the office chair, smoothing out wrinkles.",
+        "item_ids": [
+          "blanket_01"
+        ],
+        "capability_uses": [],
+        "why_it_helps": "Provides a soft layer to protect the fragile object."
+      },
+      {
+        "order": 2,
+        "action": "Gently place the small fragile object onto the blanket-covered seat, centering it to minimize shifting.",
+        "item_ids": [],
+        "capability_uses": [],
+        "why_it_helps": "Positions the object on the protective surface."
+      }
+    ],
+    "assumptions": [
+      "The blanket is clean and provides sufficient cushioning for the object.",
+      "The chair seat can support the blanket without slipping or damaging the chair."
+    ],
+    "unresolved_risks": [
+      "The blanket may shift during use, potentially moving the object.",
+      "If the object is heavy or uneven, it could cause the blanket to wrinkle or slide."
+    ],
+    "constraint_check": [
+      "Budget $0: no items purchased or cost incurred.",
+      "Only listed inventory objects used (blanket_01).",
+      "No permanent modifications: blanket placed temporarily.",
+      "No damage to listed objects: placement is non‑invasive.",
+      "No claims of non‑slip, waterproof, or impact‑proof protection beyond observed softness.",
+      "Prefer simplest arrangement: single blanket layer."
+    ]
+  },
+  "zero_initial_plan": {
+    "title": "Soft Blanket Cushion on Office Chair",
+    "summary": "Place a folded blanket on the office chair seat to create a soft protective surface for a fragile object.",
+    "item_ids_used": [
+      "blanket_01",
+      "office_chair_01"
+    ],
+    "steps": [
+      {
+        "order": 1,
+        "action": "Unfold the blanket and lay it flat on the seat of the office chair.",
+        "item_ids": [
+          "blanket_01",
+          "office_chair_01"
+        ],
+        "capability_uses": [
+          {
+            "item_id": "blanket_01",
+            "capability": "cushion",
+            "purpose": "Provide a soft, protective layer for the fragile object."
+          },
+          {
+            "item_id": "office_chair_01",
+            "capability": "support",
+            "purpose": "Provide a stable, supportive surface for the blanket."
+          }
+        ],
+        "why_it_helps": "Combines the chair's stability with the blanket's softness to create a safe resting surface."
+      }
+    ],
+    "assumptions": [],
+    "unresolved_risks": [],
+    "constraint_check": []
+  },
+  "zero_initial_critic": {
+    "passed": false,
+    "findings": [
+      {
+        "step_order": 1,
+        "claim": "Assumes blanket stays put on chair seat without slipping.",
+        "issue_type": "hidden_assumption",
+        "severity": "medium",
+        "explanation": "The plan relies on the blanket remaining stationary on the chair seat, but no validated capability ensures it will not slide or shift during use.",
+        "recommended_fix": "Add a step to tuck the blanket edges under the chair or place a light weight to prevent shifting, or note to monitor placement."
+      }
+    ]
+  },
+  "zero_final_plan": {
+    "title": "Soft Blanket Cushion with Weight",
+    "summary": "Place a folded blanket on the office chair seat and secure it with a book to create a soft protective surface for a fragile object.",
+    "item_ids_used": [
+      "blanket_01",
+      "books_01",
+      "office_chair_01"
+    ],
+    "steps": [
+      {
+        "order": 1,
+        "action": "Unfold the blanket and lay it flat on the seat of the office chair.",
+        "item_ids": [
+          "blanket_01",
+          "office_chair_01"
+        ],
+        "capability_uses": [
+          {
+            "item_id": "blanket_01",
+            "capability": "cushion",
+            "purpose": "Provide a soft, protective layer for the fragile object."
+          },
+          {
+            "item_id": "office_chair_01",
+            "capability": "support",
+            "purpose": "Provide a stable, supportive surface for the blanket."
+          }
+        ],
+        "why_it_helps": "Combines the chair's stability with the blanket's softness to create a safe resting surface."
+      },
+      {
+        "order": 2,
+        "action": "Place a book on the blanket edges to add weight and help hold the blanket.",
+        "item_ids": [
+          "books_01",
+          "blanket_01"
+        ],
+        "capability_uses": [
+          {
+            "item_id": "books_01",
+            "capability": "provide_weight",
+            "purpose": "Add weight to help hold blanket."
+          },
+          {
+            "item_id": "blanket_01",
+            "capability": "cover",
+            "purpose": "Keep blanket positioned on chair seat."
+          }
+        ],
+        "why_it_helps": "Adds weight to help keep blanket from moving, preserving soft surface."
+      }
+    ],
+    "assumptions": [],
+    "unresolved_risks": [],
+    "constraint_check": []
+  },
+  "zero_final_critic": {
+    "passed": true,
+    "findings": []
+  },
+  "baseline_evaluation": {
+    "findings": [
+      {
+        "step_order": null,
+        "claim": "Chair seat can support blanket without slipping.",
+        "issue_type": "unsupported_physical_claim",
+        "severity": "medium",
+        "explanation": "The chair's support capability does not guarantee non‑slip behavior; slipping could move the blanket and object."
+      }
+    ],
+    "medium_high_findings": 1,
+    "unlisted_resource_count": 0,
+    "unsupported_physical_claim_count": 1,
+    "unsupported_capability_count": 0,
+    "hidden_assumption_count": 0,
+    "safety_or_uncertainty_count": 0,
+    "constraint_violation_count": 0,
+    "accepted": false
+  },
+  "zero_evaluation": {
+    "findings": [],
+    "medium_high_findings": 0,
+    "unlisted_resource_count": 0,
+    "unsupported_physical_claim_count": 0,
+    "unsupported_capability_count": 0,
+    "hidden_assumption_count": 0,
+    "safety_or_uncertainty_count": 0,
+    "constraint_violation_count": 0,
+    "accepted": true
+  }
+}

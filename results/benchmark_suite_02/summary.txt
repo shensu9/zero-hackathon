@@ -1,0 +1,60 @@
+========================================================================
+ZERO MULTI-GOAL BENCHMARK
+========================================================================
+Suite: benchmark_suite_02
+Completed: 4/5
+Failed cases: 1
+
+PER-CASE RESULTS
+------------------------------------------------------------------------
+B01 product_photography: baseline=4 ZERO=0 difference=+4
+    accepted: baseline=False ZERO=True | repairs=2 | hard repair failures=0
+B03 secure_blanket_edge: baseline=1 ZERO=0 difference=+1
+    accepted: baseline=False ZERO=True | repairs=2 | hard repair failures=0
+B04 soft_protective_surface: baseline=1 ZERO=0 difference=+1
+    accepted: baseline=False ZERO=True | repairs=2 | hard repair failures=0
+B05 safe_power_connection: baseline=1 ZERO=1 difference=+0
+    accepted: baseline=False ZERO=False | repairs=1 | hard repair failures=0
+
+AGGREGATE
+------------------------------------------------------------------------
+Baseline medium/high findings: 7
+ZERO medium/high findings: 1
+Absolute reduction: 6
+Reduction percentage: 85.7%
+
+Accepted cases — baseline: 0
+Accepted cases — ZERO: 3
+
+Cases favoring ZERO: 3
+Ties: 1
+Cases favoring baseline: 0
+
+BASELINE ISSUE TOTALS
+{
+  "unlisted_resource": 0,
+  "unsupported_physical_claim": 3,
+  "unsupported_capability": 0,
+  "hidden_assumption": 3,
+  "safety_or_uncertainty": 2,
+  "constraint_violation": 0
+}
+
+ZERO ISSUE TOTALS
+{
+  "unlisted_resource": 0,
+  "unsupported_physical_claim": 0,
+  "unsupported_capability": 0,
+  "hidden_assumption": 0,
+  "safety_or_uncertainty": 1,
+  "constraint_violation": 0
+}
+
+ZERO total repair attempts: 7
+ZERO hard repair validation failures: 0
+
+FAILED CASES
+------------------------------------------------------------------------
+B02 raised_display_platform: PlanValidationError — Plan item_ids_used contains unknown items: ['small lightweight object'] | Step 4 references unknown items: ['small lightweight object']
+
+Comparative scores above come from the neutral evaluator, not ZERO's internal critic.
