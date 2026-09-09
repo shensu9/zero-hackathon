@@ -1,5 +1,8 @@
+import hashlib
 import json
 import os
+import sys
+from pathlib import Path
 
 from dotenv import load_dotenv
 from openai import OpenAI
@@ -7,6 +10,7 @@ from openai import OpenAI
 from json_format_repair import load_or_repair_json
 from object_dna_fixture import OBJECT_DNA_FIXTURE
 from object_dna_service import generate_object_dna
+from plan_evaluator import evaluate_plan
 from plan_normalizer import normalize_plan_payload
 from plan_repair import repair_plan
 from plan_schemas import PhysicalPlan
@@ -22,16 +26,59 @@ from schemas import (
 from semantic_critic import audit_plan_semantics
 
 
+# ---------------------------------------------------------------------------
+# CONSOLE ENCODING
+# ---------------------------------------------------------------------------
+
+
+def _configure_utf8_console() -> None:
+    """
+    Avoid Windows CP950/legacy-console failures when models return
+    Unicode punctuation such as non-breaking hyphens.
+    """
+
+    for stream in (
+        sys.stdout,
+        sys.stderr,
+    ):
+        reconfigure = getattr(
+            stream,
+            "reconfigure",
+            None,
+        )
+
+        if callable(reconfigure):
+            try:
+                reconfigure(
+                    encoding="utf-8"
+                )
+            except Exception:
+                pass
+
+
+_configure_utf8_console()
+
+
+# ---------------------------------------------------------------------------
+# ENVIRONMENT / CLIENT
+# ---------------------------------------------------------------------------
+
+
 load_dotenv()
 
 api_key = os.getenv("NEBIUS_API_KEY")
 
 if not api_key:
-    raise RuntimeError("NEBIUS_API_KEY was not found in .env")
+    raise RuntimeError(
+        "NEBIUS_API_KEY was not found in .env"
+    )
 
 
 client = OpenAI(
-    base_url="https://api.tokenfactory.us-central1.nebius.com/v1/",
+    base_url=(
+        "https://api.tokenfactory."
+        "us-central1.nebius.com/v1/"
+    ),
     api_key=api_key,
 )
 
@@ -39,6 +86,34 @@ client = OpenAI(
 MODEL = "nvidia/nemotron-3-super-120b-a12b"
 
 MAX_REPAIR_ATTEMPTS = 2
+
+
+# ---------------------------------------------------------------------------
+# PATHS / CACHE
+# ---------------------------------------------------------------------------
+
+
+REPO_ROOT = Path(
+    __file__
+).resolve().parents[2]
+
+PRIVATE_CACHE_DIR = (
+    REPO_ROOT
+    / "sample_data"
+    / "private"
+)
+
+OBJECT_DNA_CACHE_PATH = (
+    PRIVATE_CACHE_DIR
+    / "object_dna_fixture_cache.json"
+)
+
+OBJECT_DNA_CACHE_VERSION = 1
+
+
+# ---------------------------------------------------------------------------
+# EXPERIMENT
+# ---------------------------------------------------------------------------
 
 
 GOAL = """
@@ -79,31 +154,94 @@ VALID_ITEM_IDS = {
 }
 
 
-def call_planner(
+# ---------------------------------------------------------------------------
+# PLANNER CALL
+# ---------------------------------------------------------------------------
+
+
+def _request_plan(
     prompt: str,
-) -> PhysicalPlan:
-    response = client.chat.completions.create(
+    *,
+    max_tokens: int,
+):
+    return client.chat.completions.create(
         model=MODEL,
         reasoning_effort="low",
+
         response_format={
             "type": "json_object"
         },
+
         messages=[
             {
                 "role": "user",
                 "content": prompt,
             }
         ],
+
         temperature=0,
-        max_tokens=4000,
+        max_tokens=max_tokens,
+    )
+
+
+def call_planner(
+    prompt: str,
+) -> PhysicalPlan:
+    """
+    Call the planner with enough room for Nemotron reasoning.
+
+    If the first response still reaches the completion limit,
+    retry once with stricter output compression.
+    """
+
+    response = _request_plan(
+        prompt,
+        max_tokens=6500,
     )
 
     choice = response.choices[0]
 
     if choice.finish_reason == "length":
-        raise RuntimeError(
-            "Planner output was truncated."
+        print(
+            "Planner output was truncated; "
+            "retrying once with stricter compact output..."
         )
+
+        compact_retry_prompt = (
+            prompt
+            + """
+
+CRITICAL RETRY INSTRUCTION
+
+The previous response exceeded the output budget.
+
+Return the SAME kind of requested plan, but compress it aggressively:
+
+- Maximum 4 steps.
+- Maximum 18 words per action.
+- Maximum 10 words per capability purpose.
+- Maximum 15 words per why_it_helps.
+- Maximum 3 assumptions.
+- Maximum 3 unresolved risks.
+- Maximum 4 constraint checks.
+- Do not explain your reasoning.
+- Do not repeat instructions.
+- Return JSON only.
+""".rstrip()
+        )
+
+        response = _request_plan(
+            compact_retry_prompt,
+            max_tokens=8000,
+        )
+
+        choice = response.choices[0]
+
+        if choice.finish_reason == "length":
+            raise RuntimeError(
+                "Planner output was truncated "
+                "after compact retry."
+            )
 
     if choice.message.refusal:
         raise RuntimeError(
@@ -119,8 +257,9 @@ def call_planner(
         )
 
     payload = load_or_repair_json(
-    raw_output
+        raw_output
     )
+
     payload = normalize_plan_payload(
         payload
     )
@@ -128,6 +267,155 @@ def call_planner(
     return PhysicalPlan.model_validate(
         payload
     )
+
+
+# ---------------------------------------------------------------------------
+# FIXED OBJECT DNA CACHE
+# ---------------------------------------------------------------------------
+
+
+def _fixture_fingerprint() -> str:
+    """
+    Fingerprint the canonical inventory fixture.
+
+    If the fixture changes, the old Object DNA cache is not reused.
+    """
+
+    fixture_payload = (
+        OBJECT_DNA_FIXTURE.model_dump(
+            mode="json"
+        )
+    )
+
+    canonical = json.dumps(
+        fixture_payload,
+        sort_keys=True,
+        separators=(",", ":"),
+        ensure_ascii=False,
+    )
+
+    return hashlib.sha256(
+        canonical.encode("utf-8")
+    ).hexdigest()
+
+
+def _load_cached_object_dna(
+) -> ObjectDNAResponse | None:
+    if not OBJECT_DNA_CACHE_PATH.exists():
+        return None
+
+    try:
+        envelope = json.loads(
+            OBJECT_DNA_CACHE_PATH.read_text(
+                encoding="utf-8"
+            )
+        )
+
+        if (
+            envelope.get("cache_version")
+            != OBJECT_DNA_CACHE_VERSION
+        ):
+            return None
+
+        if (
+            envelope.get("fixture_sha256")
+            != _fixture_fingerprint()
+        ):
+            return None
+
+        object_dna_payload = envelope.get(
+            "object_dna"
+        )
+
+        return ObjectDNAResponse.model_validate(
+            object_dna_payload
+        )
+
+    except Exception as exc:
+        print(
+            "Object DNA cache could not be reused; "
+            f"regenerating. Reason: {exc}"
+        )
+
+        return None
+
+
+def _save_object_dna_cache(
+    object_dna: ObjectDNAResponse,
+) -> None:
+    PRIVATE_CACHE_DIR.mkdir(
+        parents=True,
+        exist_ok=True,
+    )
+
+    envelope = {
+        "cache_version":
+            OBJECT_DNA_CACHE_VERSION,
+
+        "fixture_sha256":
+            _fixture_fingerprint(),
+
+        "object_dna":
+            object_dna.model_dump(
+                mode="json"
+            ),
+    }
+
+    OBJECT_DNA_CACHE_PATH.write_text(
+        json.dumps(
+            envelope,
+            indent=2,
+            ensure_ascii=False,
+        ),
+        encoding="utf-8",
+    )
+
+
+def load_or_generate_object_dna(
+) -> ObjectDNAResponse:
+    cached = _load_cached_object_dna()
+
+    if cached is not None:
+        print(
+            "Loading validated Object DNA "
+            "from fixed fixture cache..."
+        )
+
+        return cached
+
+    print(
+        "Generating validated Object DNA..."
+    )
+
+    objects = []
+
+    for item in OBJECT_DNA_FIXTURE.items:
+        print(
+            f"Generating DNA: {item.id}"
+        )
+
+        dna = generate_object_dna(
+            item
+        )
+
+        objects.append(
+            dna
+        )
+
+    object_dna = ObjectDNAResponse(
+        objects=objects
+    )
+
+    _save_object_dna_cache(
+        object_dna
+    )
+
+    print(
+        "Saved validated Object DNA "
+        "fixture cache."
+    )
+
+    return object_dna
 
 
 # ---------------------------------------------------------------------------
@@ -187,7 +475,9 @@ Inventory:
 """.strip()
 
 
-print("Running generic baseline...")
+print(
+    "Running generic baseline..."
+)
 
 baseline_plan = call_planner(
     baseline_prompt
@@ -204,28 +494,12 @@ validate_inventory_grounding(
 
 
 # ---------------------------------------------------------------------------
-# GENERATE VALIDATED OBJECT DNA
+# LOAD OR GENERATE FIXED VALIDATED OBJECT DNA
 # ---------------------------------------------------------------------------
 
 
-print("Generating validated Object DNA...")
-
-object_dna_objects = []
-
-for item in OBJECT_DNA_FIXTURE.items:
-    print(f"Generating DNA: {item.id}")
-
-    dna = generate_object_dna(
-        item
-    )
-
-    object_dna_objects.append(
-        dna
-    )
-
-
-object_dna = ObjectDNAResponse(
-    objects=object_dna_objects
+object_dna = (
+    load_or_generate_object_dna()
 )
 
 
@@ -239,22 +513,34 @@ planner_dna_payload = []
 for dna in object_dna.objects:
     planner_dna_payload.append(
         {
-            "item_id": dna.item_id,
+            "item_id":
+                dna.item_id,
 
             "traits": [
                 trait.trait.value
-                for trait in dna.physical_traits
-                if trait.certainty != CertaintyLevel.LOW
+                for trait
+                in dna.physical_traits
+                if (
+                    trait.certainty
+                    != CertaintyLevel.LOW
+                )
             ],
 
             "capabilities": [
                 affordance.capability.value
-                for affordance in dna.affordances
-                if affordance.certainty != CertaintyLevel.LOW
+                for affordance
+                in dna.affordances
+                if (
+                    affordance.certainty
+                    != CertaintyLevel.LOW
+                )
             ],
 
-            "unknown_properties": dna.unknown_properties,
-            "caution_notes": dna.caution_notes,
+            "unknown_properties":
+                dna.unknown_properties,
+
+            "caution_notes":
+                dna.caution_notes,
         }
     )
 
@@ -381,7 +667,9 @@ Validated capability graph:
 """.strip()
 
 
-print("Running capability-bound ZERO planner...")
+print(
+    "Running capability-bound ZERO planner..."
+)
 
 zero_plan = call_planner(
     zero_prompt
@@ -392,7 +680,9 @@ zero_plan = normalize_plan_item_ids(
 )
 
 
-print("Running deterministic ZERO validation...")
+print(
+    "Running deterministic ZERO validation..."
+)
 
 zero_plan = validate_zero_plan(
     zero_plan,
@@ -406,7 +696,9 @@ zero_plan = validate_zero_plan(
 # ---------------------------------------------------------------------------
 
 
-print("Running ZERO semantic critic...")
+print(
+    "Running ZERO semantic critic..."
+)
 
 critic_result = audit_plan_semantics(
     plan=zero_plan,
@@ -427,11 +719,13 @@ repair_attempt = 0
 
 while (
     not critic_result.passed
-    and repair_attempt < MAX_REPAIR_ATTEMPTS
+    and repair_attempt
+    < MAX_REPAIR_ATTEMPTS
 ):
     repair_attempt += 1
 
     print()
+
     print(
         f"ZERO semantic critic rejected plan. "
         f"Repair attempt {repair_attempt}/"
@@ -453,7 +747,8 @@ while (
 
     print(
         f"Running deterministic validation "
-        f"after repair attempt {repair_attempt}..."
+        f"after repair attempt "
+        f"{repair_attempt}..."
     )
 
     repaired_plan = validate_zero_plan(
@@ -464,19 +759,61 @@ while (
 
     print(
         f"Running semantic critic "
-        f"after repair attempt {repair_attempt}..."
+        f"after repair attempt "
+        f"{repair_attempt}..."
     )
 
-    repaired_critic = audit_plan_semantics(
-        plan=repaired_plan,
-        goal=GOAL,
-        inventory=OBJECT_DNA_FIXTURE.items,
-        object_dna=object_dna,
-        external_resources=EXTERNAL_RESOURCES,
+    repaired_critic = (
+        audit_plan_semantics(
+            plan=repaired_plan,
+            goal=GOAL,
+            inventory=(
+                OBJECT_DNA_FIXTURE.items
+            ),
+            object_dna=object_dna,
+            external_resources=(
+                EXTERNAL_RESOURCES
+            ),
+        )
     )
 
     zero_plan = repaired_plan
     critic_result = repaired_critic
+
+
+# ---------------------------------------------------------------------------
+# NEUTRAL BASELINE VS ZERO EVALUATION
+# ---------------------------------------------------------------------------
+
+
+print()
+
+print(
+    "Running neutral evaluation "
+    "of generic baseline..."
+)
+
+baseline_evaluation = evaluate_plan(
+    plan=baseline_plan,
+    goal=GOAL,
+    inventory=OBJECT_DNA_FIXTURE.items,
+    object_dna=object_dna,
+    external_resources=EXTERNAL_RESOURCES,
+)
+
+
+print(
+    "Running neutral evaluation "
+    "of final ZERO plan..."
+)
+
+zero_evaluation = evaluate_plan(
+    plan=zero_plan,
+    goal=GOAL,
+    inventory=OBJECT_DNA_FIXTURE.items,
+    object_dna=object_dna,
+    external_resources=EXTERNAL_RESOURCES,
+)
 
 
 # ---------------------------------------------------------------------------
@@ -527,7 +864,8 @@ print("=" * 70)
 
 print(
     f"Repair attempts used: "
-    f"{repair_attempt}/{MAX_REPAIR_ATTEMPTS}"
+    f"{repair_attempt}/"
+    f"{MAX_REPAIR_ATTEMPTS}"
 )
 
 
@@ -540,3 +878,101 @@ else:
         "ZERO FINAL STATUS: REJECTED "
         "AFTER MAXIMUM REPAIR ATTEMPTS"
     )
+
+
+print()
+print("=" * 70)
+print("NEUTRAL BASELINE EVALUATION")
+print("=" * 70)
+
+print(
+    baseline_evaluation.model_dump_json(
+        indent=2
+    )
+)
+
+
+print()
+print("=" * 70)
+print("NEUTRAL ZERO EVALUATION")
+print("=" * 70)
+
+print(
+    zero_evaluation.model_dump_json(
+        indent=2
+    )
+)
+
+
+print()
+print("=" * 70)
+print("BASELINE VS ZERO SUMMARY")
+print("=" * 70)
+
+print(
+    "Baseline medium/high findings:",
+    baseline_evaluation.medium_high_findings,
+)
+
+print(
+    "ZERO medium/high findings:",
+    zero_evaluation.medium_high_findings,
+)
+
+print(
+    "Baseline accepted:",
+    baseline_evaluation.accepted,
+)
+
+print(
+    "ZERO accepted:",
+    zero_evaluation.accepted,
+)
+
+print()
+
+print(
+    "Baseline issue counts:",
+    {
+        "unlisted_resource":
+            baseline_evaluation.unlisted_resource_count,
+
+        "unsupported_physical_claim":
+            baseline_evaluation.unsupported_physical_claim_count,
+
+        "unsupported_capability":
+            baseline_evaluation.unsupported_capability_count,
+
+        "hidden_assumption":
+            baseline_evaluation.hidden_assumption_count,
+
+        "safety_or_uncertainty":
+            baseline_evaluation.safety_or_uncertainty_count,
+
+        "constraint_violation":
+            baseline_evaluation.constraint_violation_count,
+    },
+)
+
+print(
+    "ZERO issue counts:",
+    {
+        "unlisted_resource":
+            zero_evaluation.unlisted_resource_count,
+
+        "unsupported_physical_claim":
+            zero_evaluation.unsupported_physical_claim_count,
+
+        "unsupported_capability":
+            zero_evaluation.unsupported_capability_count,
+
+        "hidden_assumption":
+            zero_evaluation.hidden_assumption_count,
+
+        "safety_or_uncertainty":
+            zero_evaluation.safety_or_uncertainty_count,
+
+        "constraint_violation":
+            zero_evaluation.constraint_violation_count,
+    },
+)
