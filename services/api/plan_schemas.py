@@ -77,5 +77,5 @@ class PhysicalPlan(BaseModel):
 
     constraint_check: list[str] = Field(
         default_factory=list,
-        max_length=6,
+        max_length=12,
     )

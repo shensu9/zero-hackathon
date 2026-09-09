@@ -1,0 +1,469 @@
+{
+  "case_id": "B01",
+  "case_name": "product_photography",
+  "expectation": "conditionally_feasible",
+  "repair_attempts": 2,
+  "repair_validation_failures": 1,
+  "baseline_plan": {
+    "title": "Zero‑Cost Tabletop Photo Studio",
+    "summary": "Use books as a platform, a blanket as a backdrop, and an office chair to hold the phone for a simple product‑photography setup.",
+    "item_ids_used": [
+      "blanket_01",
+      "books_01",
+      "office_chair_01"
+    ],
+    "steps": [
+      {
+        "order": 1,
+        "action": "Stack several books to form a stable, flat platform for the object.",
+        "item_ids": [
+          "books_01"
+        ],
+        "capability_uses": [],
+        "why_it_helps": "Creates a level surface at a convenient height for the small object."
+      },
+      {
+        "order": 2,
+        "action": "Drape the blanket over the book platform and the back of the office chair to create a smooth, neutral backdrop.",
+        "item_ids": [
+          "blanket_01",
+          "office_chair_01"
+        ],
+        "capability_uses": [],
+        "why_it_helps": "Provides a clean, non‑reflective background that hides distractions."
+      },
+      {
+        "order": 3,
+        "action": "Place the small object being photographed at the center of the book platform.",
+        "item_ids": [],
+        "capability_uses": [],
+        "why_it_helps": "Positions the subject correctly within the frame and on the backdrop."
+      },
+      {
+        "order": 4,
+        "action": "Rest the phone camera on the office chair (seat or back) and adjust its angle to frame the object against the backdrop.",
+        "item_ids": [
+          "office_chair_01"
+        ],
+        "capability_uses": [],
+        "why_it_helps": "Holds the phone steady for consistent framing without a tripod."
+      }
+    ],
+    "assumptions": [
+      "The floor is level and clean enough to support the book stack and blanket.",
+      "Ambient room lighting is sufficient for a proper exposure.",
+      "The phone camera remains stable when rested on the chair.",
+      "The blanket stays in place without fasteners.",
+      "The book stack does not collapse under the object's weight."
+    ],
+    "unresolved_risks": [
+      "Blanket may shift or wrinkle during shooting, affecting the background.",
+      "Phone may slip from the chair causing blur or potential damage.",
+      "Insufficient or uneven lighting may produce shadows or underexposure.",
+      "Small object may roll off the platform if not perfectly centered."
+    ],
+    "constraint_check": [
+      "Only listed inventory objects (books_01, blanket_01, office_chair_01) are used.",
+      "No unlisted lamp, window, tape, tripod, stand, shelf, fastener, table, tabletop, or similar resources are assumed.",
+      "Budget is $0 – no purchases are required.",
+      "No permanent modifications are made to any object.",
+      "No damage to the listed objects is implied in the steps."
+    ]
+  },
+  "zero_initial_plan": {
+    "title": "Simple tabletop product photo setup",
+    "summary": "Use books as a platform, blanket as backdrop/diffuser, and an office chair to raise the phone for a clean, well‑lit shot of a small object.",
+    "item_ids_used": [
+      "blanket_01",
+      "books_01",
+      "office_chair_01"
+    ],
+    "steps": [
+      {
+        "order": 1,
+        "action": "Stack several books to form a flat, stable platform on the floor.",
+        "item_ids": [
+          "books_01"
+        ],
+        "capability_uses": [
+          {
+            "item_id": "books_01",
+            "capability": "provide_surface",
+            "purpose": "create a level surface for the small object"
+          }
+        ],
+        "why_it_helps": "provides a reliable base so the object stays in place during photography."
+      },
+      {
+        "order": 2,
+        "action": "Position the small object on the book platform, ensuring it is stable and centered.",
+        "item_ids": [
+          "books_01"
+        ],
+        "capability_uses": [
+          {
+            "item_id": "books_01",
+            "capability": "support",
+            "purpose": "hold the object securely"
+          }
+        ],
+        "why_it_helps": "prevents movement and ensures consistent framing."
+      },
+      {
+        "order": 3,
+        "action": "Drape the blanket behind the object to create a smooth, neutral backdrop.",
+        "item_ids": [
+          "blanket_01"
+        ],
+        "capability_uses": [
+          {
+            "item_id": "blanket_01",
+            "capability": "block_light",
+            "purpose": "block stray light and provide uniform background"
+          }
+        ],
+        "why_it_helps": "reduces distractions and improves subject isolation."
+      },
+      {
+        "order": 4,
+        "action": "Elevate the phone camera by placing it on the office chair seat for a top‑down view.",
+        "item_ids": [
+          "office_chair_01"
+        ],
+        "capability_uses": [
+          {
+            "item_id": "office_chair_01",
+            "capability": "elevate",
+            "purpose": "raise the camera to desired height"
+          }
+        ],
+        "why_it_helps": "achieves a clear angle without needing a tripod."
+      },
+      {
+        "order": 5,
+        "action": "Adjust the blanket to act as a light diffuser by folding it partially over the light source.",
+        "item_ids": [
+          "blanket_01"
+        ],
+        "capability_uses": [
+          {
+            "item_id": "blanket_01",
+            "capability": "fold",
+            "purpose": "soften ambient light falling on the object"
+          }
+        ],
+        "why_it_helps": "reduces harsh shadows and creates even illumination."
+      }
+    ],
+    "assumptions": [],
+    "unresolved_risks": [],
+    "constraint_check": []
+  },
+  "zero_initial_critic": {
+    "passed": false,
+    "findings": [
+      {
+        "step_order": 1,
+        "claim": "Assumes floor exists as base for book platform.",
+        "issue_type": "unlisted_resource",
+        "severity": "medium",
+        "explanation": "Plan places books on the floor, but floor is not in inventory or explicit external resources.",
+        "recommended_fix": "Specify using a listed surface (e.g., books themselves) or note that a stable surface is assumed present."
+      },
+      {
+        "step_order": 1,
+        "claim": "Claims the stacked books form a stable platform.",
+        "issue_type": "unsupported_physical_claim",
+        "severity": "medium",
+        "explanation": "Stability is not a validated trait or capability of books; only flat and weighted traits are given.",
+        "recommended_fix": "Replace 'stable' with 'flat' or add a method to secure the stack (e.g., interlocking books)."
+      },
+      {
+        "step_order": 2,
+        "claim": "Ensures the object is stable on the book platform.",
+        "issue_type": "unsupported_physical_claim",
+        "severity": "medium",
+        "explanation": "Object stability depends on platform stability and surface friction, neither guaranteed by book traits.",
+        "recommended_fix": "State that the object is placed carefully; optionally add a non‑slip aid if available (but none)."
+      },
+      {
+        "step_order": 3,
+        "claim": "Creates a smooth, neutral backdrop.",
+        "issue_type": "unsupported_physical_claim",
+        "severity": "medium",
+        "explanation": "Blanket traits do not guarantee smoothness or neutral color; only flexible, soft, opaque.",
+        "recommended_fix": "Describe the blanket as providing a background; avoid claiming smoothness or neutrality."
+      },
+      {
+        "step_order": 5,
+        "claim": "Acts as a light diffuser.",
+        "issue_type": "unsupported_physical_claim",
+        "severity": "high",
+        "explanation": "Blanket capabilities include block_light, fold, cover; diffusion of light is not established.",
+        "recommended_fix": "Remove claim of diffusion; state the blanket can block or soften light by folding, if ambient light present."
+      },
+      {
+        "step_order": 5,
+        "claim": "Assumes an ambient light source to diffuse.",
+        "issue_type": "hidden_assumption",
+        "severity": "medium",
+        "explanation": "Plan folds blanket over a light source, but no light source is listed in inventory or external resources.",
+        "recommended_fix": "Add an explicit light source (e.g., phone flashlight) or note reliance on ambient room light."
+      },
+      {
+        "step_order": 4,
+        "claim": "Achieves a clear top‑down view without a tripod.",
+        "issue_type": "unsupported_physical_claim",
+        "severity": "low",
+        "explanation": "Elevating the phone does not guarantee a top‑down view; depends on phone orientation and chair geometry.",
+        "recommended_fix": "State that the chair elevates the phone; user must aim camera downward."
+      }
+    ]
+  },
+  "zero_final_plan": {
+    "title": "Zero-budget tabletop photo setup",
+    "summary": "Use books on an office chair for a raised platform, blanket as backdrop, and phone on books for top-down shot; adjust blanket to soften ambient light.",
+    "item_ids_used": [
+      "blanket_01",
+      "books_01",
+      "office_chair_01"
+    ],
+    "steps": [
+      {
+        "order": 1,
+        "action": "Place the books on the office chair seat to form a flat, raised platform.",
+        "item_ids": [
+          "books_01",
+          "office_chair_01"
+        ],
+        "capability_uses": [
+          {
+            "item_id": "books_01",
+            "capability": "provide_surface",
+            "purpose": "create a level surface for the small object"
+          },
+          {
+            "item_id": "office_chair_01",
+            "capability": "support",
+            "purpose": "hold the books steady on the chair seat"
+          }
+        ],
+        "why_it_helps": "Provides a flat base without needing a floor or table."
+      },
+      {
+        "order": 2,
+        "action": "Place the small object on the book platform, centering it carefully.",
+        "item_ids": [
+          "books_01"
+        ],
+        "capability_uses": [
+          {
+            "item_id": "books_01",
+            "capability": "support",
+            "purpose": "hold the object securely"
+          }
+        ],
+        "why_it_helps": "Keeps the object in place for consistent framing."
+      },
+      {
+        "order": 3,
+        "action": "Drape the blanket behind the object to provide a uniform background.",
+        "item_ids": [
+          "blanket_01"
+        ],
+        "capability_uses": [
+          {
+            "item_id": "blanket_01",
+            "capability": "cover",
+            "purpose": "provide a uniform background"
+          }
+        ],
+        "why_it_helps": "Reduces visual distractions behind the subject."
+      },
+      {
+        "order": 4,
+        "action": "Place the phone camera on top of the book stack for a top-down view.",
+        "item_ids": [
+          "books_01"
+        ],
+        "capability_uses": [
+          {
+            "item_id": "books_01",
+            "capability": "elevate",
+            "purpose": "raise the camera to desired height"
+          }
+        ],
+        "why_it_helps": "Enables a top-down angle without a tripod."
+      },
+      {
+        "order": 5,
+        "action": "Adjust the blanket by folding it partially over the light area to soften ambient light.",
+        "item_ids": [
+          "blanket_01"
+        ],
+        "capability_uses": [
+          {
+            "item_id": "blanket_01",
+            "capability": "fold",
+            "purpose": "soften ambient light falling on the object"
+          }
+        ],
+        "why_it_helps": "Reduces harsh shadows and creates more even illumination."
+      }
+    ],
+    "assumptions": [
+      "Ambient room light is present for illumination.",
+      "The office chair seat is flat enough to support books and phone."
+    ],
+    "unresolved_risks": [
+      "Books may shift on the chair seat if not balanced.",
+      "Blanket may move and alter background or lighting.",
+      "Low ambient light could result in underexposed images."
+    ],
+    "constraint_check": []
+  },
+  "zero_final_critic": {
+    "passed": false,
+    "findings": [
+      {
+        "step_order": 5,
+        "claim": "soften ambient light falling on the object",
+        "issue_type": "unsupported_physical_claim",
+        "severity": "medium",
+        "explanation": "Blanket's block_light capability does not establish light diffusion or softening; no trait indicates diffusing property.",
+        "recommended_fix": "Change action to block light to reduce intensity, or add a diffusing material if available."
+      },
+      {
+        "step_order": null,
+        "claim": "Ambient room light is present for illumination.",
+        "issue_type": "hidden_assumption",
+        "severity": "medium",
+        "explanation": "Plan assumes sufficient ambient light but no light source is listed in inventory or external resources.",
+        "recommended_fix": "State that adequate ambient light is required, or use phone flashlight as a light source."
+      },
+      {
+        "step_order": null,
+        "claim": "The office chair seat is flat enough to support books and phone.",
+        "issue_type": "hidden_assumption",
+        "severity": "low",
+        "explanation": "Chair seat flatness is not a validated trait; assuming flat support may be unsafe.",
+        "recommended_fix": "Verify chair seat flatness or add a leveling object like books to create flat surface."
+      }
+    ]
+  },
+  "baseline_evaluation": {
+    "findings": [
+      {
+        "step_order": 1,
+        "claim": "Stack of books forms a stable platform for the object.",
+        "issue_type": "unsupported_physical_claim",
+        "severity": "medium",
+        "explanation": "Books are rigid and flat, but stability under load is not guaranteed; no evidence the stack won't shift or collapse."
+      },
+      {
+        "step_order": 2,
+        "claim": "Blanket draped over books and chair creates a smooth backdrop.",
+        "issue_type": "unsupported_physical_claim",
+        "severity": "low",
+        "explanation": "Blanket texture may not be smooth; no evidence it will lie flat without wrinkles when draped over uneven surfaces."
+      },
+      {
+        "step_order": 2,
+        "claim": "Blanket stays in place without fasteners while shooting.",
+        "issue_type": "hidden_assumption",
+        "severity": "medium",
+        "explanation": "Blanket is flexible and may shift or wrinkle during use; no mechanism to secure it is provided."
+      },
+      {
+        "step_order": 4,
+        "claim": "Phone camera rests steadily on the office chair for framing.",
+        "issue_type": "unsupported_physical_claim",
+        "severity": "medium",
+        "explanation": "Chair can support weight but does not guarantee phone will not slip; stability depends on surface friction and angle."
+      },
+      {
+        "step_order": null,
+        "claim": "Floor is level and clean enough to support the book stack and blanket.",
+        "issue_type": "hidden_assumption",
+        "severity": "low",
+        "explanation": "No evidence the floor is level or free of debris; unevenness could affect stability."
+      }
+    ],
+    "medium_high_findings": 3,
+    "unlisted_resource_count": 0,
+    "unsupported_physical_claim_count": 3,
+    "unsupported_capability_count": 0,
+    "hidden_assumption_count": 2,
+    "safety_or_uncertainty_count": 0,
+    "constraint_violation_count": 0,
+    "accepted": false
+  },
+  "zero_evaluation": {
+    "findings": [
+      {
+        "step_order": 1,
+        "claim": "Books on chair seat form a flat, raised platform.",
+        "issue_type": "unsupported_physical_claim",
+        "severity": "medium",
+        "explanation": "Chair seat flatness not validated; cannot guarantee a level surface for books and phone."
+      },
+      {
+        "step_order": 5,
+        "claim": "Folding blanket over light area softens ambient light.",
+        "issue_type": "unsupported_physical_claim",
+        "severity": "low",
+        "explanation": "Blanket can block light but not proven to soften or diffuse illumination; softening claim unsupported."
+      },
+      {
+        "step_order": null,
+        "claim": "Ambient room light is present for illumination.",
+        "issue_type": "hidden_assumption",
+        "severity": "medium",
+        "explanation": "No light source provided; relying on unspecified ambient illumination which may be absent or insufficient."
+      },
+      {
+        "step_order": 1,
+        "claim": "Office chair seat is flat enough to support books and phone.",
+        "issue_type": "hidden_assumption",
+        "severity": "medium",
+        "explanation": "Chair seat shape unknown; may not be flat enough to hold items steadily without slipping."
+      },
+      {
+        "step_order": 2,
+        "claim": "Book platform holds the small object securely.",
+        "issue_type": "unsupported_physical_claim",
+        "severity": "low",
+        "explanation": "Books can support weight but 'securely' implies non‑slipping, which is not validated."
+      },
+      {
+        "step_order": 3,
+        "claim": "Blanket draped behind object provides a uniform background.",
+        "issue_type": "unsupported_physical_claim",
+        "severity": "low",
+        "explanation": "Blanket texture may cause non‑uniform appearance; uniformity not guaranteed."
+      },
+      {
+        "step_order": 1,
+        "claim": "Books will stay stable on the chair seat without shifting.",
+        "issue_type": "hidden_assumption",
+        "severity": "medium",
+        "explanation": "No mechanism prevents books from sliding on the chair seat; they may move during use."
+      },
+      {
+        "step_order": 5,
+        "claim": "Blanket will remain positioned after adjustment for lighting.",
+        "issue_type": "hidden_assumption",
+        "severity": "medium",
+        "explanation": "Blanket is not fastened; it may shift, altering background or lighting during shooting."
+      }
+    ],
+    "medium_high_findings": 5,
+    "unlisted_resource_count": 0,
+    "unsupported_physical_claim_count": 4,
+    "unsupported_capability_count": 0,
+    "hidden_assumption_count": 4,
+    "safety_or_uncertainty_count": 0,
+    "constraint_violation_count": 0,
+    "accepted": false
+  }
+}

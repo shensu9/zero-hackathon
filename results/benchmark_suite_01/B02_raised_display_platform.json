@@ -1,0 +1,294 @@
+{
+  "case_id": "B02",
+  "case_name": "raised_display_platform",
+  "expectation": "feasible",
+  "repair_attempts": 2,
+  "repair_validation_failures": 1,
+  "baseline_plan": {
+    "title": "Book Stack Platform",
+    "summary": "Create a raised flat surface on the office chair seat using a stack of books to display a small lightweight object.",
+    "item_ids_used": [
+      "books_01"
+    ],
+    "steps": [
+      {
+        "order": 1,
+        "action": "Place the stack of books_01 flat on the office chair seat, aligning them to form a level surface.",
+        "item_ids": [
+          "books_01"
+        ],
+        "capability_uses": [],
+        "why_it_helps": "The books provide a rigid, flat platform that raises the object above the chair seat."
+      },
+      {
+        "order": 2,
+        "action": "Center the small lightweight object on top of the book stack.",
+        "item_ids": [],
+        "capability_uses": [],
+        "why_it_helps": "Positions the object for display on the raised platform."
+      }
+    ],
+    "assumptions": [
+      "The books_01 stack is stable and can support the weight of the small lightweight object without collapsing.",
+      "The office chair seat can support the combined weight of the book stack and the object.",
+      "Friction between the books and the chair seat is sufficient to prevent sliding under normal use."
+    ],
+    "unresolved_risks": [
+      "If the chair seat is smooth, the book stack may slide when disturbed.",
+      "If the object is not centered, the stack could become unbalanced and tip.",
+      "Unknown condition of the books (e.g., wear) may affect load-bearing capacity."
+    ],
+    "constraint_check": [
+      "Budget: $0 – no purchases made.",
+      "Only listed inventory objects used (books_01).",
+      "Small lightweight object is external resource.",
+      "Platform raises object above chair seat via book stack height.",
+      "No unlisted furniture, adhesives, tape, fasteners, or stands used.",
+      "No permanent modifications to any object.",
+      "No damage inflicted on listed objects.",
+      "Stability claims limited to assumptions; no overstatement of strength."
+    ]
+  },
+  "zero_initial_plan": {
+    "title": "Elevated Book Platform on Office Chair",
+    "summary": "Stack books on the chair seat to create a flat, raised surface for displaying a lightweight object without modifications or cost.",
+    "item_ids_used": [
+      "books_01",
+      "office_chair_01"
+    ],
+    "steps": [
+      {
+        "order": 1,
+        "action": "Stack the books onto the office chair seat to form a level, raised platform.",
+        "item_ids": [
+          "books_01",
+          "office_chair_01"
+        ],
+        "capability_uses": [
+          {
+            "item_id": "books_01",
+            "capability": "provide_surface",
+            "purpose": "Create a flat top surface for the object."
+          },
+          {
+            "item_id": "books_01",
+            "capability": "elevate",
+            "purpose": "Raise the surface above the chair seat."
+          },
+          {
+            "item_id": "office_chair_01",
+            "capability": "support",
+            "purpose": "Bear the weight of the book stack and object."
+          }
+        ],
+        "why_it_helps": "Provides a stable, raised flat surface using available rigid books and chair support."
+      },
+      {
+        "order": 2,
+        "action": "Place the small lightweight object onto the book platform.",
+        "item_ids": [],
+        "capability_uses": [],
+        "why_it_helps": "Positions the object for display without additional materials."
+      }
+    ],
+    "assumptions": [],
+    "unresolved_risks": [],
+    "constraint_check": []
+  },
+  "zero_initial_critic": {
+    "passed": false,
+    "findings": [
+      {
+        "step_order": 1,
+        "claim": "stable",
+        "issue_type": "unsupported_physical_claim",
+        "severity": "medium",
+        "explanation": "The plan asserts the platform is stable, but no trait or capability guarantees it will not wobble or slip.",
+        "recommended_fix": "Remove 'stable' or replace with 'level' and rely on the support capability."
+      },
+      {
+        "step_order": 1,
+        "claim": "book stack will not slide off chair seat",
+        "issue_type": "hidden_assumption",
+        "severity": "medium",
+        "explanation": "Assumes sufficient friction between books and chair seat, which is not guaranteed by any trait or capability.",
+        "recommended_fix": "Add a step to increase friction (e.g., place blanket under books) or explicitly note the assumption."
+      }
+    ]
+  },
+  "zero_final_plan": {
+    "title": "Elevated Book Platform with Blanket Base",
+    "summary": "Stack books on a blanket-covered chair seat to create a flat, raised surface for displaying a lightweight object without modifications or cost.",
+    "item_ids_used": [
+      "blanket_01",
+      "books_01",
+      "office_chair_01"
+    ],
+    "steps": [
+      {
+        "order": 1,
+        "action": "Place the blanket on the office chair seat to increase friction and provide a base.",
+        "item_ids": [
+          "blanket_01",
+          "office_chair_01"
+        ],
+        "capability_uses": [
+          {
+            "item_id": "blanket_01",
+            "capability": "cover",
+            "purpose": "Cover chair seat to increase friction."
+          },
+          {
+            "item_id": "office_chair_01",
+            "capability": "support",
+            "purpose": "Hold blanket in place on seat."
+          }
+        ],
+        "why_it_helps": "Prevents books from sliding by adding a soft, grippy layer."
+      },
+      {
+        "order": 2,
+        "action": "Stack the books onto the blanket-covered chair seat to form a level, raised platform.",
+        "item_ids": [
+          "books_01",
+          "office_chair_01",
+          "blanket_01"
+        ],
+        "capability_uses": [
+          {
+            "item_id": "books_01",
+            "capability": "provide_surface",
+            "purpose": "Create a flat top surface for the object."
+          },
+          {
+            "item_id": "books_01",
+            "capability": "elevate",
+            "purpose": "Raise the surface above the chair seat."
+          },
+          {
+            "item_id": "office_chair_01",
+            "capability": "support",
+            "purpose": "Bear the weight of the book stack and object."
+          },
+          {
+            "item_id": "blanket_01",
+            "capability": "cushion",
+            "purpose": "Provide a soft layer to prevent books from slipping."
+          }
+        ],
+        "why_it_helps": "Provides a level, raised flat surface using available rigid books and chair support."
+      },
+      {
+        "order": 3,
+        "action": "Place the small lightweight object onto the book platform.",
+        "item_ids": [],
+        "capability_uses": [],
+        "why_it_helps": "Positions the object for display without additional materials."
+      }
+    ],
+    "assumptions": [],
+    "unresolved_risks": [],
+    "constraint_check": []
+  },
+  "zero_final_critic": {
+    "passed": false,
+    "findings": [
+      {
+        "step_order": 1,
+        "claim": "Blanket increases friction on chair seat.",
+        "issue_type": "unsupported_physical_claim",
+        "severity": "medium",
+        "explanation": "Blanket's capabilities (cover, cushion) do not establish friction increase; no trait or capability confirms frictional properties.",
+        "recommended_fix": "Remove claim of increased friction or add a resource with known friction‑enhancing property."
+      },
+      {
+        "step_order": 2,
+        "claim": "Blanket cushion prevents books from slipping.",
+        "issue_type": "unsupported_physical_claim",
+        "severity": "medium",
+        "explanation": "Cushion capability provides soft layer but does not guarantee slip prevention; no evidence of non‑slip property.",
+        "recommended_fix": "Replace claim with that blanket provides a soft layer, or add a non‑slip resource if needed."
+      }
+    ]
+  },
+  "baseline_evaluation": {
+    "findings": [
+      {
+        "step_order": null,
+        "claim": "The book stack is stable and will not collapse under the object's weight.",
+        "issue_type": "hidden_assumption",
+        "severity": "medium",
+        "explanation": "Stability of a book stack depends on friction and alignment, which are not validated traits."
+      },
+      {
+        "step_order": null,
+        "claim": "The chair seat can support the combined weight of the book stack and object.",
+        "issue_type": "hidden_assumption",
+        "severity": "medium",
+        "explanation": "Weight capacity of the chair seat is not established; only general support capability is known."
+      },
+      {
+        "step_order": null,
+        "claim": "Friction between books and chair seat prevents sliding during use.",
+        "issue_type": "hidden_assumption",
+        "severity": "medium",
+        "explanation": "Friction sufficiency is not established; seat surface properties are unknown."
+      }
+    ],
+    "medium_high_findings": 3,
+    "unlisted_resource_count": 0,
+    "unsupported_physical_claim_count": 0,
+    "unsupported_capability_count": 0,
+    "hidden_assumption_count": 3,
+    "safety_or_uncertainty_count": 0,
+    "constraint_violation_count": 0,
+    "accepted": false
+  },
+  "zero_evaluation": {
+    "findings": [
+      {
+        "step_order": 1,
+        "claim": "Placing the blanket increases friction to prevent sliding.",
+        "issue_type": "unsupported_physical_claim",
+        "severity": "medium",
+        "explanation": "The blanket's capability list does not include friction increase; no evidence that it adds grip to the chair seat."
+      },
+      {
+        "step_order": 2,
+        "claim": "Stacking books creates a level, raised flat surface.",
+        "issue_type": "unsupported_physical_claim",
+        "severity": "medium",
+        "explanation": "The blanket is flexible and may deform under weight, so a level surface is not guaranteed by validated traits."
+      },
+      {
+        "step_order": 2,
+        "claim": "The blanket cushion prevents books from slipping.",
+        "issue_type": "unsupported_physical_claim",
+        "severity": "low",
+        "explanation": "Cushion capability does not equate to slip prevention; no evidence of sufficient friction."
+      },
+      {
+        "step_order": 1,
+        "claim": "The blanket will stay in place on the chair seat.",
+        "issue_type": "hidden_assumption",
+        "severity": "medium",
+        "explanation": "No validated capability ensures the blanket remains stationary on the smooth chair seat without sliding."
+      },
+      {
+        "step_order": 2,
+        "claim": "The book stack will remain stable on the blanket.",
+        "issue_type": "hidden_assumption",
+        "severity": "medium",
+        "explanation": "Stacking rigid books on a flexible surface may cause shifting or tilting; stability is not validated."
+      }
+    ],
+    "medium_high_findings": 4,
+    "unlisted_resource_count": 0,
+    "unsupported_physical_claim_count": 3,
+    "unsupported_capability_count": 0,
+    "hidden_assumption_count": 2,
+    "safety_or_uncertainty_count": 0,
+    "constraint_violation_count": 0,
+    "accepted": false
+  }
+}

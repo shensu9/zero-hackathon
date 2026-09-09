@@ -1,0 +1,236 @@
+{
+  "case_id": "B05",
+  "case_name": "safe_power_connection",
+  "expectation": "conditionally_feasible",
+  "repair_attempts": 0,
+  "repair_validation_failures": 0,
+  "baseline_plan": {
+    "title": "Add a power outlet using existing power strip",
+    "summary": "Use the available power strip to provide an extra socket for the small electrical device by plugging the strip into the wall outlet and then connecting the device.",
+    "item_ids_used": [
+      "power_strip_01"
+    ],
+    "steps": [
+      {
+        "order": 1,
+        "action": "Place the power strip on a stable surface near the compatible wall power outlet",
+        "item_ids": [
+          "power_strip_01"
+        ],
+        "capability_uses": [],
+        "why_it_helps": "Positions the strip for connection to the outlet"
+      },
+      {
+        "order": 2,
+        "action": "Insert the power strip's plug into the compatible wall power outlet",
+        "item_ids": [
+          "power_strip_01"
+        ],
+        "capability_uses": [],
+        "why_it_helps": "Supplies power to the strip from the wall"
+      },
+      {
+        "order": 3,
+        "action": "Visually inspect the power strip for any obvious damage such as cracks, frayed cord, or exposed wires",
+        "item_ids": [
+          "power_strip_01"
+        ],
+        "capability_uses": [],
+        "why_it_helps": "Performs a basic safety check before energizing the strip"
+      },
+      {
+        "order": 4,
+        "action": "Plug the small electrical device's power cord into one of the outlets on the power strip",
+        "item_ids": [
+          "power_strip_01"
+        ],
+        "capability_uses": [],
+        "why_it_helps": "Provides the additional power connection for the device"
+      },
+      {
+        "order": 5,
+        "action": "Turn on the small electrical device to confirm it receives power",
+        "item_ids": [],
+        "capability_uses": [],
+        "why_it_helps": "Verifies that the connection works as intended"
+      }
+    ],
+    "assumptions": [
+      "The wall power outlet is functional and supplies the correct voltage for the device."
+    ],
+    "unresolved_risks": [
+      "The power strip's electrical rating and internal condition are unknown; using it may pose a safety risk if its rating is insufficient for the device's load."
+    ],
+    "constraint_check": [
+      "Budget: $0 – no items purchased or costs incurred.",
+      "No permanent modification or damage – only plugging/unplugging devices, no alteration of any object.",
+      "Safety verification before powered use – visual inspection of the power strip performed prior to connecting the device.",
+      "Do not assume electrical rating or condition of inventory item – the unknown rating of the power strip is explicitly noted as an unresolved risk, not assumed safe.",
+      "Any required safety verification happens before powered use – inspection step occurs before the device is plugged in and powered."
+    ]
+  },
+  "zero_initial_plan": {
+    "title": "Add power outlet using power strip",
+    "summary": "Use the power strip to connect to wall outlet and then plug in the small device, providing an extra power connection without modification.",
+    "item_ids_used": [
+      "power_strip_01"
+    ],
+    "steps": [
+      {
+        "order": 1,
+        "action": "Insert the power strip's plug into the compatible wall power outlet.",
+        "item_ids": [
+          "power_strip_01"
+        ],
+        "capability_uses": [
+          {
+            "item_id": "power_strip_01",
+            "capability": "provide_power_connection",
+            "purpose": "Connect power strip to wall outlet to supply power"
+          }
+        ],
+        "why_it_helps": "Provides a powered strip that can then outlet the device"
+      },
+      {
+        "order": 2,
+        "action": "Plug the small electrical device into an available socket on the power strip.",
+        "item_ids": [
+          "power_strip_01"
+        ],
+        "capability_uses": [
+          {
+            "item_id": "power_strip_01",
+            "capability": "provide_power_connection",
+            "purpose": "Deliver power to the small electrical device via power strip"
+          }
+        ],
+        "why_it_helps": "Gives the device an additional power connection beyond the wall outlet"
+      }
+    ],
+    "assumptions": [
+      "User will verify the power strip's electrical rating and condition before use"
+    ],
+    "unresolved_risks": [
+      "Risk of overloading or using damaged power strip if rating/condition unknown"
+    ],
+    "constraint_check": [
+      "Budget $0 satisfied",
+      "No permanent modification or damage",
+      "Only listed inventory used",
+      "External resources used as provided",
+      "Safety verification requirement preserved"
+    ]
+  },
+  "zero_initial_critic": {
+    "passed": true,
+    "findings": []
+  },
+  "zero_final_plan": {
+    "title": "Add power outlet using power strip",
+    "summary": "Use the power strip to connect to wall outlet and then plug in the small device, providing an extra power connection without modification.",
+    "item_ids_used": [
+      "power_strip_01"
+    ],
+    "steps": [
+      {
+        "order": 1,
+        "action": "Insert the power strip's plug into the compatible wall power outlet.",
+        "item_ids": [
+          "power_strip_01"
+        ],
+        "capability_uses": [
+          {
+            "item_id": "power_strip_01",
+            "capability": "provide_power_connection",
+            "purpose": "Connect power strip to wall outlet to supply power"
+          }
+        ],
+        "why_it_helps": "Provides a powered strip that can then outlet the device"
+      },
+      {
+        "order": 2,
+        "action": "Plug the small electrical device into an available socket on the power strip.",
+        "item_ids": [
+          "power_strip_01"
+        ],
+        "capability_uses": [
+          {
+            "item_id": "power_strip_01",
+            "capability": "provide_power_connection",
+            "purpose": "Deliver power to the small electrical device via power strip"
+          }
+        ],
+        "why_it_helps": "Gives the device an additional power connection beyond the wall outlet"
+      }
+    ],
+    "assumptions": [
+      "User will verify the power strip's electrical rating and condition before use"
+    ],
+    "unresolved_risks": [
+      "Risk of overloading or using damaged power strip if rating/condition unknown"
+    ],
+    "constraint_check": [
+      "Budget $0 satisfied",
+      "No permanent modification or damage",
+      "Only listed inventory used",
+      "External resources used as provided",
+      "Safety verification requirement preserved"
+    ]
+  },
+  "zero_final_critic": {
+    "passed": true,
+    "findings": []
+  },
+  "baseline_evaluation": {
+    "findings": [
+      {
+        "step_order": null,
+        "claim": "Place the power strip on a stable surface near the compatible wall power outlet",
+        "issue_type": "unlisted_resource",
+        "severity": "medium",
+        "explanation": "The plan requires a stable surface (e.g., table, floor) that is not listed in the canonical inventory or explicit external resources."
+      },
+      {
+        "step_order": null,
+        "claim": "Plug the small electrical device into the power strip to provide power",
+        "issue_type": "safety_or_uncertainty",
+        "severity": "high",
+        "explanation": "The power strip's electrical rating and condition are unknown; using it to power a device assumes safety without verifying the rating, violating the associated caution."
+      }
+    ],
+    "medium_high_findings": 2,
+    "unlisted_resource_count": 1,
+    "unsupported_physical_claim_count": 0,
+    "unsupported_capability_count": 0,
+    "hidden_assumption_count": 0,
+    "safety_or_uncertainty_count": 1,
+    "constraint_violation_count": 0,
+    "accepted": false
+  },
+  "zero_evaluation": {
+    "findings": [
+      {
+        "step_order": 1,
+        "claim": "Plugging power strip into wall outlet will safely power devices.",
+        "issue_type": "safety_or_uncertainty",
+        "severity": "medium",
+        "explanation": "Depends on unknown electrical rating/condition of power strip; no verification step included."
+      },
+      {
+        "step_order": 2,
+        "claim": "Plugging small device into power strip will safely provide power.",
+        "issue_type": "safety_or_uncertainty",
+        "severity": "medium",
+        "explanation": "Depends on unknown electrical rating/condition of power strip; no verification step included."
+      }
+    ],
+    "medium_high_findings": 2,
+    "unlisted_resource_count": 0,
+    "unsupported_physical_claim_count": 0,
+    "unsupported_capability_count": 0,
+    "hidden_assumption_count": 0,
+    "safety_or_uncertainty_count": 2,
+    "constraint_violation_count": 0,
+    "accepted": false
+  }
+}

@@ -1,0 +1,207 @@
+{
+  "case_id": "B04",
+  "case_name": "soft_protective_surface",
+  "expectation": "feasible",
+  "repair_attempts": 0,
+  "repair_validation_failures": 0,
+  "baseline_plan": {
+    "title": "Blanket cushion for fragile object on chair",
+    "summary": "Fold the blanket and place it on the office chair seat to create a soft resting surface for the small fragile object.",
+    "item_ids_used": [
+      "blanket_01",
+      "office_chair_01"
+    ],
+    "steps": [
+      {
+        "order": 1,
+        "action": "Fold the blanket_01 to a size that roughly matches the seat dimensions of the office chair.",
+        "item_ids": [
+          "blanket_01"
+        ],
+        "capability_uses": [],
+        "why_it_helps": "Creates a padded layer of appropriate size for the seat."
+      },
+      {
+        "order": 2,
+        "action": "Place the folded blanket_01 onto the seat surface of office_chair_01, smoothing it out.",
+        "item_ids": [
+          "blanket_01",
+          "office_chair_01"
+        ],
+        "capability_uses": [],
+        "why_it_helps": "Lays the soft cushion directly on the chair where the object will rest."
+      },
+      {
+        "order": 3,
+        "action": "Gently set the small fragile object onto the blanket-covered seat.",
+        "item_ids": [
+          "blanket_01",
+          "office_chair_01"
+        ],
+        "capability_uses": [],
+        "why_it_helps": "Positions the object on the soft surface for protection."
+      }
+    ],
+    "assumptions": [
+      "The blanket is clean and dry.",
+      "The blanket's thickness provides sufficient cushioning for the object's fragility.",
+      "The chair seat is flat and can support the weight of the blanket and object without deformation.",
+      "The object is light enough not to compress the blanket to an ineffective degree."
+    ],
+    "unresolved_risks": [
+      "The blanket may shift or slide on the chair seat, potentially moving the object.",
+      "If the object is very heavy, it could compress the blanket excessively, reducing protection.",
+      "The blanket's edges may not be fully secured, allowing the object to slide off if disturbed."
+    ],
+    "constraint_check": [
+      "Budget: $0 – no purchases or costs involved.",
+      "Only listed inventory objects used: blanket_01 and office_chair_01.",
+      "No permanent modifications – objects are only placed, not altered.",
+      "No damage to listed objects – folding and placing do not harm blanket or chair.",
+      "No claims of non-slip, waterproof, impact-proof, or other protections beyond soft cushioning.",
+      "Arrangement uses the simplest approach: a single folded blanket as a soft surface."
+    ]
+  },
+  "zero_initial_plan": {
+    "title": "Soft blanket layer on chair seat",
+    "summary": "Place the blanket on the office chair seat to create a soft resting surface for the fragile object.",
+    "item_ids_used": [
+      "blanket_01",
+      "office_chair_01"
+    ],
+    "steps": [
+      {
+        "order": 1,
+        "action": "Drape the blanket over the seat of the office chair to form a soft layer.",
+        "item_ids": [
+          "office_chair_01",
+          "blanket_01"
+        ],
+        "capability_uses": [
+          {
+            "item_id": "office_chair_01",
+            "capability": "support",
+            "purpose": "provide stable base for blanket"
+          },
+          {
+            "item_id": "blanket_01",
+            "capability": "cushion",
+            "purpose": "create soft resting surface for fragile object"
+          }
+        ],
+        "why_it_helps": "Provides a soft, protective surface that prevents damage to the fragile object."
+      }
+    ],
+    "assumptions": [],
+    "unresolved_risks": [],
+    "constraint_check": [
+      "Budget $0: only existing inventory used.",
+      "No permanent modifications: blanket placed loosely.",
+      "No damage to listed objects: gentle placement.",
+      "Uses only listed inventory objects: office_chair_01, blanket_01.",
+      "Does not claim non-slip, waterproof, impact-proof properties.",
+      "Prefers simplest arrangement: single blanket layer."
+    ]
+  },
+  "zero_initial_critic": {
+    "passed": true,
+    "findings": []
+  },
+  "zero_final_plan": {
+    "title": "Soft blanket layer on chair seat",
+    "summary": "Place the blanket on the office chair seat to create a soft resting surface for the fragile object.",
+    "item_ids_used": [
+      "blanket_01",
+      "office_chair_01"
+    ],
+    "steps": [
+      {
+        "order": 1,
+        "action": "Drape the blanket over the seat of the office chair to form a soft layer.",
+        "item_ids": [
+          "office_chair_01",
+          "blanket_01"
+        ],
+        "capability_uses": [
+          {
+            "item_id": "office_chair_01",
+            "capability": "support",
+            "purpose": "provide stable base for blanket"
+          },
+          {
+            "item_id": "blanket_01",
+            "capability": "cushion",
+            "purpose": "create soft resting surface for fragile object"
+          }
+        ],
+        "why_it_helps": "Provides a soft, protective surface that prevents damage to the fragile object."
+      }
+    ],
+    "assumptions": [],
+    "unresolved_risks": [],
+    "constraint_check": [
+      "Budget $0: only existing inventory used.",
+      "No permanent modifications: blanket placed loosely.",
+      "No damage to listed objects: gentle placement.",
+      "Uses only listed inventory objects: office_chair_01, blanket_01.",
+      "Does not claim non-slip, waterproof, impact-proof properties.",
+      "Prefers simplest arrangement: single blanket layer."
+    ]
+  },
+  "zero_final_critic": {
+    "passed": true,
+    "findings": []
+  },
+  "baseline_evaluation": {
+    "findings": [
+      {
+        "step_order": null,
+        "claim": "Assumes the blanket is clean and dry.",
+        "issue_type": "hidden_assumption",
+        "severity": "low",
+        "explanation": "No validated information about blanket cleanliness or moisture; unknown property could affect object safety."
+      },
+      {
+        "step_order": null,
+        "claim": "Assumes blanket thickness provides sufficient cushioning for the fragile object.",
+        "issue_type": "unsupported_physical_claim",
+        "severity": "medium",
+        "explanation": "Blanket cushion capability is known, but thickness and sufficiency for specific object fragility are not validated."
+      },
+      {
+        "step_order": null,
+        "claim": "Assumes the object is light enough not to compress the blanket excessively.",
+        "issue_type": "unsupported_physical_claim",
+        "severity": "medium",
+        "explanation": "Object weight is unknown; no evidence that it will not deform blanket to ineffective level."
+      }
+    ],
+    "medium_high_findings": 2,
+    "unlisted_resource_count": 0,
+    "unsupported_physical_claim_count": 2,
+    "unsupported_capability_count": 0,
+    "hidden_assumption_count": 1,
+    "safety_or_uncertainty_count": 0,
+    "constraint_violation_count": 0,
+    "accepted": false
+  },
+  "zero_evaluation": {
+    "findings": [
+      {
+        "step_order": 1,
+        "claim": "Assumes the blanket will stay in place on the chair seat without slipping.",
+        "issue_type": "hidden_assumption",
+        "severity": "medium",
+        "explanation": "The blanket is flexible and not secured; it may slide off, failing to provide a stable surface for the fragile object."
+      }
+    ],
+    "medium_high_findings": 1,
+    "unlisted_resource_count": 0,
+    "unsupported_physical_claim_count": 0,
+    "unsupported_capability_count": 0,
+    "hidden_assumption_count": 1,
+    "safety_or_uncertainty_count": 0,
+    "constraint_violation_count": 0,
+    "accepted": false
+  }
+}
