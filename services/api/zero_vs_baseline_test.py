@@ -13,7 +13,11 @@ from plan_validator import (
     validate_inventory_grounding,
     validate_zero_plan,
 )
-from schemas import CertaintyLevel
+from schemas import (
+    CertaintyLevel,
+    ObjectDNAResponse,
+)
+from semantic_critic import audit_plan_semantics
 
 
 load_dotenv()
@@ -43,7 +47,7 @@ Constraints:
 - Budget: $0.
 - Use only the listed physical inventory objects.
 - Do not assume any unlisted lamp, window, tape, tripod, stand, shelf,
-  fastener, or other physical resource.
+  fastener, table, tabletop, or other physical resource.
 - No permanent modifications.
 - Do not damage the listed objects.
 - Prefer a simple setup that a normal person could actually assemble.
@@ -139,6 +143,7 @@ Return ONLY valid JSON in EXACTLY this structure:
       "item_ids": [
         "exact inventory ids used in this step"
       ],
+      "capability_uses": [],
       "why_it_helps": "brief reason"
     }}
   ],
@@ -152,7 +157,7 @@ Rules:
 - Do not invent physical resources.
 - Do not recommend purchasing anything.
 - Do not assume an unlisted window, lamp, tripod, tape, stand,
-  fastener, shelf, or other physical object.
+  shelf, table, tabletop, fastener, or other physical object.
 - The phone camera is already available and does not need an item ID.
 - Maximum 8 steps.
 - Be physically conservative.
@@ -185,6 +190,7 @@ validate_inventory_grounding(
     VALID_ITEM_IDS,
 )
 
+
 # ---------------------------------------------------------------------------
 # GENERATE VALIDATED OBJECT DNA
 # ---------------------------------------------------------------------------
@@ -206,16 +212,10 @@ for item in OBJECT_DNA_FIXTURE.items:
     )
 
 
-from schemas import ObjectDNAResponse
-
-
 object_dna = ObjectDNAResponse(
     objects=object_dna_objects
 )
 
-
-# Give the planner medium/high-certainty capabilities.
-# LOW certainty cannot authorize ZERO V1 actions anyway.
 
 planner_dna_payload = []
 
@@ -224,14 +224,14 @@ for dna in object_dna.objects:
         {
             "item_id": dna.item_id,
 
-            "physical_traits": [
-                trait.model_dump(mode="json")
+            "traits": [
+                trait.trait.value
                 for trait in dna.physical_traits
                 if trait.certainty != CertaintyLevel.LOW
             ],
 
-            "affordances": [
-                affordance.model_dump(mode="json")
+            "capabilities": [
+                affordance.capability.value
                 for affordance in dna.affordances
                 if affordance.certainty != CertaintyLevel.LOW
             ],
@@ -250,21 +250,19 @@ for dna in object_dna.objects:
 zero_prompt = f"""
 You are ZERO's capability-bound physical planning layer.
 
-ZERO is different from a normal language model:
-
 You are NOT allowed to use an inventory object merely because you can
 imagine a possible use for it.
 
 Every physical use MUST be authorized by that item's validated Object DNA.
 
-For every inventory item participating in a plan step, you MUST cite one
-or more exact Object DNA capabilities that authorize the intended use.
+For every inventory item participating in a plan step, cite one or more
+exact Object DNA capabilities authorizing that use.
 
 Return ONLY valid JSON in EXACTLY this structure:
 
 {{
   "title": "short plan title",
-  "summary": "short summary",
+  "summary": "short grounded summary",
   "item_ids_used": [
     "exact inventory ids"
   ],
@@ -279,10 +277,10 @@ Return ONLY valid JSON in EXACTLY this structure:
         {{
           "item_id": "exact inventory id",
           "capability": "exact capability from that item's Object DNA",
-          "purpose": "how this exact capability authorizes the physical use"
+          "purpose": "how this capability authorizes the physical use"
         }}
       ],
-      "why_it_helps": "brief reason"
+      "why_it_helps": "brief grounded reason"
     }}
   ],
   "assumptions": [],
@@ -295,49 +293,33 @@ HARD RULES
 
 - Use only listed inventory IDs.
 
-- Every item listed in a step's item_ids MUST have at least one
-  capability_uses entry in that same step.
+- Every inventory item used in a step must cite at least one validated
+  Object DNA capability.
 
-- capability MUST exactly match an affordance present in that item's
-  validated Object DNA.
+- The capability must exactly exist for that item.
 
 - Do NOT invent capabilities.
 
 - Do NOT infer a new physical use from object identity alone.
 
-Example:
-
-If spray_bottles_01 has:
-- contain
-- dispense_liquid
-- reposition
-
-but does NOT have:
-- provide_weight
-
-then:
-
-"use spray bottles as weights"
-
-IS FORBIDDEN.
-
-Do not propose it.
-
-Likewise:
-
-If an object has no capability supporting the intended action,
-either use another object or change the plan.
-
-- Low-certainty capabilities are not available to this planner.
+- Low-certainty capabilities are unavailable.
 
 - Respect unknown_properties.
 
 - Respect caution_notes.
 
-- Do not turn an unknown property into an assumption merely because
-  it would make the plan convenient.
+- Do not convert an unknown property into an assumption just because
+  it would make the plan easier.
 
-- Do not recommend buying anything.
+- Do not claim physical properties that Object DNA does not establish.
+
+Examples of forbidden unsupported claims:
+- "non-slip" without friction evidence
+- "well-lit" without illumination evidence
+- "minimal shadow" without lighting evidence
+- "stable" unless relevant support/stability is grounded
+- "reflective" without reflect_light evidence
+- "diffused light" without diffuse_light evidence
 
 - Do not assume:
   lamp
@@ -346,24 +328,19 @@ either use another object or change the plan.
   tripod
   stand
   shelf
+  table
+  tabletop
   fastener
   or any other unlisted physical resource.
 
-- The phone camera is already available and does not require
-  an inventory ID.
+- The phone camera is explicitly available externally.
 
 - Budget is $0.
-
 - No permanent modifications.
-
 - No intentional damage.
-
 - Maximum 8 steps.
 
-- Prefer fewer well-grounded physical uses over more creative but
-  weakly supported ones.
-
-- Return JSON only.
+Return JSON only.
 
 
 Goal:
@@ -393,12 +370,30 @@ zero_plan = normalize_plan_item_ids(
 )
 
 
-print("Validating ZERO plan...")
+print("Running deterministic ZERO validation...")
 
 zero_plan = validate_zero_plan(
     zero_plan,
     object_dna,
     VALID_ITEM_IDS,
+)
+
+
+# ---------------------------------------------------------------------------
+# ZERO SEMANTIC CRITIC
+# ---------------------------------------------------------------------------
+
+
+print("Running ZERO semantic critic...")
+
+critic_result = audit_plan_semantics(
+    plan=zero_plan,
+    goal=GOAL,
+    inventory=OBJECT_DNA_FIXTURE.items,
+    object_dna=object_dna,
+    external_resources=[
+        "phone camera",
+    ],
 )
 
 
@@ -429,3 +424,27 @@ print(
         indent=2
     )
 )
+
+
+print()
+print("=" * 70)
+print("ZERO SEMANTIC CRITIC")
+print("=" * 70)
+
+print(
+    critic_result.model_dump_json(
+        indent=2
+    )
+)
+
+
+if not critic_result.passed:
+    print()
+    print(
+        "ZERO PLAN STATUS: REJECTED BY SEMANTIC CRITIC"
+    )
+else:
+    print()
+    print(
+        "ZERO PLAN STATUS: ACCEPTED"
+    )
