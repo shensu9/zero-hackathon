@@ -22,7 +22,7 @@ REPO_ROOT = Path(
 RESULTS_DIR = (
     REPO_ROOT
     / "results"
-    / "evaluator_calibration_01"
+    / "evaluator_calibration_02"
 )
 
 

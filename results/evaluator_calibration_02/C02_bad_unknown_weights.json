@@ -1,0 +1,42 @@
+{
+  "calibration_id": "C02",
+  "benchmark_case_id": "B03",
+  "name": "bad_unknown_weights",
+  "expected_accept": false,
+  "actual_accept": false,
+  "matched": true,
+  "medium_high_findings": 3,
+  "evaluation": {
+    "findings": [
+      {
+        "step_order": null,
+        "claim": "Guaranteed weight and grip will keep blanket completely fixed.",
+        "issue_type": "unsupported_physical_claim",
+        "severity": "medium",
+        "explanation": "The plan asserts the objects will absolutely stop movement, but weight and grip are not guaranteed to prevent all shifting."
+      },
+      {
+        "step_order": null,
+        "claim": "Spray bottles and power strip can serve as effective weights.",
+        "issue_type": "unsupported_capability",
+        "severity": "medium",
+        "explanation": "Neither spray bottles nor power strip are validated with the provide_weight capability, so their weight sufficiency is unsupported."
+      },
+      {
+        "step_order": null,
+        "claim": "Spray bottles' weight is known and safe to use.",
+        "issue_type": "constraint_violation",
+        "severity": "high",
+        "explanation": "The plan relies on spray bottles as weights, but their liquid contents are unknown, violating the 'do not rely on unknown liquid contents' constraint."
+      }
+    ],
+    "medium_high_findings": 3,
+    "unlisted_resource_count": 0,
+    "unsupported_physical_claim_count": 1,
+    "unsupported_capability_count": 1,
+    "hidden_assumption_count": 0,
+    "safety_or_uncertainty_count": 0,
+    "constraint_violation_count": 1,
+    "accepted": false
+  }
+}

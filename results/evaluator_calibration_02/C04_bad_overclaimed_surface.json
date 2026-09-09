@@ -1,0 +1,28 @@
+{
+  "calibration_id": "C04",
+  "benchmark_case_id": "B04",
+  "name": "bad_overclaimed_surface",
+  "expected_accept": false,
+  "actual_accept": false,
+  "matched": true,
+  "medium_high_findings": 1,
+  "evaluation": {
+    "findings": [
+      {
+        "step_order": 1,
+        "claim": "Claims blanket provides waterproof, non-slip, impact-proof protection.",
+        "issue_type": "constraint_violation",
+        "severity": "high",
+        "explanation": "User explicitly forbids claiming non-slip, waterproof, or impact-proof protection; the plan asserts these properties without evidence."
+      }
+    ],
+    "medium_high_findings": 1,
+    "unlisted_resource_count": 0,
+    "unsupported_physical_claim_count": 0,
+    "unsupported_capability_count": 0,
+    "hidden_assumption_count": 0,
+    "safety_or_uncertainty_count": 0,
+    "constraint_violation_count": 1,
+    "accepted": false
+  }
+}

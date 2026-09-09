@@ -1,0 +1,20 @@
+{
+  "calibration_id": "C05",
+  "benchmark_case_id": "B05",
+  "name": "good_conditional_power_use",
+  "expected_accept": true,
+  "actual_accept": true,
+  "matched": true,
+  "medium_high_findings": 0,
+  "evaluation": {
+    "findings": [],
+    "medium_high_findings": 0,
+    "unlisted_resource_count": 0,
+    "unsupported_physical_claim_count": 0,
+    "unsupported_capability_count": 0,
+    "hidden_assumption_count": 0,
+    "safety_or_uncertainty_count": 0,
+    "constraint_violation_count": 0,
+    "accepted": true
+  }
+}
