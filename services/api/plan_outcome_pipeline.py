@@ -98,10 +98,6 @@ def _valid_item_ids(
 
 def _empty_passed_critic(
 ) -> PlanCriticResult:
-    """
-    Non-executable outcomes have no PhysicalPlan to semantically audit.
-    """
-
     return PlanCriticResult(
         passed=True,
         findings=[],
@@ -162,22 +158,6 @@ def _build_execution_aware_goal(
     goal: str,
     outcome: PlanOutcome,
 ) -> str:
-    """
-    Semantic auditing must understand CONDITIONAL execution correctly.
-
-    A conditional PhysicalPlan does NOT execute while requirements are
-    unresolved.
-
-    It executes only after every requirement has been verified true.
-
-    Therefore the semantic critic may treat those requirements as
-    established preconditions at execution time.
-
-    This does NOT weaken verification-gate auditing. The separate gate
-    auditor determines whether the method used to establish each
-    requirement is itself safe.
-    """
-
     if (
         outcome.status
         != PlanOutcomeStatus.CONDITIONAL
@@ -215,20 +195,19 @@ def _build_execution_aware_goal(
 CONDITIONAL EXECUTION CONTRACT
 ======================================================================
 
-The PhysicalPlan being audited is NOT allowed to execute immediately.
+The PhysicalPlan being audited does NOT execute immediately.
 
 It begins ONLY AFTER every requirement below has been verified true.
 
-When evaluating the PhysicalPlan itself, treat these verified
-requirements as established execution-time preconditions.
+When evaluating the PhysicalPlan itself, treat those requirements as
+established execution-time preconditions.
 
-Do NOT flag the plan merely for relying on a property that one of these
-requirements explicitly verifies before execution.
+Do not flag the plan merely for relying on a property explicitly
+verified before execution.
 
 If a requirement is not met, the PhysicalPlan does not execute.
 
-The safety or validity of HOW these requirements are verified is audited
-separately by ZERO's verification-gate auditor.
+Verification safety and resource grounding are audited separately.
 
 VERIFIED PRECONDITIONS BEFORE PLAN EXECUTION:
 
@@ -278,13 +257,6 @@ def _hard_validate_plan(
 def _validation_failure_to_critic(
     error: PlanValidationError,
 ) -> PlanCriticResult:
-    """
-    Convert deterministic validator feedback into the same repair
-    feedback structure consumed by plan_repair.py.
-
-    The deterministic validator remains authoritative.
-    """
-
     error_text = str(
         error
     )
@@ -375,18 +347,6 @@ def _make_outcome_plan_safe(
     int,
     int,
 ]:
-    """
-    Ensure any executable plan passes:
-
-    1. deterministic capability validation
-    2. semantic physical-plan criticism
-
-    At most two total plan-repair attempts are allowed.
-
-    An invalid or semantically unsafe plan is never returned simply
-    because repair attempts were exhausted.
-    """
-
     if outcome.plan is None:
         return (
             outcome,
@@ -398,7 +358,6 @@ def _make_outcome_plan_safe(
     current_plan = outcome.plan
 
     repair_attempts = 0
-
     repair_validation_failures = 0
 
     last_critic = (
@@ -412,10 +371,6 @@ def _make_outcome_plan_safe(
                 external_resources
             ),
         )
-
-        # ---------------------------------------------------------------
-        # HARD VALIDATION
-        # ---------------------------------------------------------------
 
         try:
             validated_plan = (
@@ -445,16 +400,14 @@ def _make_outcome_plan_safe(
             )
 
         else:
-            # -----------------------------------------------------------
-            # PLAN IS HARD-VALID. NOW AUDIT SEMANTICS.
-            # -----------------------------------------------------------
-
             outcome = _replace_plan(
                 outcome=outcome,
                 plan=validated_plan,
             )
 
-            current_plan = validated_plan
+            current_plan = (
+                validated_plan
+            )
 
             last_critic = (
                 _audit_outcome_plan(
@@ -481,17 +434,13 @@ def _make_outcome_plan_safe(
                 "physical audit."
             )
 
-        # ---------------------------------------------------------------
-        # REPAIR BOUND
-        # ---------------------------------------------------------------
-
         if (
             repair_attempts
             >= MAX_PLAN_REPAIR_ATTEMPTS
         ):
             raise UnsafePhysicalPlanError(
                 "ZERO could not produce a plan that "
-                "passes both deterministic and semantic "
+                "passes deterministic and semantic "
                 "physical validation within the bounded "
                 "repair limit. "
                 f"Findings: "
@@ -526,13 +475,15 @@ def _make_outcome_plan_safe(
 
 
 # ---------------------------------------------------------------------------
-# CONDITIONAL VERIFICATION GATE
+# RESOURCE-AWARE CONDITIONAL VERIFICATION GATE
 # ---------------------------------------------------------------------------
 
 
 def _make_verification_gate_safe(
     *,
     outcome: PlanOutcome,
+    inventory: list[InventoryItem],
+    external_resources,
 ) -> tuple[
     PlanOutcome,
     VerificationGateAudit,
@@ -540,7 +491,11 @@ def _make_verification_gate_safe(
 ]:
     gate_audit = (
         audit_verification_gates(
-            outcome
+            outcome=outcome,
+            inventory=inventory,
+            external_resources=list(
+                external_resources
+            ),
         )
     )
 
@@ -564,6 +519,10 @@ def _make_verification_gate_safe(
             repair_verification_requirements(
                 outcome=outcome,
                 audit=gate_audit,
+                inventory=inventory,
+                external_resources=list(
+                    external_resources
+                ),
             )
         )
 
@@ -576,15 +535,19 @@ def _make_verification_gate_safe(
 
         gate_audit = (
             audit_verification_gates(
-                outcome
+                outcome=outcome,
+                inventory=inventory,
+                external_resources=list(
+                    external_resources
+                ),
             )
         )
 
     if not gate_audit.passed:
         raise UnsafeVerificationGateError(
-            "ZERO could not produce a safe "
-            "conditional verification gate "
-            "within the bounded repair limit. "
+            "ZERO could not produce a safe and "
+            "resource-grounded conditional verification "
+            "gate within the bounded repair limit. "
             f"Findings: "
             f"{gate_audit.model_dump_json()}"
         )
@@ -609,40 +572,31 @@ def generate_safe_plan_outcome(
     external_resources=None,
 ) -> SafePlanOutcomeResult:
     """
-    Production boundary for outcome-aware ZERO planning.
-
-    Full flow:
+    Full safe ZERO outcome pipeline.
 
     model outcome
         ->
-    PlanOutcome schema
+    outcome schema
         ->
-    deterministic capability validation
+    hard capability validation
         ->
-    semantic physical-plan audit
+    semantic physical audit
         ->
-    bounded PhysicalPlan repair
+    bounded plan repair
         ->
-    verification-gate audit
+    resource-aware verification-gate audit
         ->
-    bounded requirement-only gate repair
+    bounded requirement-only repair
         ->
     final semantic recheck
         ->
     safe outcome
-
-    No executable PhysicalPlan is returned unless it passes both hard
-    capability grounding and semantic physical validation.
     """
 
     external_resources = list(
         external_resources
         or []
     )
-
-    # ------------------------------------------------------------------
-    # MODEL OUTCOME
-    # ------------------------------------------------------------------
 
     outcome = generate_plan_outcome(
         goal=goal,
@@ -652,10 +606,6 @@ def generate_safe_plan_outcome(
             external_resources
         ),
     )
-
-    # ------------------------------------------------------------------
-    # HARD + SEMANTIC PLAN SAFETY
-    # ------------------------------------------------------------------
 
     (
         outcome,
@@ -672,25 +622,17 @@ def generate_safe_plan_outcome(
         ),
     )
 
-    # ------------------------------------------------------------------
-    # CONDITIONAL VERIFICATION SAFETY
-    # ------------------------------------------------------------------
-
     (
         outcome,
         gate_audit,
         gate_repair_attempts,
     ) = _make_verification_gate_safe(
         outcome=outcome,
+        inventory=inventory,
+        external_resources=(
+            external_resources
+        ),
     )
-
-    # ------------------------------------------------------------------
-    # FINAL SEMANTIC RECHECK
-    #
-    # Requirement-only gate repair is instructed to preserve requirement
-    # meaning. Still, fail closed if the final conditional envelope no
-    # longer makes the PhysicalPlan semantically safe.
-    # ------------------------------------------------------------------
 
     final_semantic_critic = (
         _audit_outcome_plan(
@@ -707,7 +649,8 @@ def generate_safe_plan_outcome(
     if not final_semantic_critic.passed:
         raise UnsafePhysicalPlanError(
             "Final outcome failed semantic physical "
-            "validation after verification-gate processing. "
+            "validation after verification-gate "
+            "processing. "
             f"Findings: "
             f"{final_semantic_critic.model_dump_json()}"
         )

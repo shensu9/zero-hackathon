@@ -19,6 +19,10 @@ class VerificationGateIssueType(
         "unsafe_verification"
     )
 
+    UNLISTED_VERIFICATION_RESOURCE = (
+        "unlisted_verification_resource"
+    )
+
     NOT_ACTUALLY_VERIFIABLE = (
         "not_actually_verifiable"
     )

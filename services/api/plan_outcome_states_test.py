@@ -12,15 +12,6 @@ from plan_outcome_schemas import (
 )
 
 
-print(
-    "Loading frozen Object DNA..."
-)
-
-object_dna = (
-    load_or_generate_object_dna()
-)
-
-
 CASES = (
     {
         "name":
@@ -110,7 +101,10 @@ Constraints:
             "CANNOT_SAFELY_SOLVE",
 
         "expected":
-            PlanOutcomeStatus.CANNOT_SAFELY_SOLVE,
+            (
+                PlanOutcomeStatus
+                .CANNOT_SAFELY_SOLVE
+            ),
 
         "goal":
             """
@@ -135,55 +129,74 @@ Constraints:
 )
 
 
-for case in CASES:
-    print()
-    print("=" * 72)
+def main() -> None:
     print(
-        case["name"]
-    )
-    print("=" * 72)
-
-    result = generate_safe_plan_outcome(
-        goal=case["goal"],
-        inventory=OBJECT_DNA_FIXTURE.items,
-        object_dna=object_dna,
-        external_resources=(
-            case["external_resources"]
-        ),
+        "Loading frozen Object DNA..."
     )
 
-    outcome = result.outcome
+    object_dna = (
+        load_or_generate_object_dna()
+    )
 
-    print(
-        outcome.model_dump_json(
-            indent=2
+    for case in CASES:
+        print()
+        print("=" * 72)
+        print(
+            case["name"]
         )
-    )
+        print("=" * 72)
+
+        result = (
+            generate_safe_plan_outcome(
+                goal=case["goal"],
+                inventory=(
+                    OBJECT_DNA_FIXTURE.items
+                ),
+                object_dna=object_dna,
+                external_resources=(
+                    case[
+                        "external_resources"
+                    ]
+                ),
+            )
+        )
+
+        outcome = result.outcome
+
+        print(
+            outcome.model_dump_json(
+                indent=2
+            )
+        )
+
+        print()
+        print(
+            "Expected:",
+            case["expected"].value,
+        )
+
+        print(
+            "Actual:",
+            outcome.status.value,
+        )
+
+        assert (
+            outcome.status
+            == case["expected"]
+        ), (
+            f"{case['name']} expected "
+            f"{case['expected'].value} "
+            f"but got "
+            f"{outcome.status.value}"
+        )
 
     print()
+    print("=" * 72)
     print(
-        "Expected:",
-        case["expected"].value,
+        "FOUR-STATE OUTCOME VALIDATION: passed"
     )
-
-    print(
-        "Actual:",
-        outcome.status.value,
-    )
-
-    assert (
-        outcome.status
-        == case["expected"]
-    ), (
-        f"{case['name']} expected "
-        f"{case['expected'].value} but got "
-        f"{outcome.status.value}"
-    )
+    print("=" * 72)
 
 
-print()
-print("=" * 72)
-print(
-    "FOUR-STATE OUTCOME VALIDATION: passed"
-)
-print("=" * 72)
+if __name__ == "__main__":
+    main()

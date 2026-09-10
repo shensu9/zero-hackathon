@@ -11,6 +11,9 @@ from plan_outcome_schemas import (
     PlanOutcome,
     PlanOutcomeStatus,
 )
+from schemas import (
+    InventoryItem,
+)
 from verification_gate_schemas import (
     VerificationGateAudit,
     VerificationGateSeverity,
@@ -48,9 +51,6 @@ def _derive_passed(
 ) -> VerificationGateAudit:
     """
     Derive pass/fail deterministically.
-
-    The model identifies semantic findings.
-    It does not control whether the gate passes.
     """
 
     blocking = any(
@@ -71,16 +71,19 @@ def _derive_passed(
 
 
 def audit_verification_gates(
+    *,
     outcome: PlanOutcome,
+    inventory: list[InventoryItem],
+    external_resources=None,
 ) -> VerificationGateAudit:
     """
-    Audit CONDITIONAL requirements.
+    Audit CONDITIONAL requirements for both:
 
-    A verification step must not execute the physical action that
-    the requirement is supposed to gate.
+    1. execution-gate safety
+    2. verification-resource grounding
 
-    Non-CONDITIONAL outcomes have no executable conditional gate
-    to audit and therefore pass automatically.
+    A requirement may not execute the gated action or invent a
+    physical verification tool/resource that is unavailable.
     """
 
     if (
@@ -97,6 +100,25 @@ def audit_verification_gates(
             "CONDITIONAL outcome unexpectedly "
             "contains no plan."
         )
+
+    external_resources = list(
+        external_resources
+        or []
+    )
+
+    inventory_payload = [
+        {
+            "id":
+                item.id,
+
+            "name":
+                item.name,
+
+            "description":
+                item.description,
+        }
+        for item in inventory
+    ]
 
     requirements_payload = [
         requirement.model_dump(
@@ -129,12 +151,15 @@ You are ZERO's verification-gate auditor.
 
 You are auditing a CONDITIONAL physical plan.
 
-The plan may execute ONLY AFTER its requirements have been
-satisfied.
+The executable PhysicalPlan may happen ONLY AFTER its requirements
+have been satisfied.
 
-Your job is to detect whether any requirement's "how_to_verify"
-method improperly performs, partially performs, or assumes the
-physical action that the requirement is supposed to gate.
+You must audit TWO separate boundaries:
+
+1. Does how_to_verify improperly execute the gated physical action?
+
+2. Does how_to_verify invent or rely on a physical verification
+   resource that is not actually available?
 
 
 Return ONLY valid JSON:
@@ -147,7 +172,7 @@ Return ONLY valid JSON:
       "requirement_index": 0,
 
       "issue_type":
-        "executes_gated_action | assumes_requirement_met | unsafe_verification | not_actually_verifiable",
+        "executes_gated_action | assumes_requirement_met | unsafe_verification | unlisted_verification_resource | not_actually_verifiable",
 
       "severity":
         "low | medium | high",
@@ -159,14 +184,14 @@ Return ONLY valid JSON:
         "brief explanation",
 
       "recommended_fix":
-        "brief safer verification approach"
+        "brief safer grounded verification approach"
     }}
   ]
 }}
 
 
 ======================================================================
-CORE RULE
+EXECUTION-GATE RULE
 ======================================================================
 
 Verification must happen BEFORE the gated executable action.
@@ -175,25 +200,135 @@ A verification method must NOT perform the gated action merely to
 discover whether the gated action is safe or appropriate.
 
 
-Example:
+BAD:
 
 Requirement:
 "Liquid contents must be identified as appropriate before spraying."
 
-BAD verification:
+how_to_verify:
 "Spray a small test area to see whether the liquid is suitable."
 
-Why bad:
-The verification performs spraying before spraying has been
-authorized.
+This performs spraying before spraying is authorized.
 
 
-GOOD verification:
-"Read the bottle label or otherwise identify the product/contents
-without dispensing it."
+GOOD:
 
-Why good:
-The prerequisite is resolved without executing the gated action.
+"Read the bottle's existing label or otherwise identify the contents
+without dispensing liquid."
+
+
+======================================================================
+AVAILABLE-RESOURCE RULE
+======================================================================
+
+A verification method may NOT invent a physical tool, device, material,
+container, sensor, test kit, or other physical resource.
+
+Only these physical resources are available:
+
+1. canonical inventory listed below
+2. explicit external resources listed below
+
+Examples of invented verification resources that MUST be flagged when
+they are not available:
+
+- pH strip
+- test strip
+- multimeter
+- thermometer
+- ruler
+- screwdriver
+- chemical test kit
+- measuring device
+- additional container
+
+
+BAD:
+
+"Use a pH strip to identify the liquid."
+
+If no pH strip exists in inventory or explicit external resources,
+this is:
+
+unlisted_verification_resource
+
+
+BAD:
+
+"Measure the voltage with a multimeter."
+
+If no multimeter exists, this is:
+
+unlisted_verification_resource
+
+
+======================================================================
+INFORMATION GATHERING DOES NOT REQUIRE INVENTED PHYSICAL TOOLS
+======================================================================
+
+The following can be allowed when they use information already present:
+
+- read an existing label
+- inspect existing markings
+- visually inspect the object
+- ask the user
+- confirm a known specification
+- check documentation that is already available
+- identify contents from existing labeling
+- stop if the required fact cannot be established
+
+Do not interpret "inspect" or "verify" as requiring an invented tool.
+
+"Check already-available documentation" is not automatically an
+unlisted physical resource.
+
+But:
+
+"Use a test strip"
+"Use a meter"
+"Use a sensor"
+
+does require that physical resource to actually be available.
+
+
+======================================================================
+UNKNOWN-SUBSTANCE SAFETY
+======================================================================
+
+When the identity or safety of a liquid, chemical, powder, gas,
+or other substance is unknown, verification must NOT intentionally
+expose the user to that substance.
+
+Unsafe verification methods include:
+
+- smelling or sniffing unknown contents
+- tasting unknown contents
+- touching unknown contents with bare skin
+- inhaling vapors
+- deliberately splashing or applying the substance
+- using the body as a test method
+
+These should be flagged as:
+
+unsafe_verification
+
+with MEDIUM or HIGH severity depending on the potential exposure.
+
+BAD:
+
+"Smell the liquid to identify it."
+
+BAD:
+
+"Touch a small amount to see whether it irritates the skin."
+
+GOOD:
+
+"Read existing labels or markings, check already-available
+documentation, or ask the user to identify the contents."
+
+If the substance cannot be identified without unsafe exposure,
+the correct result is to stop and not perform the gated action.
 
 
 ======================================================================
@@ -203,47 +338,25 @@ WHAT COUNTS AS EXECUTING THE GATED ACTION
 Flag when how_to_verify:
 
 - performs the same physical action as the conditional plan
-- performs a smaller trial version of that physical action
-- consumes, dispenses, powers, cuts, damages, attaches, applies,
-  sprays, pours, or otherwise uses the resource in the blocked way
-- assumes the unknown property is already safe enough to test
+- performs a smaller trial version of that action
+- consumes, dispenses, powers, cuts, attaches, applies, sprays,
+  pours, or otherwise uses the resource in the blocked way
+- assumes the unknown condition is already safe enough to test
 
-
-Examples:
 
 BAD:
-"Plug it in briefly to verify whether the electrical device is safe."
+
+"Plug it in briefly to verify whether powered use is safe."
+
 
 BAD:
-"Spray a little liquid first to determine whether spraying is safe."
+
+"Spray a little first to determine whether spraying is safe."
+
 
 BAD:
+
 "Cut a small section first to verify that cutting is acceptable."
-
-
-======================================================================
-WHAT IS ALLOWED
-======================================================================
-
-Verification may use information-gathering that does NOT execute the
-blocked action.
-
-Examples:
-
-- read a label
-- inspect visible markings
-- ask the user
-- confirm a known specification
-- check documentation already available
-- visually inspect condition
-- identify contents without dispensing
-- stop if the required fact cannot be established
-
-
-Do NOT invent a physical tool.
-
-If verification explicitly requires an unavailable tool or device,
-flag not_actually_verifiable.
 
 
 ======================================================================
@@ -253,26 +366,32 @@ ISSUE TYPES
 
 executes_gated_action
 
-The verification performs or partially performs the action that should
-remain blocked until after verification.
+Verification performs or partially performs the action that must remain
+blocked until after verification.
 
 
 assumes_requirement_met
 
-The verification method relies on the very unknown condition it is
-supposed to establish.
+Verification depends on the unknown condition already being sufficiently
+true or safe.
 
 
 unsafe_verification
 
-The verification introduces a meaningful safety risk before the
+Verification itself creates a meaningful safety risk before the
 requirement has been resolved.
+
+
+unlisted_verification_resource
+
+Verification requires a physical tool, material, device, or object that
+is absent from canonical inventory and explicit external resources.
 
 
 not_actually_verifiable
 
-The proposed verification cannot be carried out as described without
-an unavailable resource or missing information.
+The proposed verification cannot actually establish the required fact
+as described, even without inventing a resource.
 
 
 ======================================================================
@@ -283,12 +402,12 @@ LOW:
 Minor wording ambiguity with no meaningful safety or sequencing impact.
 
 MEDIUM:
-Verification meaningfully crosses the gate or depends on an unsupported
-condition.
+Verification crosses a meaningful gate, relies on an unavailable
+resource, or cannot establish a required fact.
 
 HIGH:
-Verification performs a safety-critical blocked action or defeats the
-purpose of the requirement entirely.
+Verification performs a safety-critical blocked action or fundamentally
+defeats the requirement.
 
 
 ======================================================================
@@ -297,12 +416,29 @@ OUTPUT RULES
 
 - Maximum 10 findings.
 - Do not invent issues merely to be critical.
-- Do not criticize the executable plan itself unless necessary to
-  determine whether verification crosses the gate.
 - requirement_index is zero-based.
 - Use the real requirement index.
+- Do not criticize the executable plan except when necessary to
+  determine what action is gated.
 - Keep findings concise.
 - Return JSON only.
+
+
+======================================================================
+CANONICAL INVENTORY
+======================================================================
+
+{json.dumps(inventory_payload, indent=2)}
+
+
+======================================================================
+EXPLICIT EXTERNAL RESOURCES
+======================================================================
+
+{json.dumps(external_resources, indent=2)}
+
+
+No other physical verification tools or materials are confirmed.
 
 
 ======================================================================
