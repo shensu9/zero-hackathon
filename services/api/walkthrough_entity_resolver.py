@@ -7,16 +7,12 @@ from dotenv import load_dotenv
 from openai import OpenAI
 from pydantic import BaseModel, Field
 
-from json_format_repair import (
-    load_or_repair_json,
-)
+from json_format_repair import load_or_repair_json
 from walkthrough_entity_resolution_schemas import (
     ResolvedPhysicalEntity,
     WalkthroughEntityResolution,
 )
-from walkthrough_entity_resolution_validator import (
-    validate_entity_resolution,
-)
+from walkthrough_entity_resolution_validator import validate_entity_resolution
 from walkthrough_perception import (
     WalkthroughFrameObservation,
     WalkthroughObjectObservation,
@@ -24,25 +20,14 @@ from walkthrough_perception import (
 
 
 MODEL = "nvidia/nemotron-3-super-120b-a12b"
-
-BASE_URL = (
-    "https://api.tokenfactory."
-    "us-central1.nebius.com/v1/"
-)
+BASE_URL = "https://api.tokenfactory.us-central1.nebius.com/v1/"
 
 ALGORITHM_VERSION = 3
-
 WINDOW_SIZE = 4
 WINDOW_STRIDE = 2
-
 MIN_LINK_CONFIDENCE = 0.85
 
-
-REPO_ROOT = (
-    Path(__file__)
-    .resolve()
-    .parents[2]
-)
+REPO_ROOT = Path(__file__).resolve().parents[2]
 
 CHUNK_CACHE_DIR = (
     REPO_ROOT
@@ -57,43 +42,28 @@ CHUNK_CACHE_DIR = (
 # ---------------------------------------------------------------------------
 
 
-class SameObjectLink(
-    BaseModel,
-):
+class SameObjectLink(BaseModel):
     """
-    Positive proposal that two cross-frame observations refer to the
-    same physical object.
+    Positive proposal that two sightings are the same physical object.
     """
 
-    a: str = Field(
-        min_length=1,
-    )
-
-    b: str = Field(
-        min_length=1,
-    )
-
+    a: str = Field(min_length=1)
+    b: str = Field(min_length=1)
     confidence: float = Field(
         ge=0.0,
         le=1.0,
     )
 
 
-class WindowEntityLinks(
-    BaseModel,
-):
+class WindowEntityLinks(BaseModel):
     """
-    The model does NOT account for every observation.
+    The model reports positive same-object links only.
 
-    It reports positive identity matches only.
-
-    Anything not linked automatically remains a separate physical
-    entity.
+    Sightings not linked by the model automatically remain separate
+    physical entities.
     """
 
-    links: list[
-        SameObjectLink
-    ] = Field(
+    links: list[SameObjectLink] = Field(
         default_factory=list,
         max_length=100,
     )
@@ -135,7 +105,10 @@ def _observation_lookup(
     str,
     WalkthroughObjectObservation,
 ]:
-    lookup = {}
+    lookup: dict[
+        str,
+        WalkthroughObjectObservation,
+    ] = {}
 
     for frame in frames:
         for observation in frame.objects:
@@ -173,8 +146,6 @@ def _frame_windows(
         [1, 2, 3, 4]
         [3, 4, 5, 6]
         [5, 6, 7, 8]
-
-    This gives continuity while keeping each reasoning problem small.
     """
 
     ordered = sorted(
@@ -187,16 +158,17 @@ def _frame_windows(
     if not ordered:
         return []
 
-    if (
-        len(ordered)
-        <= WINDOW_SIZE
-    ):
+    if len(
+        ordered
+    ) <= WINDOW_SIZE:
         return [
             ordered
         ]
 
     last_start = (
-        len(ordered)
+        len(
+            ordered
+        )
         - WINDOW_SIZE
     )
 
@@ -217,19 +189,14 @@ def _frame_windows(
             last_start
         )
 
-    windows = []
-
-    for start in starts:
-        window = ordered[
+    return [
+        ordered[
             start:
             start + WINDOW_SIZE
         ]
-
-        windows.append(
-            window
-        )
-
-    return windows
+        for start
+        in starts
+    ]
 
 
 def _window_observation_text(
@@ -237,7 +204,7 @@ def _window_observation_text(
         WalkthroughFrameObservation
     ],
 ) -> str:
-    lines = []
+    lines: list[str] = []
 
     for frame in frames:
         for observation in frame.objects:
@@ -256,7 +223,10 @@ def _window_observation_text(
             lines.append(
                 " | ".join(
                     [
-                        observation.observation_id,
+                        (
+                            observation
+                            .observation_id
+                        ),
                         (
                             f"F"
                             f"{observation.frame_sample_number}"
@@ -460,6 +430,7 @@ Return ONLY valid JSON:
   ]
 }}
 
+
 If there are no sufficiently strong same-object matches:
 
 {{
@@ -504,7 +475,6 @@ For example, three blankets visible in one area may be:
 
 They are distinct physical objects.
 
-
 Likewise, two different shoe boxes remain different objects.
 
 
@@ -542,9 +512,13 @@ to it.
 Examples:
 
 wardrobe != drawer
+
 bed != power cord
+
 monitor != desk
+
 pegboard != shelf
+
 
 Entity normalization will deal with incidental/integrated components
 later.
@@ -603,9 +577,9 @@ ID | FRAME | NAME | DESCRIPTION | LOCATION | CONFIDENCE
 
             temperature=0,
 
-            # Output is now only positive links, normally a very small
-            # response.
-            max_tokens=2500,
+            # Keep enough budget for Nemotron reasoning plus
+            # the compact JSON link response.
+            max_tokens=8192,
         )
     )
 
@@ -617,9 +591,37 @@ ID | FRAME | NAME | DESCRIPTION | LOCATION | CONFIDENCE
         choice.finish_reason
         == "length"
     ):
+        visible_content = (
+            choice.message.content
+            or ""
+        )
+
+        reasoning_content = getattr(
+            choice.message,
+            "reasoning_content",
+            None,
+        )
+
+        reasoning_length = (
+            len(
+                reasoning_content
+            )
+            if reasoning_content
+            else 0
+        )
+
+        usage = getattr(
+            response,
+            "usage",
+            None,
+        )
+
         raise RuntimeError(
             "Chunked entity-link output was truncated "
-            f"for frames {frame_numbers}."
+            f"for frames {frame_numbers}. "
+            f"visible_chars={len(visible_content)}, "
+            f"reasoning_chars={reasoning_length}, "
+            f"usage={usage}"
         )
 
     refusal = getattr(
@@ -644,8 +646,10 @@ ID | FRAME | NAME | DESCRIPTION | LOCATION | CONFIDENCE
             "no final content."
         )
 
-    payload = load_or_repair_json(
-        raw_output
+    payload = (
+        load_or_repair_json(
+            raw_output
+        )
     )
 
     result = (
@@ -687,18 +691,26 @@ def _validate_link_proposals(
     Treat model links as proposals.
 
     Invalid, ungrounded, same-frame, and low-confidence proposals are
-    safely discarded rather than allowed to mutate identity state.
+    discarded before they can modify identity state.
     """
 
-    lookup = _observation_lookup(
-        window_frames
+    lookup = (
+        _observation_lookup(
+            window_frames
+        )
     )
 
     allowed_ids = set(
         lookup.keys()
     )
 
-    valid_by_pair = {}
+    valid_by_pair: dict[
+        tuple[
+            str,
+            str,
+        ],
+        SameObjectLink,
+    ] = {}
 
     rejected = 0
 
@@ -725,7 +737,8 @@ def _validate_link_proposals(
         if (
             observation_a
             .frame_sample_number
-            == observation_b
+            ==
+            observation_b
             .frame_sample_number
         ):
             rejected += 1
@@ -750,14 +763,12 @@ def _validate_link_proposals(
             b,
         )
 
-        normalized = (
-            SameObjectLink(
-                a=a,
-                b=b,
-                confidence=(
-                    link.confidence
-                ),
-            )
+        normalized = SameObjectLink(
+            a=a,
+            b=b,
+            confidence=(
+                link.confidence
+            ),
         )
 
         existing = (
@@ -768,8 +779,10 @@ def _validate_link_proposals(
 
         if (
             existing is None
-            or normalized.confidence
-            > existing.confidence
+            or (
+                normalized.confidence
+                > existing.confidence
+            )
         ):
             valid_by_pair[
                 pair
@@ -820,12 +833,14 @@ def _build_components(
     A component may contain at most one observation from any source
     frame.
 
-    Therefore a transitive merge cannot accidentally collapse two
-    simultaneously visible objects into one entity.
+    This prevents transitive merges from collapsing two physical
+    objects visible simultaneously into one entity.
     """
 
-    lookup = _observation_lookup(
-        frames
+    lookup = (
+        _observation_lookup(
+            frames
+        )
     )
 
     parent = {
@@ -884,7 +899,9 @@ def _build_components(
 
         return root
 
-    accepted_links = []
+    accepted_links: list[
+        SameObjectLink
+    ] = []
 
     conflict_rejections = 0
 
@@ -902,7 +919,6 @@ def _build_components(
             link.a not in lookup
             or link.b not in lookup
         ):
-            # Should already be grounded, but keep the boundary safe.
             continue
 
         root_a = find(
@@ -920,16 +936,14 @@ def _build_components(
             frames_by_root[
                 root_a
             ]
-            & frames_by_root[
+            &
+            frames_by_root[
                 root_b
             ]
         ):
-            # Joining these components would create two sightings from
-            # the same source frame inside one physical entity.
             conflict_rejections += 1
             continue
 
-        # Deterministic root choice.
         new_root = min(
             root_a,
             root_b,
@@ -940,6 +954,16 @@ def _build_components(
             root_b,
         )
 
+        merged_frames = (
+            frames_by_root[
+                root_a
+            ]
+            |
+            frames_by_root[
+                root_b
+            ]
+        )
+
         parent[
             old_root
         ] = new_root
@@ -947,19 +971,12 @@ def _build_components(
         frames_by_root[
             new_root
         ] = (
-            frames_by_root[
-                root_a
-            ]
-            | frames_by_root[
-                root_b
-            ]
+            merged_frames
         )
 
         if (
             old_root
             in frames_by_root
-            and old_root
-            != new_root
         ):
             del frames_by_root[
                 old_root
@@ -969,7 +986,10 @@ def _build_components(
             link
         )
 
-    components_by_root = {}
+    components_by_root: dict[
+        str,
+        list[str],
+    ] = {}
 
     for observation_id in lookup:
         root = find(
@@ -985,7 +1005,10 @@ def _build_components(
 
     def observation_sort_key(
         observation_id: str,
-    ):
+    ) -> tuple[
+        int,
+        str,
+    ]:
         observation = lookup[
             observation_id
         ]
@@ -993,17 +1016,20 @@ def _build_components(
         return (
             observation
             .frame_sample_number,
-
             observation_id,
         )
 
-    components = []
+    components: list[
+        list[str]
+    ] = []
 
     for component in (
         components_by_root.values()
     ):
         component.sort(
-            key=observation_sort_key
+            key=(
+                observation_sort_key
+            )
         )
 
         components.append(
@@ -1088,8 +1114,10 @@ def _component_merge_confidence(
         for link
         in accepted_links
         if (
-            link.a in component_set
-            and link.b in component_set
+            link.a
+            in component_set
+            and link.b
+            in component_set
         )
     ]
 
@@ -1099,7 +1127,7 @@ def _component_merge_confidence(
             "accepted connecting links."
         )
 
-    # Weakest accepted edge controls confidence for the chain.
+    # The weakest accepted edge controls confidence for the chain.
     return min(
         connecting_confidences
     )
@@ -1117,11 +1145,15 @@ def _hydrate_components(
         SameObjectLink
     ],
 ) -> WalkthroughEntityResolution:
-    lookup = _observation_lookup(
-        frames
+    lookup = (
+        _observation_lookup(
+            frames
+        )
     )
 
-    entities = []
+    entities: list[
+        ResolvedPhysicalEntity
+    ] = []
 
     for component in components:
         representative = (
@@ -1148,7 +1180,9 @@ def _hydrate_components(
         identity_uncertainty = None
 
         if (
-            len(component) > 1
+            len(
+                component
+            ) > 1
             and merge_confidence
             < 0.90
         ):
@@ -1195,11 +1229,13 @@ def _hydrate_components(
         WalkthroughEntityResolution(
             entities=entities,
 
-            # Identity resolution no longer performs relevance/noise
-            # filtering. Every unmerged sighting becomes a singleton.
+            # Entity identity resolution intentionally does not perform
+            # relevance/noise filtering.
             #
-            # Canonical inventory normalization handles filtering in
-            # the next layer.
+            # Every unmerged sighting becomes a singleton.
+            #
+            # Canonical inventory normalization will handle filtering
+            # and integrated/incidental objects later.
             ignored_observations=[],
         )
     )
@@ -1228,10 +1264,10 @@ def resolve_walkthrough_entities(
 
     Code:
         grounds links,
-        rejects unsafe proposals,
+        rejects invalid proposals,
         performs union-find,
         protects same-frame object identity,
-        preserves all unmatched observations as singletons,
+        preserves unmatched observations as singletons,
         hydrates metadata from perception,
         validates exact accounting.
     """
@@ -1242,8 +1278,10 @@ def resolve_walkthrough_entities(
             "is required."
         )
 
-    lookup = _observation_lookup(
-        frames
+    lookup = (
+        _observation_lookup(
+            frames
+        )
     )
 
     if not lookup:
@@ -1251,8 +1289,10 @@ def resolve_walkthrough_entities(
             "Walkthrough contains no object observations."
         )
 
-    windows = _frame_windows(
-        frames
+    windows = (
+        _frame_windows(
+            frames
+        )
     )
 
     print(
@@ -1262,15 +1302,26 @@ def resolve_walkthrough_entities(
         ),
     )
 
-    proposals_by_pair = {}
+    proposals_by_pair: dict[
+        tuple[
+            str,
+            str,
+        ],
+        SameObjectLink,
+    ] = {}
 
     total_raw_proposals = 0
+
     total_rejected_proposals = 0
 
     model_calls = 0
+
     cache_hits = 0
 
-    for window_index, window in enumerate(
+    for (
+        window_index,
+        window,
+    ) in enumerate(
         windows,
         start=1,
     ):
@@ -1311,10 +1362,17 @@ def resolve_walkthrough_entities(
             result.links
         )
 
-        valid_links, rejected = (
+        (
+            valid_links,
+            rejected,
+        ) = (
             _validate_link_proposals(
-                window_frames=window,
-                proposals=result,
+                window_frames=(
+                    window
+                ),
+                proposals=(
+                    result
+                ),
             )
         )
 
@@ -1360,8 +1418,10 @@ def resolve_walkthrough_entities(
 
             if (
                 existing is None
-                or link.confidence
-                > existing.confidence
+                or (
+                    link.confidence
+                    > existing.confidence
+                )
             ):
                 proposals_by_pair[
                     pair
@@ -1371,7 +1431,11 @@ def resolve_walkthrough_entities(
         proposals_by_pair.values()
     )
 
-    components, accepted_links, conflicts = (
+    (
+        components,
+        accepted_links,
+        conflicts,
+    ) = (
         _build_components(
             frames=frames,
             links=unique_links,
@@ -1379,6 +1443,7 @@ def resolve_walkthrough_entities(
     )
 
     print()
+
     print(
         "Chunk resolver model calls:",
         model_calls,
@@ -1425,8 +1490,12 @@ def resolve_walkthrough_entities(
         ),
     )
 
-    return _hydrate_components(
-        frames=frames,
-        components=components,
-        accepted_links=accepted_links,
+    return (
+        _hydrate_components(
+            frames=frames,
+            components=components,
+            accepted_links=(
+                accepted_links
+            ),
+        )
     )
