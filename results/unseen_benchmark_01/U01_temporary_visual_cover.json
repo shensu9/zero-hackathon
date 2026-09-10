@@ -1,0 +1,159 @@
+{
+  "case_id": "U01",
+  "case_name": "temporary_visual_cover",
+  "expectation": "feasible",
+  "repair_attempts": 0,
+  "repair_validation_failures": 0,
+  "baseline_plan": {
+    "title": "Drape blanket over object and secure with chair",
+    "summary": "Use the blanket to cover the small object from above, then use the office chair's weight to hold the blanket in place without fasteners.",
+    "item_ids_used": [
+      "blanket_01",
+      "office_chair_01"
+    ],
+    "steps": [
+      {
+        "order": 1,
+        "action": "Retrieve the blanket and unfold it to a size that can fully cover the small object.",
+        "item_ids": [
+          "blanket_01"
+        ],
+        "capability_uses": [],
+        "why_it_helps": "Provides the covering material."
+      },
+      {
+        "order": 2,
+        "action": "Gently drape the blanket over the small object so it is completely hidden from direct view above.",
+        "item_ids": [
+          "blanket_01"
+        ],
+        "capability_uses": [],
+        "why_it_helps": "Achieves visual coverage from above."
+      },
+      {
+        "order": 3,
+        "action": "Position the office chair near the object and place its legs or base on the blanket edges to weigh down the blanket and prevent it from slipping.",
+        "item_ids": [
+          "office_chair_01"
+        ],
+        "capability_uses": [],
+        "why_it_helps": "Uses the chair's weight to secure the blanket without tape or fasteners."
+      }
+    ],
+    "assumptions": [
+      "The small object can support the light weight of the blanket without damage.",
+      "The blanket is large enough to fully cover the object when draped."
+    ],
+    "unresolved_risks": [
+      "If the small object is fragile, the blanket's weight could cause damage.",
+      "If the floor is slippery, the chair may move and shift the blanket.",
+      "If the blanket is not large enough, gaps may remain."
+    ],
+    "constraint_check": [
+      "No tape, fasteners, clamps, containers, boxes, or unlisted materials used.",
+      "Total cost is $0 as only existing inventory is used.",
+      "No permanent modifications are made; all items are returned to original state after use.",
+      "The solution only provides ordinary visual covering from above; no claims of waterproofing, impact protection, airtight sealing, fastening, or guaranteed concealment from every direction."
+    ]
+  },
+  "zero_initial_plan": {
+    "title": "Cover object with blanket",
+    "summary": "Drape the blanket over the small object to block upward view.",
+    "item_ids_used": [
+      "blanket_01"
+    ],
+    "steps": [
+      {
+        "order": 1,
+        "action": "Drape the blanket over the small object to conceal it from above.",
+        "item_ids": [
+          "blanket_01"
+        ],
+        "capability_uses": [
+          {
+            "item_id": "blanket_01",
+            "capability": "cover",
+            "purpose": "Provide an opaque layer that blocks upward view"
+          }
+        ],
+        "why_it_helps": "The blanket's opaque, large surface prevents direct line of sight from above."
+      }
+    ],
+    "assumptions": [],
+    "unresolved_risks": [],
+    "constraint_check": []
+  },
+  "zero_initial_critic": {
+    "passed": true,
+    "findings": []
+  },
+  "zero_final_plan": {
+    "title": "Cover object with blanket",
+    "summary": "Drape the blanket over the small object to block upward view.",
+    "item_ids_used": [
+      "blanket_01"
+    ],
+    "steps": [
+      {
+        "order": 1,
+        "action": "Drape the blanket over the small object to conceal it from above.",
+        "item_ids": [
+          "blanket_01"
+        ],
+        "capability_uses": [
+          {
+            "item_id": "blanket_01",
+            "capability": "cover",
+            "purpose": "Provide an opaque layer that blocks upward view"
+          }
+        ],
+        "why_it_helps": "The blanket's opaque, large surface prevents direct line of sight from above."
+      }
+    ],
+    "assumptions": [],
+    "unresolved_risks": [],
+    "constraint_check": []
+  },
+  "zero_final_critic": {
+    "passed": true,
+    "findings": []
+  },
+  "baseline_evaluation": {
+    "findings": [
+      {
+        "step_order": 3,
+        "claim": "Chair's weight holds blanket edges to prevent slipping.",
+        "issue_type": "unsupported_capability",
+        "severity": "medium",
+        "explanation": "Office chair lacks the provide_weight capability; using its weight to hold down blanket is not supported by its validated traits."
+      }
+    ],
+    "medium_high_findings": 1,
+    "unlisted_resource_count": 0,
+    "unsupported_physical_claim_count": 0,
+    "unsupported_capability_count": 1,
+    "hidden_assumption_count": 0,
+    "safety_or_uncertainty_count": 0,
+    "constraint_violation_count": 0,
+    "accepted": false
+  },
+  "zero_evaluation": {
+    "findings": [
+      {
+        "step_order": 1,
+        "claim": "Assumes blanket will stay draped without slipping or fastening.",
+        "issue_type": "hidden_assumption",
+        "severity": "medium",
+        "explanation": "The plan relies on the blanket remaining in place, but no mechanism (weight, fastener) is provided to prevent slipping, which is not supported by the blanket's capabilities."
+      }
+    ],
+    "medium_high_findings": 1,
+    "unlisted_resource_count": 0,
+    "unsupported_physical_claim_count": 0,
+    "unsupported_capability_count": 0,
+    "hidden_assumption_count": 1,
+    "safety_or_uncertainty_count": 0,
+    "constraint_violation_count": 0,
+    "accepted": false
+  }
+}

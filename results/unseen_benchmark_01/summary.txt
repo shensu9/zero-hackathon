@@ -1,0 +1,63 @@
+========================================================================
+ZERO MULTI-GOAL BENCHMARK
+========================================================================
+Suite: unseen_benchmark_01
+Completed: 4/5
+Failed cases: 1
+
+PER-CASE RESULTS
+------------------------------------------------------------------------
+U01 temporary_visual_cover: baseline=1 ZERO=1 difference=+0
+    accepted: baseline=False ZERO=False | repairs=0 | hard repair failures=0
+U02 raised_cushioned_rest: baseline=0 ZERO=0 difference=+0
+    accepted: baseline=True ZERO=True | repairs=2 | hard repair failures=0
+U04 temporary_paper_press: baseline=0 ZERO=0 difference=+0
+    accepted: baseline=True ZERO=True | repairs=1 | hard repair failures=0
+U05 chair_seat_elevation: baseline=0 ZERO=0 difference=+0
+    accepted: baseline=True ZERO=True | repairs=1 | hard repair failures=0
+
+AGGREGATE
+------------------------------------------------------------------------
+Baseline medium/high findings: 1
+ZERO medium/high findings: 1
+Absolute reduction: 0
+Reduction percentage: 0.0%
+
+Accepted cases — baseline: 3
+Accepted cases — ZERO: 3
+
+Cases favoring ZERO: 0
+Ties: 4
+Cases favoring baseline: 0
+
+BASELINE ISSUE TOTALS
+{
+  "unlisted_resource": 0,
+  "unsupported_physical_claim": 0,
+  "unsupported_capability": 1,
+  "hidden_assumption": 0,
+  "safety_or_uncertainty": 0,
+  "constraint_violation": 0
+}
+
+ZERO ISSUE TOTALS
+{
+  "unlisted_resource": 0,
+  "unsupported_physical_claim": 0,
+  "unsupported_capability": 0,
+  "hidden_assumption": 1,
+  "safety_or_uncertainty": 0,
+  "constraint_violation": 0
+}
+
+ZERO total repair attempts: 4
+ZERO hard repair validation failures: 0
+
+FAILED CASES
+------------------------------------------------------------------------
+U03 conditional_spray_dispense: ValidationError — 1 validation error for PhysicalPlan
+steps
+  List should have at least 1 item after validation, not 0 [type=too_short, input_value=[], input_type=list]
+    For further information visit https://errors.pydantic.dev/2.13/v/too_short
+
+Comparative scores above come from the neutral evaluator, not ZERO's internal critic.

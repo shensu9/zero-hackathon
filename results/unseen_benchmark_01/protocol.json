@@ -1,0 +1,26 @@
+{
+  "suite_id": "unseen_benchmark_01",
+  "git_commit": "f2e9ba95788064962497917805a20d38af18f331",
+  "evaluator_version": "neutral_evaluator_v2",
+  "evaluator_policy": "Frozen neutral evaluator v2. Previously passed 6/6 calibration and 6/6 independent holdout.",
+  "benchmark_type": "unseen",
+  "benchmark_case_ids": [
+    "U01",
+    "U02",
+    "U03",
+    "U04",
+    "U05"
+  ],
+  "benchmark_case_count": 5,
+  "benchmark_case_source": "services/api/unseen_benchmark_cases.py",
+  "benchmark_case_source_sha256": "3c43c0d839ff1819f36c8e6fbc85bbd6657c4555e21619380fb1edf106e039f0",
+  "case_freeze_policy": "Unseen cases were committed before any baseline or ZERO generation for this suite.",
+  "object_dna_policy": "fixed validated fixture cache",
+  "baseline_policy": "fresh generation for every unseen case",
+  "zero_policy": "fresh capability-bound generation, deterministic validation, semantic critic, maximum two repair attempts",
+  "external_resource_normalization": "enabled symmetrically for baseline, ZERO, and repair candidates",
+  "comparative_scoring": "neutral evaluator only; ZERO internal critic is not used as the comparative benchmark judge",
+  "prior_benchmark_outputs_reused": false,
+  "expected_labels_sent_to_models": false,
+  "human_rationales_sent_to_models": false
+}

@@ -1,0 +1,142 @@
+{
+  "case_id": "U05",
+  "case_name": "chair_seat_elevation",
+  "expectation": "feasible",
+  "repair_attempts": 1,
+  "repair_validation_failures": 0,
+  "baseline_plan": {
+    "title": "Place object on chair seat",
+    "summary": "Put the small lightweight object onto the seat of the office chair to create an elevated resting surface.",
+    "item_ids_used": [
+      "office_chair_01"
+    ],
+    "steps": [
+      {
+        "order": 1,
+        "action": "Place the small lightweight object onto the seat of the office chair.",
+        "item_ids": [
+          "office_chair_01"
+        ],
+        "capability_uses": [],
+        "why_it_helps": "The chair seat provides an elevated surface above the floor without needing additional items."
+      }
+    ],
+    "assumptions": [
+      "The chair seat is clean and can support the lightweight object without damage.",
+      "The object is light enough not to deform or damage the chair seat."
+    ],
+    "unresolved_risks": [
+      "The chair may roll or tip if disturbed, potentially causing the object to fall.",
+      "The object may slide off the seat if the chair moves or is tilted.",
+      "Exact height of the seat and slip resistance are unknown."
+    ],
+    "constraint_check": [
+      "Budget: $0 – satisfied (no cost incurred).",
+      "Use only listed physical inventory objects – satisfied (only office_chair_01 used).",
+      "Small lightweight object is an explicit external resource – satisfied.",
+      "Office chair must provide the resting surface – satisfied (seat used).",
+      "No table, shelf, box, stand, adhesive, tape, or unlisted furniture – satisfied.",
+      "No permanent modifications – satisfied.",
+      "Do not damage any listed object – assumed satisfied, but uncertainty noted.",
+      "Do not claim wheel locking, non-slip behavior, exact height, or resistance to disturbance – satisfied (no such claims made)."
+    ]
+  },
+  "zero_initial_plan": {
+    "title": "Place object on office chair seat",
+    "summary": "Use the office chair's seat as an elevated surface to hold the small lightweight object above the floor without modifications.",
+    "item_ids_used": [
+      "office_chair_01"
+    ],
+    "steps": [
+      {
+        "order": 1,
+        "action": "Place the small lightweight object onto the seat of the office chair.",
+        "item_ids": [
+          "office_chair_01"
+        ],
+        "capability_uses": [
+          {
+            "item_id": "office_chair_01",
+            "capability": "support",
+            "purpose": "hold the object on the chair seat"
+          }
+        ],
+        "why_it_helps": "The chair seat provides a raised surface keeping the object off the floor."
+      }
+    ],
+    "assumptions": [],
+    "unresolved_risks": [],
+    "constraint_check": []
+  },
+  "zero_initial_critic": {
+    "passed": false,
+    "findings": [
+      {
+        "step_order": 1,
+        "claim": "The chair seat provides a raised surface keeping the object off the floor.",
+        "issue_type": "unsupported_physical_claim",
+        "severity": "medium",
+        "explanation": "The chair's DNA lacks traits or capabilities indicating its seat is elevated above floor; only support and elevate are listed.",
+        "recommended_fix": "Remove the claim about a raised surface, or justify elevation by using the chair's elevate capability to lift the object."
+      }
+    ]
+  },
+  "zero_final_plan": {
+    "title": "Raise chair seat then place object",
+    "summary": "Adjust the office chair to a higher position using its elevate capability, then place the small lightweight object on the seat using its support capability.",
+    "item_ids_used": [
+      "office_chair_01"
+    ],
+    "steps": [
+      {
+        "order": 1,
+        "action": "Adjust the office chair seat higher, then place the small lightweight object onto the seat.",
+        "item_ids": [
+          "office_chair_01"
+        ],
+        "capability_uses": [
+          {
+            "item_id": "office_chair_01",
+            "capability": "elevate",
+            "purpose": "raise the chair seat to be above floor"
+          },
+          {
+            "item_id": "office_chair_01",
+            "capability": "support",
+            "purpose": "hold the object on the chair seat"
+          }
+        ],
+        "why_it_helps": "Raising the seat creates an elevated surface; the chair then supports the object above the floor."
+      }
+    ],
+    "assumptions": [],
+    "unresolved_risks": [],
+    "constraint_check": []
+  },
+  "zero_final_critic": {
+    "passed": true,
+    "findings": []
+  },
+  "baseline_evaluation": {
+    "findings": [],
+    "medium_high_findings": 0,
+    "unlisted_resource_count": 0,
+    "unsupported_physical_claim_count": 0,
+    "unsupported_capability_count": 0,
+    "hidden_assumption_count": 0,
+    "safety_or_uncertainty_count": 0,
+    "constraint_violation_count": 0,
+    "accepted": true
+  },
+  "zero_evaluation": {
+    "findings": [],
+    "medium_high_findings": 0,
+    "unlisted_resource_count": 0,
+    "unsupported_physical_claim_count": 0,
+    "unsupported_capability_count": 0,
+    "hidden_assumption_count": 0,
+    "safety_or_uncertainty_count": 0,
+    "constraint_violation_count": 0,
+    "accepted": true
+  }
+}

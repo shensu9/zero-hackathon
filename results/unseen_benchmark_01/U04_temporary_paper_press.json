@@ -1,0 +1,190 @@
+{
+  "case_id": "U04",
+  "case_name": "temporary_paper_press",
+  "expectation": "feasible",
+  "repair_attempts": 1,
+  "repair_validation_failures": 0,
+  "baseline_plan": {
+    "title": "Flat paper holder using chair, blanket, and books",
+    "summary": "Place the papers on the chair seat, cover with a blanket, and weigh down with books to keep them flat temporarily.",
+    "item_ids_used": [
+      "blanket_01",
+      "books_01",
+      "office_chair_01"
+    ],
+    "steps": [
+      {
+        "order": 1,
+        "action": "Place the small stack of loose papers flat on the seat of the office chair.",
+        "item_ids": [
+          "office_chair_01"
+        ],
+        "capability_uses": [],
+        "why_it_helps": "Provides a stable surface for the papers."
+      },
+      {
+        "order": 2,
+        "action": "Unfold the blanket and lay it smoothly over the papers on the chair seat.",
+        "item_ids": [
+          "blanket_01"
+        ],
+        "capability_uses": [],
+        "why_it_helps": "Covers the papers to prevent them from lifting and adds a soft layer."
+      },
+      {
+        "order": 3,
+        "action": "Place the stack of books centered on the blanket over the papers to add gentle weight.",
+        "item_ids": [
+          "books_01"
+        ],
+        "capability_uses": [],
+        "why_it_helps": "The weight of the books holds the blanket and papers down, keeping them flat."
+      }
+    ],
+    "assumptions": [
+      "The chair seat is level and stable.",
+      "The blanket is large enough to fully cover the paper stack.",
+      "The books provide sufficient weight to hold the papers without damaging them."
+    ],
+    "unresolved_risks": [
+      "If the chair is moved or vibrated, the papers may shift despite the blanket and books.",
+      "The blanket could slip if not smoothed properly, exposing the papers.",
+      "If the books are excessively heavy, they could potentially damage or crease the papers."
+    ],
+    "constraint_check": [
+      "No tape, adhesives, clips, clamps, or fasteners were used.",
+      "No permanent modifications were made to any object.",
+      "No damage is expected to the chair, blanket, books, or papers.",
+      "Budget remains $0 as no purchased items are used.",
+      "Spray bottles and power strip were not used.",
+      "The solution does not claim the papers are locked in place under all disturbances."
+    ]
+  },
+  "zero_initial_plan": {
+    "title": "Keep papers flat on chair seat",
+    "summary": "Place loose papers on the office chair seat and weigh them down with a stack of books to keep them flat without adhesives or permanent changes.",
+    "item_ids_used": [
+      "books_01",
+      "office_chair_01"
+    ],
+    "steps": [
+      {
+        "order": 1,
+        "action": "Place the small stack of loose papers onto the seat of the office chair.",
+        "item_ids": [
+          "office_chair_01"
+        ],
+        "capability_uses": [
+          {
+            "item_id": "office_chair_01",
+            "capability": "support",
+            "purpose": "provide a stable surface for the papers"
+          }
+        ],
+        "why_it_helps": "gives a flat base so papers don't curl or slide off the chair"
+      },
+      {
+        "order": 2,
+        "action": "Place the stack of books onto the papers to add gentle weight.",
+        "item_ids": [
+          "books_01"
+        ],
+        "capability_uses": [
+          {
+            "item_id": "books_01",
+            "capability": "provide_weight",
+            "purpose": "apply light pressure to keep papers flat"
+          }
+        ],
+        "why_it_helps": "weight reduces tendency of papers to shift or flutter, keeping them flat"
+      }
+    ],
+    "assumptions": [],
+    "unresolved_risks": [],
+    "constraint_check": []
+  },
+  "zero_initial_critic": {
+    "passed": false,
+    "findings": [
+      {
+        "step_order": null,
+        "claim": "Claims papers won't slide off chair seat without evidence of friction",
+        "issue_type": "unsupported_physical_claim",
+        "severity": "medium",
+        "explanation": "The chair's traits (rigid, large_surface) do not guarantee sufficient friction to prevent papers from sliding; only support and rigidity are confirmed.",
+        "recommended_fix": "Add blanket_01 to increase friction or revise claim to note that weight helps mitigate sliding."
+      }
+    ]
+  },
+  "zero_final_plan": {
+    "title": "Keep papers flat on chair seat",
+    "summary": "Place loose papers on the office chair seat and weigh them down with a stack of books to keep them flat; the weight helps reduce sliding.",
+    "item_ids_used": [
+      "books_01",
+      "office_chair_01"
+    ],
+    "steps": [
+      {
+        "order": 1,
+        "action": "Place the small stack of loose papers onto the seat of the office chair.",
+        "item_ids": [
+          "office_chair_01"
+        ],
+        "capability_uses": [
+          {
+            "item_id": "office_chair_01",
+            "capability": "support",
+            "purpose": "provide a stable surface for the papers"
+          }
+        ],
+        "why_it_helps": "provides a flat base so papers stay on the chair; combined with book weight, reduces sliding."
+      },
+      {
+        "order": 2,
+        "action": "Place the stack of books onto the papers to add gentle weight.",
+        "item_ids": [
+          "books_01"
+        ],
+        "capability_uses": [
+          {
+            "item_id": "books_01",
+            "capability": "provide_weight",
+            "purpose": "apply light pressure to keep papers flat"
+          }
+        ],
+        "why_it_helps": "weight reduces tendency of papers to shift or flutter, keeping them flat."
+      }
+    ],
+    "assumptions": [],
+    "unresolved_risks": [
+      "If the chair is tilted or disturbed heavily, papers may still slide."
+    ],
+    "constraint_check": []
+  },
+  "zero_final_critic": {
+    "passed": true,
+    "findings": []
+  },
+  "baseline_evaluation": {
+    "findings": [],
+    "medium_high_findings": 0,
+    "unlisted_resource_count": 0,
+    "unsupported_physical_claim_count": 0,
+    "unsupported_capability_count": 0,
+    "hidden_assumption_count": 0,
+    "safety_or_uncertainty_count": 0,
+    "constraint_violation_count": 0,
+    "accepted": true
+  },
+  "zero_evaluation": {
+    "findings": [],
+    "medium_high_findings": 0,
+    "unlisted_resource_count": 0,
+    "unsupported_physical_claim_count": 0,
+    "unsupported_capability_count": 0,
+    "hidden_assumption_count": 0,
+    "safety_or_uncertainty_count": 0,
+    "constraint_violation_count": 0,
+    "accepted": true
+  }
+}

@@ -1,0 +1,270 @@
+{
+  "case_id": "U02",
+  "case_name": "raised_cushioned_rest",
+  "expectation": "feasible",
+  "repair_attempts": 2,
+  "repair_validation_failures": 0,
+  "baseline_plan": {
+    "title": "Raised soft resting place for fragile object",
+    "summary": "Use a book stack to raise a blanket on the office chair seat, creating a soft, elevated surface for the small fragile object.",
+    "item_ids_used": [
+      "blanket_01",
+      "books_01",
+      "office_chair_01"
+    ],
+    "steps": [
+      {
+        "order": 1,
+        "action": "Place the stack of books flat on the seat of the office chair.",
+        "item_ids": [
+          "books_01",
+          "office_chair_01"
+        ],
+        "capability_uses": [],
+        "why_it_helps": "Creates a raised platform above the chair seat."
+      },
+      {
+        "order": 2,
+        "action": "Unfold and lay the blanket over the book stack, smoothing it to form a soft surface.",
+        "item_ids": [
+          "blanket_01",
+          "books_01"
+        ],
+        "capability_uses": [],
+        "why_it_helps": "Provides a soft layer so the fragile object does not contact the hard books."
+      },
+      {
+        "order": 3,
+        "action": "Gently place the small fragile object onto the center of the blanket.",
+        "item_ids": [],
+        "capability_uses": [],
+        "why_it_helps": "Positions the object on the soft, raised resting place."
+      }
+    ],
+    "assumptions": [
+      "The book stack is stable and can support the weight of the blanket and object.",
+      "The blanket is thick enough to provide a soft surface."
+    ],
+    "unresolved_risks": [
+      "The blanket may shift or slide on the books, potentially causing the object to move.",
+      "The object may roll off if the blanket surface is not level."
+    ],
+    "constraint_check": [
+      "Budget: $0 – no purchases or costs involved.",
+      "Only listed inventory objects used (office_chair_01, books_01, blanket_01).",
+      "Small fragile object is treated as an explicit external resource.",
+      "Object rests on soft blanket layer, not directly on books.",
+      "Resting place is raised above chair seat by the book stack.",
+      "No adhesives, tape, clamps, fasteners, stands, or unlisted materials used.",
+      "No permanent modifications made to any object.",
+      "No damage claimed or inflicted on listed objects.",
+      "No claims of non-slip, waterproof, impact-proof, locked, or guaranteed stability."
+    ]
+  },
+  "zero_initial_plan": {
+    "title": "Raised Soft Resting Place for Fragile Object",
+    "summary": "Use books to elevate a blanket on the chair seat, creating a soft, raised surface for the small fragile object without adhesives or damage.",
+    "item_ids_used": [
+      "blanket_01",
+      "books_01",
+      "office_chair_01"
+    ],
+    "steps": [
+      {
+        "order": 1,
+        "action": "Place the stack of books onto the office chair seat to create an elevated platform.",
+        "item_ids": [
+          "books_01",
+          "office_chair_01"
+        ],
+        "capability_uses": [
+          {
+            "item_id": "books_01",
+            "capability": "elevate",
+            "purpose": "Raise the blanket and object above the chair seat."
+          },
+          {
+            "item_id": "office_chair_01",
+            "capability": "support",
+            "purpose": "Hold the books securely in place on the seat."
+          }
+        ],
+        "why_it_helps": "Provides a stable raised base for the soft layer without damaging the chair or books."
+      },
+      {
+        "order": 2,
+        "action": "Unfold the blanket and lay it flat on top of the book stack to form a soft surface.",
+        "item_ids": [
+          "blanket_01",
+          "books_01"
+        ],
+        "capability_uses": [
+          {
+            "item_id": "blanket_01",
+            "capability": "cushion",
+            "purpose": "Provide a soft, protective layer for the fragile object."
+          },
+          {
+            "item_id": "books_01",
+            "capability": "provide_surface",
+            "purpose": "Offer a flat, stable area for the blanket to rest on."
+          }
+        ],
+        "why_it_helps": "Ensures the object rests on a soft material rather than directly on hard books."
+      },
+      {
+        "order": 3,
+        "action": "Place the small fragile object gently onto the center of the blanket.",
+        "item_ids": [
+          "blanket_01"
+        ],
+        "capability_uses": [
+          {
+            "item_id": "blanket_01",
+            "capability": "cushion",
+            "purpose": "Shield the object from impact and provide a soft resting point."
+          }
+        ],
+        "why_it_helps": "Keeps the fragile object safe and elevated as required."
+      }
+    ],
+    "assumptions": [],
+    "unresolved_risks": [],
+    "constraint_check": []
+  },
+  "zero_initial_critic": {
+    "passed": false,
+    "findings": [
+      {
+        "step_order": 1,
+        "claim": "Hold the books securely in place on the seat.",
+        "issue_type": "unsupported_physical_claim",
+        "severity": "medium",
+        "explanation": "Chair support capability does not prevent sliding; stability/friction not guaranteed.",
+        "recommended_fix": "Remove claim of secure hold or add a method to prevent sliding if supported."
+      },
+      {
+        "step_order": 2,
+        "claim": "lay it flat on top of the book stack to form a soft surface.",
+        "issue_type": "hidden_assumption",
+        "severity": "medium",
+        "explanation": "Assumes blanket will stay flat on books without sliding; no friction or fastening capability cited.",
+        "recommended_fix": "Add note to tuck blanket edges or rely on weight to keep it flat, or remove flatness claim."
+      }
+    ]
+  },
+  "zero_final_plan": {
+    "title": "Raised Soft Resting Place for Fragile Object",
+    "summary": "Use books to elevate a blanket on the chair seat, creating a soft, raised surface for the small fragile object without adhesives or damage.",
+    "item_ids_used": [
+      "blanket_01",
+      "books_01",
+      "office_chair_01"
+    ],
+    "steps": [
+      {
+        "order": 1,
+        "action": "Place the stack of books centered onto the office chair seat to create an elevated platform.",
+        "item_ids": [
+          "books_01",
+          "office_chair_01"
+        ],
+        "capability_uses": [
+          {
+            "item_id": "books_01",
+            "capability": "elevate",
+            "purpose": "Raise the blanket and object above the chair seat."
+          },
+          {
+            "item_id": "office_chair_01",
+            "capability": "support",
+            "purpose": "Provide a surface for the books to rest on."
+          }
+        ],
+        "why_it_helps": "Provides a raised base for the soft layer without damaging the chair or books."
+      },
+      {
+        "order": 2,
+        "action": "Unfold the blanket and place it on top of the book stack.",
+        "item_ids": [
+          "blanket_01",
+          "books_01"
+        ],
+        "capability_uses": [
+          {
+            "item_id": "blanket_01",
+            "capability": "cushion",
+            "purpose": "Provide a soft layer for the fragile object."
+          },
+          {
+            "item_id": "books_01",
+            "capability": "provide_surface",
+            "purpose": "Offer a surface for the blanket to rest on."
+          }
+        ],
+        "why_it_helps": "Ensures the object rests on a soft material rather than directly on hard books."
+      },
+      {
+        "order": 3,
+        "action": "Place the small fragile object gently onto the center of the blanket.",
+        "item_ids": [
+          "blanket_01"
+        ],
+        "capability_uses": [
+          {
+            "item_id": "blanket_01",
+            "capability": "cushion",
+            "purpose": "Provide a soft resting surface for the fragile object."
+          }
+        ],
+        "why_it_helps": "Ensures the object rests on a soft surface without direct contact with hard books."
+      }
+    ],
+    "assumptions": [],
+    "unresolved_risks": [],
+    "constraint_check": []
+  },
+  "zero_final_critic": {
+    "passed": false,
+    "findings": [
+      {
+        "step_order": null,
+        "claim": "Book stack assumed stable on chair seat without sliding.",
+        "issue_type": "hidden_assumption",
+        "severity": "medium",
+        "explanation": "Plan assumes sufficient friction between books and chair to prevent movement, but no capability or trait guarantees this stability.",
+        "recommended_fix": "Position books against chair back or arms to limit sliding, or add weight to prevent shifting."
+      },
+      {
+        "step_order": null,
+        "claim": "Blanket assumed to stay on book stack without sliding.",
+        "issue_type": "hidden_assumption",
+        "severity": "medium",
+        "explanation": "Plan assumes sufficient friction between blanket and books to prevent movement, but no capability or trait guarantees this.",
+        "recommended_fix": "Tuck blanket edges under books or use book weight to keep blanket in place."
+      }
+    ]
+  },
+  "baseline_evaluation": {
+    "findings": [],
+    "medium_high_findings": 0,
+    "unlisted_resource_count": 0,
+    "unsupported_physical_claim_count": 0,
+    "unsupported_capability_count": 0,
+    "hidden_assumption_count": 0,
+    "safety_or_uncertainty_count": 0,
+    "constraint_violation_count": 0,
+    "accepted": true
+  },
+  "zero_evaluation": {
+    "findings": [],
+    "medium_high_findings": 0,
+    "unlisted_resource_count": 0,
+    "unsupported_physical_claim_count": 0,
+    "unsupported_capability_count": 0,
+    "hidden_assumption_count": 0,
+    "safety_or_uncertainty_count": 0,
+    "constraint_violation_count": 0,
+    "accepted": true
+  }
+}

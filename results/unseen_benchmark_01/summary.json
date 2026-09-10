@@ -1,0 +1,98 @@
+{
+  "suite_id": "unseen_benchmark_01",
+  "protocol_note": "Baseline and ZERO are evaluated by the same neutral evaluator against the same frozen Object DNA world model. ZERO internal critic results are not used as comparative scores.",
+  "total_cases": 5,
+  "completed_cases": 4,
+  "failed_cases": 1,
+  "failed_case_details": [
+    {
+      "case_id": "U03",
+      "case_name": "conditional_spray_dispense",
+      "error_type": "ValidationError",
+      "error_message": "1 validation error for PhysicalPlan\nsteps\n  List should have at least 1 item after validation, not 0 [type=too_short, input_value=[], input_type=list]\n    For further information visit https://errors.pydantic.dev/2.13/v/too_short"
+    }
+  ],
+  "case_summaries": [
+    {
+      "case_id": "U01",
+      "case_name": "temporary_visual_cover",
+      "expectation": "feasible",
+      "baseline_medium_high": 1,
+      "zero_medium_high": 1,
+      "difference_positive_favors_zero": 0,
+      "baseline_accepted": false,
+      "zero_accepted": false,
+      "zero_internal_critic_passed": true,
+      "repair_attempts": 0,
+      "repair_validation_failures": 0
+    },
+    {
+      "case_id": "U02",
+      "case_name": "raised_cushioned_rest",
+      "expectation": "feasible",
+      "baseline_medium_high": 0,
+      "zero_medium_high": 0,
+      "difference_positive_favors_zero": 0,
+      "baseline_accepted": true,
+      "zero_accepted": true,
+      "zero_internal_critic_passed": false,
+      "repair_attempts": 2,
+      "repair_validation_failures": 0
+    },
+    {
+      "case_id": "U04",
+      "case_name": "temporary_paper_press",
+      "expectation": "feasible",
+      "baseline_medium_high": 0,
+      "zero_medium_high": 0,
+      "difference_positive_favors_zero": 0,
+      "baseline_accepted": true,
+      "zero_accepted": true,
+      "zero_internal_critic_passed": true,
+      "repair_attempts": 1,
+      "repair_validation_failures": 0
+    },
+    {
+      "case_id": "U05",
+      "case_name": "chair_seat_elevation",
+      "expectation": "feasible",
+      "baseline_medium_high": 0,
+      "zero_medium_high": 0,
+      "difference_positive_favors_zero": 0,
+      "baseline_accepted": true,
+      "zero_accepted": true,
+      "zero_internal_critic_passed": true,
+      "repair_attempts": 1,
+      "repair_validation_failures": 0
+    }
+  ],
+  "aggregate": {
+    "baseline_medium_high_findings": 1,
+    "zero_medium_high_findings": 1,
+    "absolute_medium_high_reduction": 0,
+    "medium_high_reduction_percent": 0.0,
+    "baseline_accepted_cases": 3,
+    "zero_accepted_cases": 3,
+    "zero_wins_by_medium_high": 0,
+    "ties_by_medium_high": 4,
+    "baseline_wins_by_medium_high": 0,
+    "baseline_issue_totals": {
+      "unlisted_resource": 0,
+      "unsupported_physical_claim": 0,
+      "unsupported_capability": 1,
+      "hidden_assumption": 0,
+      "safety_or_uncertainty": 0,
+      "constraint_violation": 0
+    },
+    "zero_issue_totals": {
+      "unlisted_resource": 0,
+      "unsupported_physical_claim": 0,
+      "unsupported_capability": 0,
+      "hidden_assumption": 1,
+      "safety_or_uncertainty": 0,
+      "constraint_violation": 0
+    },
+    "zero_total_repair_attempts": 4,
+    "zero_repair_validation_failures": 0
+  }
+}
