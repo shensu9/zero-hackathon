@@ -6,8 +6,9 @@ from pathlib import Path
 from pydantic import BaseModel, Field
 
 from goal_relevance_service import (
+    MAX_PENDING_ITEMS_PER_CALL,
     build_goal_relevance_prompt,
-    generate_goal_relevance,
+    generate_goal_relevance_chunk,
     validate_goal_relevance_response,
 )
 from goal_scoped_confirmation import (
@@ -26,7 +27,12 @@ INVENTORY_PATH = Path(
     "walkthrough-01-canonical-inventory.json"
 )
 
-CACHE_PATH = Path(
+CACHE_DIR = Path(
+    "sample_data/private/"
+    "walkthrough-01-goal-relevance-product-photography-cache"
+)
+
+AGGREGATE_CACHE_PATH = Path(
     "sample_data/private/"
     "walkthrough-01-goal-relevance-product-photography.json"
 )
@@ -37,12 +43,45 @@ GOAL = (
 )
 
 
-class GoalRelevanceCache(BaseModel):
+class GoalRelevanceChunkCache(BaseModel):
     """
-    Private experiment cache.
+    Private cache for one bounded paid relevance call.
 
-    The cache is bound to both the exact goal and the exact canonical
-    inventory content so stale relevance output cannot silently be reused.
+    A chunk cache is valid only for:
+    - the exact goal
+    - the exact canonical inventory fingerprint
+    - the exact chunk index
+    - the exact ordered pending item IDs
+    """
+
+    goal: str = Field(
+        min_length=1,
+        max_length=2000,
+    )
+
+    inventory_sha256: str = Field(
+        min_length=64,
+        max_length=64,
+    )
+
+    chunk_index: int = Field(
+        ge=1,
+    )
+
+    pending_item_ids: list[str] = Field(
+        min_length=1,
+        max_length=MAX_PENDING_ITEMS_PER_CALL,
+    )
+
+    relevance: GoalAwareInventoryResponse
+
+
+class GoalRelevanceAggregateCache(BaseModel):
+    """
+    Fully assembled relevance result after every pending chunk has been
+    validated.
+
+    This gives later runs a zero-call fast path.
     """
 
     goal: str = Field(
@@ -60,15 +99,7 @@ class GoalRelevanceCache(BaseModel):
 
 def load_inventory() -> CanonicalInventory:
     """
-    Load CanonicalInventory from the saved walkthrough normalization result.
-
-    The normalization artifact is a wrapper containing:
-    - inventory
-    - provenance
-    - excluded_entities
-    - potential_duplicate_groups
-
-    Only the nested inventory object is the CanonicalInventory contract.
+    Load CanonicalInventory from the saved walkthrough normalization wrapper.
     """
 
     if not INVENTORY_PATH.exists():
@@ -96,7 +127,10 @@ def load_inventory() -> CanonicalInventory:
 
     inventory_payload = payload["inventory"]
 
-    if not isinstance(inventory_payload, dict):
+    if not isinstance(
+        inventory_payload,
+        dict,
+    ):
         raise RuntimeError(
             "Walkthrough normalization 'inventory' field must "
             "contain a JSON object."
@@ -128,39 +162,88 @@ def inventory_fingerprint(
     ).hexdigest()
 
 
-def load_matching_cache(
+def get_pending_item_ids(
+    inventory: CanonicalInventory,
+) -> list[str]:
+    """
+    Return NEEDS_CONFIRMATION IDs in canonical inventory order.
+    """
+
+    return [
+        item.id
+        for item in inventory.items
+        if (
+            item.verification_status
+            == VerificationStatus.NEEDS_CONFIRMATION
+        )
+    ]
+
+
+def build_chunk_plan(
+    inventory: CanonicalInventory,
+) -> list[list[str]]:
+    """
+    Deterministically split pending inventory into bounded relevance chunks.
+
+    Chunk membership follows canonical inventory order.
+    """
+
+    pending_item_ids = get_pending_item_ids(
+        inventory
+    )
+
+    return [
+        pending_item_ids[
+            start:
+            start + MAX_PENDING_ITEMS_PER_CALL
+        ]
+        for start in range(
+            0,
+            len(pending_item_ids),
+            MAX_PENDING_ITEMS_PER_CALL,
+        )
+    ]
+
+
+def chunk_cache_path(
+    chunk_index: int,
+) -> Path:
+    return CACHE_DIR / (
+        f"chunk-{chunk_index:02d}.json"
+    )
+
+
+def load_matching_aggregate_cache(
     *,
     inventory: CanonicalInventory,
     fingerprint: str,
 ) -> GoalAwareInventoryResponse | None:
     """
-    Reuse a cache only when both the goal and inventory fingerprint match.
+    Reuse a complete aggregate cache only when both goal and inventory match.
 
-    A matching cache is revalidated against the current canonical inventory.
-
-    If an existing matching cache is malformed, fail rather than silently
-    spending another paid model call.
+    A matching cache is always revalidated against current CanonicalInventory.
     """
 
-    if not CACHE_PATH.exists():
+    if not AGGREGATE_CACHE_PATH.exists():
         return None
 
     try:
         payload = json.loads(
-            CACHE_PATH.read_text(
+            AGGREGATE_CACHE_PATH.read_text(
                 encoding="utf-8"
             )
         )
 
-        cached = GoalRelevanceCache.model_validate(
-            payload
+        cached = (
+            GoalRelevanceAggregateCache.model_validate(
+                payload
+            )
         )
 
     except Exception as exc:
         raise RuntimeError(
-            "Existing goal-relevance cache is invalid. "
-            "Refusing to make another paid model call until "
-            "the cache is inspected."
+            "Existing aggregate goal-relevance cache is invalid. "
+            "Refusing to make paid calls until it is inspected."
         ) from exc
 
     if cached.goal != GOAL:
@@ -175,31 +258,160 @@ def load_matching_cache(
     )
 
 
-def save_cache(
+def save_aggregate_cache(
     *,
     fingerprint: str,
     relevance: GoalAwareInventoryResponse,
 ) -> None:
     """
-    Save a validated paid model result under sample_data/private/.
+    Save the fully validated all-pending relevance result.
     """
 
-    CACHE_PATH.parent.mkdir(
+    AGGREGATE_CACHE_PATH.parent.mkdir(
         parents=True,
         exist_ok=True,
     )
 
-    cache = GoalRelevanceCache(
+    cache = GoalRelevanceAggregateCache(
         goal=GOAL,
         inventory_sha256=fingerprint,
         relevance=relevance,
     )
 
-    CACHE_PATH.write_text(
+    AGGREGATE_CACHE_PATH.write_text(
         cache.model_dump_json(
             indent=2
         ),
         encoding="utf-8",
+    )
+
+
+def load_matching_chunk_cache(
+    *,
+    inventory: CanonicalInventory,
+    fingerprint: str,
+    chunk_index: int,
+    pending_item_ids: list[str],
+) -> GoalAwareInventoryResponse | None:
+    """
+    Load one chunk cache when it exactly matches this experiment scope.
+
+    If the cache file exists but is malformed, fail rather than silently
+    making another paid call.
+
+    A valid but stale cache is ignored.
+    """
+
+    path = chunk_cache_path(
+        chunk_index
+    )
+
+    if not path.exists():
+        return None
+
+    try:
+        payload = json.loads(
+            path.read_text(
+                encoding="utf-8"
+            )
+        )
+
+        cached = (
+            GoalRelevanceChunkCache.model_validate(
+                payload
+            )
+        )
+
+    except Exception as exc:
+        raise RuntimeError(
+            "Existing goal-relevance chunk cache is invalid: "
+            f"{path}. Refusing to make another paid call "
+            "until the cache is inspected."
+        ) from exc
+
+    if cached.goal != GOAL:
+        return None
+
+    if cached.inventory_sha256 != fingerprint:
+        return None
+
+    if cached.chunk_index != chunk_index:
+        return None
+
+    if cached.pending_item_ids != pending_item_ids:
+        return None
+
+    return validate_goal_relevance_response(
+        inventory=inventory,
+        response=cached.relevance,
+        pending_item_ids=pending_item_ids,
+    )
+
+
+def save_chunk_cache(
+    *,
+    fingerprint: str,
+    chunk_index: int,
+    pending_item_ids: list[str],
+    relevance: GoalAwareInventoryResponse,
+) -> None:
+    """
+    Save one successful validated paid call immediately.
+
+    This happens before later chunks are attempted.
+    """
+
+    CACHE_DIR.mkdir(
+        parents=True,
+        exist_ok=True,
+    )
+
+    cache = GoalRelevanceChunkCache(
+        goal=GOAL,
+        inventory_sha256=fingerprint,
+        chunk_index=chunk_index,
+        pending_item_ids=pending_item_ids,
+        relevance=relevance,
+    )
+
+    path = chunk_cache_path(
+        chunk_index
+    )
+
+    path.write_text(
+        cache.model_dump_json(
+            indent=2
+        ),
+        encoding="utf-8",
+    )
+
+
+def combine_chunk_results(
+    *,
+    inventory: CanonicalInventory,
+    chunk_results: list[
+        GoalAwareInventoryResponse
+    ],
+) -> GoalAwareInventoryResponse:
+    """
+    Combine independently validated chunks and validate exact accounting
+    across the complete NEEDS_CONFIRMATION inventory.
+
+    Full validation catches any unexpected cross-chunk duplicate, omission,
+    or ordering problem before an aggregate cache is accepted.
+    """
+
+    combined = GoalAwareInventoryResponse(
+        items=[
+            relevance_item
+            for chunk_result in chunk_results
+            for relevance_item in chunk_result.items
+        ]
+    )
+
+    return validate_goal_relevance_response(
+        inventory=inventory,
+        response=combined,
     )
 
 
@@ -245,6 +457,51 @@ def print_inventory_summary(
     print(
         f"NEEDS_CONFIRMATION: {needs_confirmation}"
     )
+
+
+def print_chunk_plan(
+    *,
+    inventory: CanonicalInventory,
+    chunks: list[list[str]],
+) -> None:
+    """
+    Build every chunk prompt locally and report its size.
+
+    This doubles as a free validation that every requested chunk scope can
+    produce a prompt before paid execution begins.
+    """
+
+    print()
+    print("=" * 72)
+    print("BOUNDED CHUNK PLAN")
+    print("=" * 72)
+
+    print(
+        f"Maximum pending items per call: "
+        f"{MAX_PENDING_ITEMS_PER_CALL}"
+    )
+
+    print(
+        f"Chunk count: {len(chunks)}"
+    )
+
+    print()
+
+    for chunk_index, pending_item_ids in enumerate(
+        chunks,
+        start=1,
+    ):
+        prompt = build_goal_relevance_prompt(
+            goal=GOAL,
+            inventory=inventory,
+            pending_item_ids=pending_item_ids,
+        )
+
+        print(
+            f"Chunk {chunk_index}: "
+            f"{len(pending_item_ids)} items, "
+            f"{len(prompt)} prompt characters"
+        )
 
 
 def print_relevance_summary(
@@ -358,6 +615,132 @@ def print_confirmation_candidates(
         )
 
 
+def run_chunked_relevance(
+    *,
+    inventory: CanonicalInventory,
+    fingerprint: str,
+    chunks: list[list[str]],
+) -> tuple[
+    GoalAwareInventoryResponse,
+    int,
+    int,
+]:
+    """
+    Execute or reuse each bounded relevance chunk.
+
+    Returns:
+        complete relevance response
+        number of paid Nemotron calls made
+        number of chunk cache hits
+
+    Every newly generated chunk is cached immediately before proceeding.
+    """
+
+    chunk_results: list[
+        GoalAwareInventoryResponse
+    ] = []
+
+    model_calls = 0
+    cache_hits = 0
+
+    for chunk_index, pending_item_ids in enumerate(
+        chunks,
+        start=1,
+    ):
+        print()
+        print(
+            f"Chunk {chunk_index}/{len(chunks)} "
+            f"({len(pending_item_ids)} pending items)"
+        )
+
+        cached = load_matching_chunk_cache(
+            inventory=inventory,
+            fingerprint=fingerprint,
+            chunk_index=chunk_index,
+            pending_item_ids=pending_item_ids,
+        )
+
+        if cached is not None:
+            print(
+                "  Valid chunk cache found."
+            )
+
+            print(
+                "  Nemotron calls: 0"
+            )
+
+            chunk_results.append(
+                cached
+            )
+
+            cache_hits += 1
+
+            continue
+
+        print(
+            "  No matching chunk cache found."
+        )
+
+        print(
+            "  Running one bounded Nemotron call..."
+        )
+
+        try:
+            result = generate_goal_relevance_chunk(
+                goal=GOAL,
+                inventory=inventory,
+                pending_item_ids=pending_item_ids,
+            )
+
+        except Exception:
+            print()
+            print(
+                f"Chunk {chunk_index} failed."
+            )
+
+            print(
+                "Any earlier successful chunk caches remain saved."
+            )
+
+            print(
+                "Do not delete them before investigating the failure."
+            )
+
+            raise
+
+        save_chunk_cache(
+            fingerprint=fingerprint,
+            chunk_index=chunk_index,
+            pending_item_ids=pending_item_ids,
+            relevance=result,
+        )
+
+        print(
+            "  Chunk validated and cached."
+        )
+
+        print(
+            "  Nemotron calls: 1"
+        )
+
+        chunk_results.append(
+            result
+        )
+
+        model_calls += 1
+
+    complete_relevance = combine_chunk_results(
+        inventory=inventory,
+        chunk_results=chunk_results,
+    )
+
+    return (
+        complete_relevance,
+        model_calls,
+        cache_hits,
+    )
+
+
 def main() -> None:
     parser = argparse.ArgumentParser()
 
@@ -365,8 +748,8 @@ def main() -> None:
         "--dry-run",
         action="store_true",
         help=(
-            "Validate the real walkthrough inventory and build "
-            "the prompt without making a paid model call."
+            "Validate the real walkthrough inventory and every "
+            "bounded chunk prompt without making paid model calls."
         ),
     )
 
@@ -395,13 +778,13 @@ def main() -> None:
         f"{fingerprint}"
     )
 
-    prompt = build_goal_relevance_prompt(
-        goal=GOAL,
-        inventory=inventory,
+    chunks = build_chunk_plan(
+        inventory
     )
 
-    print(
-        f"Prompt characters: {len(prompt)}"
+    print_chunk_plan(
+        inventory=inventory,
+        chunks=chunks,
     )
 
     if args.dry_run:
@@ -412,53 +795,73 @@ def main() -> None:
 
         return
 
-    cached_relevance = load_matching_cache(
-        inventory=inventory,
-        fingerprint=fingerprint,
+    aggregate_cache = (
+        load_matching_aggregate_cache(
+            inventory=inventory,
+            fingerprint=fingerprint,
+        )
     )
 
-    if cached_relevance is not None:
+    if aggregate_cache is not None:
         print()
         print(
-            "Valid matching cache found."
+            "Valid complete aggregate cache found."
         )
 
         print(
             "Nemotron calls: 0"
         )
 
-        relevance = cached_relevance
+        relevance = aggregate_cache
 
     else:
         print()
         print(
-            "No matching cache found."
+            "No matching complete aggregate cache found."
         )
 
-        print(
-            "Running one Nemotron goal-relevance call..."
-        )
-
-        relevance = generate_goal_relevance(
-            goal=GOAL,
+        (
+            relevance,
+            model_calls,
+            chunk_cache_hits,
+        ) = run_chunked_relevance(
             inventory=inventory,
+            fingerprint=fingerprint,
+            chunks=chunks,
         )
 
-        save_cache(
+        save_aggregate_cache(
             fingerprint=fingerprint,
             relevance=relevance,
         )
 
+        print()
+        print("=" * 72)
+        print("CHUNK EXECUTION COMPLETE")
+        print("=" * 72)
+
         print(
-            "Nemotron calls: 1"
+            f"Nemotron calls made this run: "
+            f"{model_calls}"
         )
 
         print(
-            "Saved private goal-relevance cache:"
+            f"Chunk cache hits: "
+            f"{chunk_cache_hits}"
         )
 
         print(
-            CACHE_PATH.resolve()
+            f"Validated chunks: "
+            f"{len(chunks)}"
+        )
+
+        print()
+        print(
+            "Saved complete private aggregate cache:"
+        )
+
+        print(
+            AGGREGATE_CACHE_PATH.resolve()
         )
 
     print_relevance_summary(
