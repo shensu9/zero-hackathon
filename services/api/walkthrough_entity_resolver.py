@@ -3,11 +3,15 @@ import os
 
 from dotenv import load_dotenv
 from openai import OpenAI
+from pydantic import BaseModel, Field
 
 from json_format_repair import (
     load_or_repair_json,
 )
 from walkthrough_entity_resolution_schemas import (
+    IgnoredObservationReason,
+    IgnoredWalkthroughObservation,
+    ResolvedPhysicalEntity,
     WalkthroughEntityResolution,
 )
 from walkthrough_entity_resolution_validator import (
@@ -15,65 +19,581 @@ from walkthrough_entity_resolution_validator import (
 )
 from walkthrough_perception import (
     WalkthroughFrameObservation,
-)
-
-
-load_dotenv()
-
-api_key = os.getenv(
-    "NEBIUS_API_KEY"
-)
-
-if not api_key:
-    raise RuntimeError(
-        "NEBIUS_API_KEY was not found in .env"
-    )
-
-
-client = OpenAI(
-    base_url=(
-        "https://api.tokenfactory."
-        "us-central1.nebius.com/v1/"
-    ),
-    api_key=api_key,
+    WalkthroughObjectObservation,
 )
 
 
 MODEL = "nvidia/nemotron-3-super-120b-a12b"
 
+BASE_URL = (
+    "https://api.tokenfactory."
+    "us-central1.nebius.com/v1/"
+)
 
-def _compact_observations(
+
+# ---------------------------------------------------------------------------
+# COMPACT MODEL-OUTPUT CONTRACT
+# ---------------------------------------------------------------------------
+
+
+class CompactEntityGroup(
+    BaseModel,
+):
+    """
+    The model's only entity responsibility is deciding which
+    observation IDs belong to the same physical object.
+    """
+
+    observation_ids: list[str] = Field(
+        min_length=1,
+        max_length=20,
+    )
+
+    merge_confidence: float = Field(
+        ge=0.0,
+        le=1.0,
+    )
+
+
+class CompactIgnoredObservation(
+    BaseModel,
+):
+    observation_id: str = Field(
+        min_length=1,
+    )
+
+    reason: IgnoredObservationReason
+
+
+class CompactEntityResolution(
+    BaseModel,
+):
+    groups: list[
+        CompactEntityGroup
+    ] = Field(
+        default_factory=list,
+        max_length=100,
+    )
+
+    ignored: list[
+        CompactIgnoredObservation
+    ] = Field(
+        default_factory=list,
+        max_length=100,
+    )
+
+
+# ---------------------------------------------------------------------------
+# CLIENT
+# ---------------------------------------------------------------------------
+
+
+def _get_client() -> OpenAI:
+    """
+    Create the Nebius client lazily.
+
+    Importing this module therefore does not require an API call and
+    local tests remain free.
+    """
+
+    load_dotenv()
+
+    api_key = os.getenv(
+        "NEBIUS_API_KEY"
+    )
+
+    if not api_key:
+        raise RuntimeError(
+            "NEBIUS_API_KEY was not found in .env"
+        )
+
+    return OpenAI(
+        base_url=BASE_URL,
+        api_key=api_key,
+    )
+
+
+# ---------------------------------------------------------------------------
+# SOURCE OBSERVATION HELPERS
+# ---------------------------------------------------------------------------
+
+
+def _observation_lookup(
     frames: list[
         WalkthroughFrameObservation
     ],
-) -> list[dict]:
-    observations = []
+) -> dict[
+    str,
+    WalkthroughObjectObservation,
+]:
+    lookup = {}
 
     for frame in frames:
         for observation in frame.objects:
-            observations.append(
-                {
-                    "observation_id":
-                        observation.observation_id,
-
-                    "frame":
-                        observation.frame_sample_number,
-
-                    "name":
-                        observation.name,
-
-                    "description":
-                        observation.description,
-
-                    "location_hint":
-                        observation.location_hint,
-
-                    "confidence":
-                        observation.confidence,
-                }
+            observation_id = (
+                observation.observation_id
             )
 
-    return observations
+            if observation_id in lookup:
+                raise RuntimeError(
+                    "Source walkthrough contains "
+                    "duplicate observation ID: "
+                    f"{observation_id}"
+                )
+
+            lookup[
+                observation_id
+            ] = observation
+
+    return lookup
+
+
+def _compact_observations_text(
+    frames: list[
+        WalkthroughFrameObservation
+    ],
+) -> str:
+    """
+    Provide the resolver enough semantic evidence without sending
+    pretty-printed JSON and schema-shaped repetition.
+
+    Format:
+
+        ID | FRAME | NAME | DESCRIPTION | LOCATION | CONFIDENCE
+    """
+
+    lines = []
+
+    for frame in frames:
+        for observation in frame.objects:
+            description = " ".join(
+                observation.description.split()
+            )
+
+            location = " ".join(
+                observation.location_hint.split()
+            )
+
+            name = " ".join(
+                observation.name.split()
+            )
+
+            lines.append(
+                " | ".join(
+                    [
+                        observation.observation_id,
+                        (
+                            f"F"
+                            f"{observation.frame_sample_number}"
+                        ),
+                        name,
+                        description,
+                        location,
+                        (
+                            f"C="
+                            f"{observation.confidence:.2f}"
+                        ),
+                    ]
+                )
+            )
+
+    return "\n".join(
+        lines
+    )
+
+
+# ---------------------------------------------------------------------------
+# COMPACT ACCOUNTING VALIDATION
+# ---------------------------------------------------------------------------
+
+
+def _validate_compact_accounting(
+    *,
+    frames: list[
+        WalkthroughFrameObservation
+    ],
+    compact: CompactEntityResolution,
+) -> None:
+    """
+    Validate the compact model response BEFORE metadata hydration.
+
+    Every source observation must occur exactly once:
+
+        one group
+
+    OR
+
+        ignored
+
+    Never both.
+    Never neither.
+    """
+
+    lookup = _observation_lookup(
+        frames
+    )
+
+    source_ids = set(
+        lookup.keys()
+    )
+
+    grouped_ids = []
+
+    for group in compact.groups:
+        grouped_ids.extend(
+            group.observation_ids
+        )
+
+    ignored_ids = [
+        item.observation_id
+        for item
+        in compact.ignored
+    ]
+
+    # ---------------------------------------------------------------
+    # DUPLICATE GROUP ASSIGNMENTS
+    # ---------------------------------------------------------------
+
+    if (
+        len(
+            set(
+                grouped_ids
+            )
+        )
+        != len(
+            grouped_ids
+        )
+    ):
+        duplicates = sorted(
+            {
+                observation_id
+                for observation_id
+                in grouped_ids
+                if (
+                    grouped_ids.count(
+                        observation_id
+                    )
+                    > 1
+                )
+            }
+        )
+
+        raise RuntimeError(
+            "Compact entity resolution assigned "
+            "observations to multiple groups: "
+            f"{duplicates}"
+        )
+
+    # ---------------------------------------------------------------
+    # DUPLICATE IGNORE ASSIGNMENTS
+    # ---------------------------------------------------------------
+
+    if (
+        len(
+            set(
+                ignored_ids
+            )
+        )
+        != len(
+            ignored_ids
+        )
+    ):
+        duplicates = sorted(
+            {
+                observation_id
+                for observation_id
+                in ignored_ids
+                if (
+                    ignored_ids.count(
+                        observation_id
+                    )
+                    > 1
+                )
+            }
+        )
+
+        raise RuntimeError(
+            "Compact entity resolution duplicated "
+            "ignored observations: "
+            f"{duplicates}"
+        )
+
+    grouped_set = set(
+        grouped_ids
+    )
+
+    ignored_set = set(
+        ignored_ids
+    )
+
+    output_set = (
+        grouped_set
+        | ignored_set
+    )
+
+    # ---------------------------------------------------------------
+    # UNKNOWN / INVENTED IDS
+    # ---------------------------------------------------------------
+
+    unknown_ids = sorted(
+        output_set
+        - source_ids
+    )
+
+    if unknown_ids:
+        raise RuntimeError(
+            "Compact entity resolution invented "
+            "unknown observation IDs: "
+            f"{unknown_ids}"
+        )
+
+    # ---------------------------------------------------------------
+    # GROUPED + IGNORED AT ONCE
+    # ---------------------------------------------------------------
+
+    overlap = sorted(
+        grouped_set
+        & ignored_set
+    )
+
+    if overlap:
+        raise RuntimeError(
+            "Compact entity resolution both grouped "
+            "and ignored observations: "
+            f"{overlap}"
+        )
+
+    # ---------------------------------------------------------------
+    # SILENTLY DROPPED
+    # ---------------------------------------------------------------
+
+    missing_ids = sorted(
+        source_ids
+        - output_set
+    )
+
+    if missing_ids:
+        raise RuntimeError(
+            "Compact entity resolution silently "
+            "dropped source observations: "
+            f"{missing_ids}"
+        )
+
+
+# ---------------------------------------------------------------------------
+# DETERMINISTIC METADATA HYDRATION
+# ---------------------------------------------------------------------------
+
+
+def _representative_observation(
+    *,
+    observation_ids: list[str],
+    lookup: dict[
+        str,
+        WalkthroughObjectObservation,
+    ],
+) -> WalkthroughObjectObservation:
+    """
+    Choose a grounded source observation to supply canonical metadata.
+
+    Highest visual confidence wins.
+
+    Ties:
+        earlier frame
+        then lexical observation ID
+    """
+
+    observations = [
+        lookup[
+            observation_id
+        ]
+        for observation_id
+        in observation_ids
+    ]
+
+    observations.sort(
+        key=lambda observation: (
+            -observation.confidence,
+            observation.frame_sample_number,
+            observation.observation_id,
+        )
+    )
+
+    return observations[
+        0
+    ]
+
+
+def _ignored_explanation(
+    reason: IgnoredObservationReason,
+) -> str:
+    explanations = {
+        (
+            IgnoredObservationReason
+            .INTEGRATED_COMPONENT
+        ): (
+            "Perception sighting is treated as an "
+            "integrated component of a larger retained object."
+        ),
+
+        (
+            IgnoredObservationReason
+            .TINY_INCIDENTAL_DETAIL
+        ): (
+            "Perception sighting is a tiny incidental "
+            "detail unlikely to matter independently."
+        ),
+
+        (
+            IgnoredObservationReason
+            .NON_INDEPENDENT_PART
+        ): (
+            "Perception sighting is not treated as an "
+            "independently meaningful physical object."
+        ),
+
+        (
+            IgnoredObservationReason
+            .LOW_CONFIDENCE_OR_AMBIGUOUS
+        ): (
+            "Perception sighting is too ambiguous or "
+            "uncertain to retain as a physical entity."
+        ),
+
+        (
+            IgnoredObservationReason
+            .OTHER
+        ): (
+            "Perception sighting was explicitly excluded "
+            "from the physical entity inventory."
+        ),
+    }
+
+    return explanations[
+        reason
+    ]
+
+
+def _hydrate_compact_resolution(
+    *,
+    frames: list[
+        WalkthroughFrameObservation
+    ],
+    compact: CompactEntityResolution,
+) -> WalkthroughEntityResolution:
+    """
+    Convert compact grouping decisions into the existing full
+    WalkthroughEntityResolution contract.
+
+    Names/descriptions/locations stay grounded in perception output
+    instead of asking the resolver to rewrite them.
+    """
+
+    _validate_compact_accounting(
+        frames=frames,
+        compact=compact,
+    )
+
+    lookup = _observation_lookup(
+        frames
+    )
+
+    entities = []
+
+    for group in compact.groups:
+        representative = (
+            _representative_observation(
+                observation_ids=(
+                    group.observation_ids
+                ),
+                lookup=lookup,
+            )
+        )
+
+        identity_uncertainty = None
+
+        if (
+            len(
+                group.observation_ids
+            )
+            > 1
+            and group.merge_confidence
+            < 0.90
+        ):
+            identity_uncertainty = (
+                "Cross-frame identity match "
+                "remains somewhat uncertain."
+            )
+
+        entities.append(
+            ResolvedPhysicalEntity(
+                canonical_name=(
+                    representative.name.strip()
+                ),
+
+                canonical_description=(
+                    representative
+                    .description
+                    .strip()
+                ),
+
+                location_hint=(
+                    representative
+                    .location_hint
+                    .strip()
+                ),
+
+                observation_ids=list(
+                    group.observation_ids
+                ),
+
+                merge_confidence=(
+                    group.merge_confidence
+                ),
+
+                identity_uncertainty=(
+                    identity_uncertainty
+                ),
+            )
+        )
+
+    ignored = [
+        IgnoredWalkthroughObservation(
+            observation_id=(
+                item.observation_id
+            ),
+
+            reason=(
+                item.reason
+            ),
+
+            explanation=(
+                _ignored_explanation(
+                    item.reason
+                )
+            ),
+        )
+        for item
+        in compact.ignored
+    ]
+
+    resolution = (
+        WalkthroughEntityResolution(
+            entities=entities,
+            ignored_observations=ignored,
+        )
+    )
+
+    # Keep the already-tested full validator as the final authority.
+    return validate_entity_resolution(
+        frames=frames,
+        resolution=resolution,
+    )
+
+
+# ---------------------------------------------------------------------------
+# MODEL RESOLUTION
+# ---------------------------------------------------------------------------
 
 
 def resolve_walkthrough_entities(
@@ -82,13 +602,12 @@ def resolve_walkthrough_entities(
     ],
 ) -> WalkthroughEntityResolution:
     """
-    Resolve per-frame object sightings into candidate real-world
-    physical entities.
+    Resolve per-frame sightings into real physical objects.
 
-    Semantic merge decisions come from the reasoning model.
+    The model outputs ONLY identity grouping decisions.
 
-    Exact observation accounting is enforced deterministically
-    afterward.
+    Existing grounded perception metadata is hydrated
+    deterministically afterward.
     """
 
     if not frames:
@@ -97,418 +616,334 @@ def resolve_walkthrough_entities(
             "is required."
         )
 
-    observations = (
-        _compact_observations(
-            frames
-        )
+    lookup = _observation_lookup(
+        frames
     )
 
-    if not observations:
+    if not lookup:
         raise ValueError(
             "Walkthrough contains no object observations."
         )
 
-    response = client.chat.completions.create(
-        model=MODEL,
-        reasoning_effort="low",
+    observation_text = (
+        _compact_observations_text(
+            frames
+        )
+    )
 
-        response_format={
-            "type": "json_object"
-        },
+    prompt = f"""
+You are ZERO's cross-frame PHYSICAL IDENTITY resolver.
 
-        messages=[
-            {
-                "role": "user",
-                "content": f"""
-You are ZERO's cross-frame physical entity resolver.
+You receive object sightings from sampled frames of ONE continuous
+room walkthrough.
 
-You receive object observations from multiple sampled frames of ONE
-continuous room walkthrough.
+Your ONLY task is:
 
-Each observation is a sighting.
+1. group sightings that refer to the SAME real physical object
+2. preserve distinct physical objects as separate groups
+3. explicitly ignore only incidental/non-independent sightings
 
-Your task is to determine which sightings refer to the SAME real
-physical object and produce candidate physical entities.
+Do NOT generate:
 
-This is ENTITY RESOLUTION only.
+- canonical names
+- descriptions
+- locations
+- Object DNA
+- affordances
+- plans
+- explanations outside JSON
 
-Do NOT generate Object DNA.
-Do NOT generate affordances.
-Do NOT solve a user goal.
-Do NOT invent objects that were never observed.
+The application already has grounded metadata.
+Your job is ONLY identity grouping.
 
 
-Return ONLY valid JSON:
+======================================================================
+OUTPUT
+======================================================================
+
+Return ONLY valid JSON in exactly this compact shape:
 
 {{
-  "entities": [
+  "groups": [
     {{
-      "canonical_name":
-        "specific ordinary physical object name",
-
-      "canonical_description":
-        "brief description combining only visible evidence",
-
-      "location_hint":
-        "concise approximate room/location description",
-
       "observation_ids": [
-        "exact source observation IDs belonging to this object"
+        "f05_o01",
+        "f06_o01"
       ],
-
-      "merge_confidence":
-        0.95,
-
-      "identity_uncertainty":
-        null
+      "merge_confidence": 0.98
+    }},
+    {{
+      "observation_ids": [
+        "f02_o02"
+      ],
+      "merge_confidence": 0.99
     }}
   ],
 
-  "ignored_observations": [
+  "ignored": [
     {{
-      "observation_id":
-        "exact source observation ID",
-
-      "reason":
-        "integrated_component | tiny_incidental_detail | non_independent_part | low_confidence_or_ambiguous | other",
-
-      "explanation":
-        "brief reason for ignoring this sighting"
+      "observation_id": "f01_o06",
+      "reason": "tiny_incidental_detail"
     }}
   ]
 }}
 
 
+Allowed ignored reasons:
+
+- integrated_component
+- tiny_incidental_detail
+- non_independent_part
+- low_confidence_or_ambiguous
+- other
+
+
 ======================================================================
-CRITICAL ACCOUNTING RULE
+EXACT ACCOUNTING — CRITICAL
 ======================================================================
 
-EVERY source observation ID must appear EXACTLY ONCE.
+There are exactly {len(lookup)} source observation IDs.
 
-It must appear either:
+EVERY source observation ID must occur EXACTLY ONCE.
 
-1. inside exactly one entity's observation_ids
+Each ID must be:
+
+A. inside exactly ONE group's observation_ids
 
 OR
 
-2. inside ignored_observations
+B. inside ignored
 
 Never both.
 Never neither.
 
-Never invent observation IDs.
+Never invent an ID.
+Never alter an ID.
 
-Do not alter observation IDs.
+A physical object seen only once MUST still receive its own
+single-observation group.
 
 
 ======================================================================
 MERGE CONSERVATIVELY
 ======================================================================
 
-Two sightings should be merged only when the available evidence makes
-it reasonably likely they are the same physical object.
+Merge sightings only when evidence makes it reasonably likely they
+are the same real physical object.
 
-Useful evidence includes:
+Useful evidence:
 
-- same distinctive appearance
-- same color/form
-- compatible location
+- compatible identity
+- distinctive appearance
+- compatible colors/forms
 - neighboring walkthrough frames
-- same surrounding objects
-- same furniture/workspace context
-- descriptions that clearly refer to one persistent object
+- same workspace or furniture context
+- compatible surrounding objects
 
-If identity is uncertain, prefer keeping sightings separate rather
-than incorrectly merging two real objects.
+When uncertain, KEEP THEM SEPARATE.
 
-False merges are worse than cautious duplicates.
+A false merge is worse than a cautious duplicate.
 
 
 ======================================================================
-SAME NAME DOES NOT MEAN SAME OBJECT
+SAME NAME != SAME PHYSICAL OBJECT
 ======================================================================
 
-Multiple objects may share the same ordinary name.
+Do not merge simply because names match.
 
 Example:
 
-One frame visibly contains:
+F2:
+beige blanket
 
-- beige blanket
-- gray blanket
-- cow-print blanket
+F2:
+dark gray blanket
 
-These are THREE physical objects.
+F2:
+cow-print blanket
 
-Do NOT merge them merely because each may be named "blanket".
-
-
-Example:
-
-One frame contains:
-
-- red/white shoe box
-- green/white shoe box
-
-These are TWO physical objects.
+These are THREE separate objects.
 
 
-======================================================================
-CROSS-FRAME MERGE EXAMPLES
-======================================================================
+Likewise:
 
-LIKELY SAME:
+red/white shoe box
+green/white shoe box
 
-Frame 5:
-"computer monitor"
-black monitor on desk
-
-Frame 6:
-"computer monitor"
-same desk/workspace and compatible appearance
-
-This may be one physical monitor.
-
-
-LIKELY SAME:
-
-Frame 3:
-"MIDI keyboard"
-
-Frame 4:
-"MIDI keyboard"
-
-Adjacent room views show the same keyboard/workstation.
-
-
-DO NOT MERGE:
-
-Frame 2:
-"blanket"
-beige plush blanket
-
-Frame 2:
-"blanket"
-dark gray plush blanket
-
-They are simultaneously visible and physically distinct.
+are separate boxes unless later sightings provide strong evidence
+for a cross-frame match.
 
 
 ======================================================================
-SIMULTANEOUS OBSERVATIONS
+SAME-FRAME RULE
 ======================================================================
 
-If two observations occur in the SAME frame, they normally represent
-two separate physical objects.
+Two observations from the SAME frame normally represent two different
+physical objects.
 
-Do NOT merge two same-frame observations into one entity unless they
-are clearly duplicate descriptions of exactly the same visible object.
-
-Treat same-frame merging as exceptional.
+Same-frame merging is exceptional and should occur only when perception
+clearly duplicated one visible object.
 
 
 ======================================================================
-PART-WHOLE / INCIDENTAL OBSERVATIONS
+EXPECTED CROSS-FRAME PATTERNS
 ======================================================================
 
-The perception model may occasionally report an integral component or
-tiny detail as though it were a separate object.
+Examples of reasonable merges IF the supplied evidence supports them:
 
-These may be ignored explicitly.
+computer monitor in adjacent desk views
+    -> likely same monitor
 
-Examples that may be ignored when appropriate:
+MIDI keyboard in adjacent room views
+    -> likely same MIDI keyboard
+
+desk in adjacent workstation views
+    -> likely same desk
+
+toy car in adjacent workstation views
+    -> likely same toy car
+
+bed visible from multiple nearby angles
+    -> likely same bed
+
+
+Do not force these merges if the actual observation evidence conflicts.
+
+
+======================================================================
+INCIDENTAL / PART-WHOLE HANDLING
+======================================================================
+
+You MAY explicitly ignore sightings such as:
 
 - door hinge
 - drawer pull tag
-- tiny attached furniture hardware
-- integral wardrobe drawer section when the wardrobe itself represents
-  the useful physical structure
-- small unidentified decorative detail
+- tiny attached hardware
+- a clearly integrated component already represented by the complete
+  larger physical object
+- extremely ambiguous tiny clutter
 
+Do NOT ignore independently meaningful removable objects merely
+because they are small.
 
-Do NOT ignore removable, independently usable objects merely because
-they are small.
+Generally retain:
 
-Examples that should generally remain entities:
-
-- pouch
-- bag
-- bottle
-- cable
+- bags
+- pouches
+- bottles
+- cables
 - headphones
-- book
-- shoe box
-- storage bin
-- pillow
-- blanket
-- hanger
-
-
-======================================================================
-FIXED ENVIRONMENT OBJECTS
-======================================================================
-
-Do not automatically ignore a physical object just because it is fixed.
-
-Objects such as:
-
-- wall outlet
-- window
-- wardrobe
-- shelf
-
-may matter to future planning and should remain if they are meaningful
-physical features.
-
-Tiny structural hardware may still be ignored.
+- books
+- blankets
+- pillows
+- hangers
+- shoe boxes
+- storage bins
+- clothing
+- power devices
 
 
 ======================================================================
 GROUP OBSERVATIONS
 ======================================================================
 
-Some observations describe a group rather than one individually
-identified item.
-
-Examples:
+A source sighting such as:
 
 - books
-- folded clothing
-- clothes hangers
-- hanging clothes
-- cables
 - bottles
+- cables
+- clothes hangers
+- folded clothing
 
-If perception does not distinguish the individual members clearly,
-preserve the group as one entity rather than inventing exact individual
-objects.
+may already represent a visually unresolved group.
 
-Do not fabricate counts.
+Treat that source observation as one observation entity.
 
-
-======================================================================
-CANONICAL NAME
-======================================================================
-
-Use the most specific ordinary identity supported across observations.
-
-Examples:
-
-GOOD:
-- computer monitor
-- MIDI keyboard
-- mechanical keyboard
-- office desk
-- beige plush blanket
-- rolling cart
-- plastic storage bin
-- laundry basket
-
-Avoid overly vague names when evidence supports a more specific one.
-
-
-======================================================================
-CANONICAL DESCRIPTION
-======================================================================
-
-Combine only visible evidence.
-
-Do NOT infer:
-
-- hidden contents
-- exact mass
-- electrical rating
-- chemical identity
-- load capacity
-- safety
-- ownership
-- dimensions not observed
-
-Keep description to roughly 25 words or fewer.
-
-
-======================================================================
-LOCATION HINT
-======================================================================
-
-Describe the approximate scene location consistently.
-
-Examples:
-
-- bed area
-- desk/workstation
-- wardrobe area
-- floor beside wardrobe
-- rolling-cart/storage area
-
-Do not pretend you know exact coordinates.
+Do NOT invent individual members or counts.
 
 
 ======================================================================
 MERGE CONFIDENCE
 ======================================================================
 
-0.90–1.00:
-strong evidence sightings represent the same physical object.
+For cross-frame groups:
 
-0.75–0.89:
-reasonable match but some uncertainty remains.
+0.90–1.00
+strong same-object evidence
 
-Below 0.75:
-prefer separate entities unless there is a compelling reason to merge.
+0.75–0.89
+reasonable but uncertain
 
-Single-observation entities may have high identity confidence if the
-object itself is visually clear.
+Below 0.75
+prefer separate groups
 
 
-======================================================================
-IDENTITY UNCERTAINTY
-======================================================================
-
-Use null when identity is sufficiently clear.
-
-Use a short statement when something important remains uncertain.
-
-Examples:
-
-"Could be the same small box seen in frame 5, but evidence is weak."
-
-"Exact subtype of bag is unclear."
-
-Do not use this field merely to restate low visual confidence.
+For a singleton group, merge_confidence represents confidence that the
+sighting should stand as its own entity rather than being merged with
+another sighting.
 
 
 ======================================================================
-OUTPUT DISCIPLINE
+TOKEN DISCIPLINE
 ======================================================================
 
-- Keep output compact.
-- Maximum 100 entities.
-- Maximum 100 ignored observations.
-- Do not repeat source descriptions verbatim unnecessarily.
-- Do not explain reasoning outside JSON.
-- Return JSON only.
+Keep output extremely compact.
+
+Do not repeat names.
+Do not repeat descriptions.
+Do not repeat locations.
+Do not provide rationale.
+
+Output IDs, merge confidence, and ignored reasons only.
 
 
 ======================================================================
-SOURCE OBSERVATIONS
+SOURCE SIGHTINGS
 ======================================================================
 
-{json.dumps(observations, indent=2, ensure_ascii=False)}
-""".strip(),
-            }
-        ],
+ID | FRAME | NAME | DESCRIPTION | LOCATION | CONFIDENCE
 
-        temperature=0,
-        max_tokens=8000,
+{observation_text}
+""".strip()
+
+    response = (
+        _get_client()
+        .chat.completions.create(
+            model=MODEL,
+
+            reasoning_effort="low",
+
+            response_format={
+                "type": "json_object"
+            },
+
+            messages=[
+                {
+                    "role": "user",
+                    "content": prompt,
+                }
+            ],
+
+            temperature=0,
+
+            # Compact output should fit comfortably.
+            # If this still truncates, the next architecture change
+            # should be chunked resolution, not an unbounded increase.
+            max_tokens=6000,
+        )
     )
 
-    choice = response.choices[0]
+    choice = response.choices[
+        0
+    ]
 
-    if choice.finish_reason == "length":
+    if (
+        choice.finish_reason
+        == "length"
+    ):
         raise RuntimeError(
-            "Walkthrough entity-resolution output "
-            "was truncated."
+            "Compact walkthrough entity-resolution "
+            "output was truncated."
         )
 
     if choice.message.refusal:
@@ -531,14 +966,14 @@ SOURCE OBSERVATIONS
         raw_output
     )
 
-    resolution = (
-        WalkthroughEntityResolution
+    compact = (
+        CompactEntityResolution
         .model_validate(
             payload
         )
     )
 
-    return validate_entity_resolution(
+    return _hydrate_compact_resolution(
         frames=frames,
-        resolution=resolution,
+        compact=compact,
     )
