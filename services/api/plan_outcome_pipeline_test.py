@@ -30,7 +30,7 @@ object_dna = (
 
 
 print(
-    "Running safe outcome pipeline "
+    "Running fully guarded outcome pipeline "
     "for frozen U03..."
 )
 
@@ -61,6 +61,18 @@ print(
 
 print()
 print("=" * 72)
+print("FINAL SEMANTIC PLAN CRITIC")
+print("=" * 72)
+
+print(
+    result.semantic_critic.model_dump_json(
+        indent=2
+    )
+)
+
+
+print()
+print("=" * 72)
 print("VERIFICATION GATE AUDIT")
 print("=" * 72)
 
@@ -77,7 +89,7 @@ assert (
     outcome.status
     == PlanOutcomeStatus.CONDITIONAL
 ), (
-    "U03 should remain CONDITIONAL."
+    "Frozen U03 should remain CONDITIONAL."
 )
 
 
@@ -88,16 +100,24 @@ assert outcome.plan is not None, (
 
 
 assert outcome.requirements, (
-    "U03 must preserve the verification "
+    "U03 must preserve its verification "
     "requirement."
+)
+
+
+assert (
+    result.semantic_critic.passed
+), (
+    "Safe pipeline must never return a "
+    "semantically failed PhysicalPlan."
 )
 
 
 assert (
     result.verification_gate_audit.passed
 ), (
-    "Safe pipeline must never return "
-    "a failed verification gate."
+    "Safe pipeline must never return a "
+    "failed verification gate."
 )
 
 
@@ -117,16 +137,31 @@ print(
 )
 
 print(
+    "U03 PLAN REPAIR ATTEMPTS:",
+    result.plan_repair_attempts,
+)
+
+print(
+    "U03 PLAN HARD-VALIDATION FAILURES:",
+    result.plan_repair_validation_failures,
+)
+
+print(
+    "U03 SEMANTIC PLAN AUDIT:",
+    result.semantic_critic.passed,
+)
+
+print(
     "U03 GATE REPAIR ATTEMPTS:",
     result.gate_repair_attempts,
 )
 
 print(
-    "U03 FINAL GATE AUDIT:",
+    "U03 VERIFICATION GATE AUDIT:",
     result.verification_gate_audit.passed,
 )
 
 print()
 print(
-    "SAFE PLAN OUTCOME PIPELINE TEST: passed"
+    "FULL SAFE PLAN OUTCOME PIPELINE TEST: passed"
 )
