@@ -2,8 +2,10 @@ from pydantic import ValidationError
 
 import goal_relevance_service
 from goal_relevance_service import (
+    MAX_PENDING_ITEMS_PER_CALL,
     build_goal_relevance_prompt,
     generate_goal_relevance,
+    generate_goal_relevance_chunk,
     parse_goal_relevance_output,
     validate_goal_relevance_response,
 )
@@ -49,7 +51,7 @@ def make_relevance(
     )
 
 
-def test_prompt_separates_active_and_pending_inventory() -> None:
+def test_prompt_separates_active_and_selected_pending() -> None:
     inventory = CanonicalInventory(
         items=[
             make_item(
@@ -59,6 +61,10 @@ def test_prompt_separates_active_and_pending_inventory() -> None:
             ),
             make_item(
                 "blanket_01",
+                status=VerificationStatus.NEEDS_CONFIRMATION,
+            ),
+            make_item(
+                "power_strip_01",
                 status=VerificationStatus.NEEDS_CONFIRMATION,
             ),
             make_item(
@@ -72,11 +78,17 @@ def test_prompt_separates_active_and_pending_inventory() -> None:
     prompt = build_goal_relevance_prompt(
         goal="Create a product photography setup",
         inventory=inventory,
+        pending_item_ids=[
+            "power_strip_01",
+        ],
     )
 
     assert "desk_01" in prompt
-    assert "blanket_01" in prompt
     assert "lamp_01" in prompt
+    assert "power_strip_01" in prompt
+
+    # The unselected pending item must not enter this chunk.
+    assert "blanket_01" not in prompt
 
     assert (
         '"source_confidence": 0.85'
@@ -89,16 +101,16 @@ def test_prompt_separates_active_and_pending_inventory() -> None:
     )
 
     assert (
-        "Include EVERY pending inventory item exactly once."
+        "Include EVERY provided pending inventory item exactly once."
         in prompt
     )
 
     print(
-        "PROMPT INVENTORY PARTITION TEST: passed"
+        "CHUNK PROMPT PARTITION TEST: passed"
     )
 
 
-def test_valid_response_is_reordered_to_canonical_order() -> None:
+def test_requested_scope_uses_canonical_order() -> None:
     inventory = CanonicalInventory(
         items=[
             make_item(
@@ -132,6 +144,10 @@ def test_valid_response_is_reordered_to_canonical_order() -> None:
     result = validate_goal_relevance_response(
         inventory=inventory,
         response=response,
+        pending_item_ids=[
+            "power_strip_01",
+            "blanket_01",
+        ],
     )
 
     result_ids = [
@@ -145,7 +161,7 @@ def test_valid_response_is_reordered_to_canonical_order() -> None:
     ]
 
     print(
-        "CANONICAL RESPONSE ORDER TEST: passed"
+        "CANONICAL CHUNK ORDER TEST: passed"
     )
 
 
@@ -169,10 +185,6 @@ def test_rejects_active_inventory_id() -> None:
                 "desk_01",
                 RelevanceLabel.RELEVANT,
             ),
-            make_relevance(
-                "blanket_01",
-                RelevanceLabel.RELEVANT,
-            ),
         ]
     )
 
@@ -180,11 +192,14 @@ def test_rejects_active_inventory_id() -> None:
         validate_goal_relevance_response(
             inventory=inventory,
             response=response,
+            pending_item_ids=[
+                "blanket_01",
+            ],
         )
 
     except ValueError as exc:
         assert (
-            "not a NEEDS_CONFIRMATION inventory item"
+            "requested NEEDS_CONFIRMATION scope"
             in str(exc)
         )
 
@@ -222,11 +237,14 @@ def test_rejects_invented_item_id() -> None:
         validate_goal_relevance_response(
             inventory=inventory,
             response=response,
+            pending_item_ids=[
+                "blanket_01",
+            ],
         )
 
     except ValueError as exc:
         assert (
-            "not a NEEDS_CONFIRMATION inventory item"
+            "requested NEEDS_CONFIRMATION scope"
             in str(exc)
         )
 
@@ -238,6 +256,56 @@ def test_rejects_invented_item_id() -> None:
 
     raise AssertionError(
         "Invented item ID was not rejected."
+    )
+
+
+def test_rejects_output_outside_requested_chunk() -> None:
+    inventory = CanonicalInventory(
+        items=[
+            make_item(
+                "blanket_01",
+                status=VerificationStatus.NEEDS_CONFIRMATION,
+            ),
+            make_item(
+                "power_strip_01",
+                status=VerificationStatus.NEEDS_CONFIRMATION,
+            ),
+        ]
+    )
+
+    response = GoalAwareInventoryResponse(
+        items=[
+            make_relevance(
+                "blanket_01",
+                RelevanceLabel.RELEVANT,
+            ),
+            make_relevance(
+                "power_strip_01",
+                RelevanceLabel.RELEVANT,
+            ),
+        ]
+    )
+
+    try:
+        validate_goal_relevance_response(
+            inventory=inventory,
+            response=response,
+            pending_item_ids=[
+                "blanket_01",
+            ],
+        )
+
+    except ValueError as exc:
+        assert "power_strip_01" in str(exc)
+
+        print(
+            "OUT-OF-CHUNK OUTPUT REJECTION TEST: passed"
+        )
+
+        return
+
+    raise AssertionError(
+        "Model output outside the requested chunk was not rejected."
     )
 
 
@@ -268,13 +336,13 @@ def test_rejects_duplicate_model_item_id() -> None:
         validate_goal_relevance_response(
             inventory=inventory,
             response=response,
+            pending_item_ids=[
+                "blanket_01",
+            ],
         )
 
     except ValueError as exc:
-        assert (
-            "duplicate item ID"
-            in str(exc)
-        )
+        assert "duplicate item ID" in str(exc)
 
         print(
             "DUPLICATE MODEL ID TEST: passed"
@@ -287,7 +355,7 @@ def test_rejects_duplicate_model_item_id() -> None:
     )
 
 
-def test_rejects_missing_pending_item() -> None:
+def test_rejects_missing_requested_pending_item() -> None:
     inventory = CanonicalInventory(
         items=[
             make_item(
@@ -314,19 +382,100 @@ def test_rejects_missing_pending_item() -> None:
         validate_goal_relevance_response(
             inventory=inventory,
             response=response,
+            pending_item_ids=[
+                "blanket_01",
+                "power_strip_01",
+            ],
         )
 
     except ValueError as exc:
         assert "power_strip_01" in str(exc)
 
         print(
-            "MISSING PENDING ITEM TEST: passed"
+            "MISSING CHUNK ITEM TEST: passed"
         )
 
         return
 
     raise AssertionError(
-        "Missing pending item was not rejected."
+        "Missing requested pending item was not rejected."
+    )
+
+
+def test_rejects_invalid_requested_pending_id() -> None:
+    inventory = CanonicalInventory(
+        items=[
+            make_item(
+                "desk_01",
+                status=VerificationStatus.AUTO_ACCEPTED,
+            ),
+            make_item(
+                "blanket_01",
+                status=VerificationStatus.NEEDS_CONFIRMATION,
+            ),
+        ]
+    )
+
+    try:
+        build_goal_relevance_prompt(
+            goal="Create a product photography setup",
+            inventory=inventory,
+            pending_item_ids=[
+                "desk_01",
+            ],
+        )
+
+    except ValueError as exc:
+        assert (
+            "not NEEDS_CONFIRMATION canonical inventory items"
+            in str(exc)
+        )
+
+        print(
+            "INVALID REQUESTED CHUNK ID TEST: passed"
+        )
+
+        return
+
+    raise AssertionError(
+        "Active item was accepted as requested pending scope."
+    )
+
+
+def test_rejects_duplicate_requested_pending_id() -> None:
+    inventory = CanonicalInventory(
+        items=[
+            make_item(
+                "blanket_01",
+                status=VerificationStatus.NEEDS_CONFIRMATION,
+            )
+        ]
+    )
+
+    try:
+        build_goal_relevance_prompt(
+            goal="Create a product photography setup",
+            inventory=inventory,
+            pending_item_ids=[
+                "blanket_01",
+                "blanket_01",
+            ],
+        )
+
+    except ValueError as exc:
+        assert (
+            "duplicate ID"
+            in str(exc)
+        )
+
+        print(
+            "DUPLICATE REQUESTED CHUNK ID TEST: passed"
+        )
+
+        return
+
+    raise AssertionError(
+        "Duplicate requested pending ID was not rejected."
     )
 
 
@@ -402,6 +551,9 @@ def test_parse_uses_schema_validation() -> None:
         parse_goal_relevance_output(
             inventory=inventory,
             raw_output=raw_output,
+            pending_item_ids=[
+                "blanket_01",
+            ],
         )
 
     except ValidationError:
@@ -464,6 +616,122 @@ def test_no_pending_items_skips_paid_client() -> None:
     )
 
 
+def test_oversized_inventory_stops_before_paid_client() -> None:
+    inventory = CanonicalInventory(
+        items=[
+            make_item(
+                f"pending_{index:02d}",
+                status=VerificationStatus.NEEDS_CONFIRMATION,
+            )
+            for index in range(
+                MAX_PENDING_ITEMS_PER_CALL + 1
+            )
+        ]
+    )
+
+    original_create_client = (
+        goal_relevance_service._create_client
+    )
+
+    def fail_if_called():
+        raise AssertionError(
+            "Paid client must not be created for an "
+            "oversized unchunked inventory."
+        )
+
+    goal_relevance_service._create_client = (
+        fail_if_called
+    )
+
+    try:
+        try:
+            generate_goal_relevance(
+                goal="Create a product photography setup",
+                inventory=inventory,
+            )
+
+        except RuntimeError as exc:
+            assert (
+                "bounded chunk orchestration"
+                in str(exc)
+            )
+
+        else:
+            raise AssertionError(
+                "Oversized unchunked inventory was not rejected."
+            )
+
+    finally:
+        goal_relevance_service._create_client = (
+            original_create_client
+        )
+
+    print(
+        "OVERSIZED INVENTORY NO-API-CALL TEST: passed"
+    )
+
+
+def test_oversized_chunk_stops_before_paid_client() -> None:
+    pending_items = [
+        make_item(
+            f"pending_{index:02d}",
+            status=VerificationStatus.NEEDS_CONFIRMATION,
+        )
+        for index in range(
+            MAX_PENDING_ITEMS_PER_CALL + 1
+        )
+    ]
+
+    inventory = CanonicalInventory(
+        items=pending_items
+    )
+
+    original_create_client = (
+        goal_relevance_service._create_client
+    )
+
+    def fail_if_called():
+        raise AssertionError(
+            "Paid client must not be created for an "
+            "oversized relevance chunk."
+        )
+
+    goal_relevance_service._create_client = (
+        fail_if_called
+    )
+
+    try:
+        try:
+            generate_goal_relevance_chunk(
+                goal="Create a product photography setup",
+                inventory=inventory,
+                pending_item_ids=[
+                    item.id
+                    for item in pending_items
+                ],
+            )
+
+        except ValueError as exc:
+            assert (
+                "exceeding the per-call limit"
+                in str(exc)
+            )
+
+        else:
+            raise AssertionError(
+                "Oversized relevance chunk was not rejected."
+            )
+
+    finally:
+        goal_relevance_service._create_client = (
+            original_create_client
+        )
+
+    print(
+        "OVERSIZED CHUNK NO-API-CALL TEST: passed"
+    )
+
+
 def test_empty_goal_is_rejected_before_prompt() -> None:
     inventory = CanonicalInventory(
         items=[
@@ -481,10 +749,7 @@ def test_empty_goal_is_rejected_before_prompt() -> None:
         )
 
     except ValueError as exc:
-        assert (
-            "non-whitespace"
-            in str(exc)
-        )
+        assert "non-whitespace" in str(exc)
 
         print(
             "EMPTY GOAL REJECTION TEST: passed"
@@ -498,17 +763,23 @@ def test_empty_goal_is_rejected_before_prompt() -> None:
 
 
 def main() -> None:
-    test_prompt_separates_active_and_pending_inventory()
+    test_prompt_separates_active_and_selected_pending()
 
-    test_valid_response_is_reordered_to_canonical_order()
+    test_requested_scope_uses_canonical_order()
 
     test_rejects_active_inventory_id()
 
     test_rejects_invented_item_id()
 
+    test_rejects_output_outside_requested_chunk()
+
     test_rejects_duplicate_model_item_id()
 
-    test_rejects_missing_pending_item()
+    test_rejects_missing_requested_pending_item()
+
+    test_rejects_invalid_requested_pending_id()
+
+    test_rejects_duplicate_requested_pending_id()
 
     test_rejects_duplicate_canonical_inventory_id()
 
@@ -516,12 +787,16 @@ def main() -> None:
 
     test_no_pending_items_skips_paid_client()
 
+    test_oversized_inventory_stops_before_paid_client()
+
+    test_oversized_chunk_stops_before_paid_client()
+
     test_empty_goal_is_rejected_before_prompt()
 
     print()
 
     print(
-        "GOAL RELEVANCE SERVICE TEST: passed"
+        "GOAL RELEVANCE CHUNKED SERVICE TEST: passed"
     )
 
 

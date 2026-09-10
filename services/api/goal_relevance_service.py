@@ -19,13 +19,17 @@ BASE_URL = (
     "https://api.tokenfactory.us-central1.nebius.com/v1/"
 )
 
+# Bound semantic relevance work so one oversized model response cannot
+# consume a paid call and then truncate before validation/caching.
+MAX_PENDING_ITEMS_PER_CALL = 15
+
 
 def _create_client() -> OpenAI:
     """
     Create the paid reasoning client lazily.
 
-    Keeping client creation out of module import allows deterministic
-    validators/tests to run without making or requiring a paid model call.
+    Keeping client creation out of module import allows deterministic tests
+    to run without making or requiring a paid model call.
     """
 
     load_dotenv()
@@ -85,6 +89,67 @@ def _partition_inventory(
     return active_items, pending_items
 
 
+def _resolve_pending_items(
+    *,
+    inventory: CanonicalInventory,
+    pending_item_ids: list[str] | None,
+) -> list[InventoryItem]:
+    """
+    Resolve a requested subset of pending canonical inventory.
+
+    If pending_item_ids is None, all NEEDS_CONFIRMATION items are selected.
+
+    Returned items always follow canonical inventory order, regardless of
+    the order supplied by the caller.
+    """
+
+    _, pending_items = _partition_inventory(
+        inventory
+    )
+
+    if pending_item_ids is None:
+        return pending_items
+
+    seen_requested_ids: set[str] = set()
+
+    for item_id in pending_item_ids:
+        if item_id in seen_requested_ids:
+            raise ValueError(
+                "Requested pending item IDs contain duplicate ID: "
+                f"{item_id}"
+            )
+
+        seen_requested_ids.add(item_id)
+
+    pending_ids = {
+        item.id
+        for item in pending_items
+    }
+
+    invalid_ids = sorted(
+        item_id
+        for item_id in seen_requested_ids
+        if item_id not in pending_ids
+    )
+
+    if invalid_ids:
+        raise ValueError(
+            "Requested goal-relevance item IDs are not "
+            "NEEDS_CONFIRMATION canonical inventory items: "
+            f"{invalid_ids}"
+        )
+
+    requested_set = set(
+        pending_item_ids
+    )
+
+    return [
+        item
+        for item in pending_items
+        if item.id in requested_set
+    ]
+
+
 def _item_context(
     item: InventoryItem,
     *,
@@ -106,6 +171,7 @@ def _item_context(
         context["source_confidence"] = (
             item.source_confidence
         )
+
         context["uncertainty_reason"] = (
             item.uncertainty_reason
         )
@@ -117,15 +183,19 @@ def build_goal_relevance_prompt(
     *,
     goal: str,
     inventory: CanonicalInventory,
+    pending_item_ids: list[str] | None = None,
 ) -> str:
     """
-    Build the model prompt used to judge which pending objects are worth
-    asking the user about for one goal.
+    Build a relevance prompt for a bounded subset of uncertain objects.
 
-    Active inventory is supplied as context so the model can avoid treating
-    obviously redundant uncertain objects as automatically important.
+    Active inventory is supplied as context.
 
-    The model must only return decisions for pending inventory IDs.
+    The model must output decisions only for the selected pending inventory
+    items.
+
+    If pending_item_ids is None, all pending items are included. This is
+    useful for deterministic prompt inspection, but paid generation is
+    separately bounded by MAX_PENDING_ITEMS_PER_CALL.
     """
 
     cleaned_goal = goal.strip()
@@ -135,8 +205,15 @@ def build_goal_relevance_prompt(
             "Goal must contain non-whitespace text."
         )
 
-    active_items, pending_items = (
-        _partition_inventory(inventory)
+    active_items, _ = _partition_inventory(
+        inventory
+    )
+
+    selected_pending_items = (
+        _resolve_pending_items(
+            inventory=inventory,
+            pending_item_ids=pending_item_ids,
+        )
     )
 
     active_context = [
@@ -152,7 +229,7 @@ def build_goal_relevance_prompt(
             item,
             include_uncertainty=True,
         )
-        for item in pending_items
+        for item in selected_pending_items
     ]
 
     return f"""
@@ -166,15 +243,15 @@ until the user explicitly confirms them.
 
 Your task is NOT to confirm objects.
 
-Your task is only to decide which uncertain objects are worth asking the
-user about for the current goal.
+Your task is only to decide which of the PROVIDED uncertain objects are
+worth asking the user about for the current goal.
 
 Return ONLY valid JSON in exactly this structure:
 
 {{
   "items": [
     {{
-      "item_id": "exact pending inventory item id",
+      "item_id": "exact provided pending inventory item id",
       "relevance": "relevant | possibly_relevant | not_relevant",
       "reason": "short grounded reason"
     }}
@@ -183,11 +260,11 @@ Return ONLY valid JSON in exactly this structure:
 
 OUTPUT ACCOUNTING RULES
 
-- Include EVERY pending inventory item exactly once.
-- Include ONLY pending inventory item IDs.
+- Include EVERY provided pending inventory item exactly once.
+- Include ONLY the provided pending inventory item IDs.
 - Copy item_id exactly.
 - Never invent an item.
-- Never omit a pending item.
+- Never omit a provided pending item.
 - Never output an active inventory item.
 
 RELEVANCE RULES
@@ -224,8 +301,8 @@ SAFETY / SCOPE RULES
 - Do not construct a step-by-step solution.
 - Do not recommend purchases.
 - Do not invent hidden object properties.
-- Use active inventory only as context for deciding whether pending objects
-  materially matter.
+- Use active inventory only as context for deciding whether provided pending
+  objects materially matter.
 - Keep each reason concise.
 
 USER GOAL
@@ -236,7 +313,7 @@ ACTIVE INVENTORY ALREADY ELIGIBLE FOR DOWNSTREAM REASONING
 
 {json.dumps(active_context, indent=2)}
 
-PENDING INVENTORY REQUIRING EXPLICIT USER CONFIRMATION BEFORE USE
+PROVIDED PENDING INVENTORY ITEMS TO CLASSIFY
 
 {json.dumps(pending_context, indent=2)}
 """.strip()
@@ -246,31 +323,36 @@ def validate_goal_relevance_response(
     *,
     inventory: CanonicalInventory,
     response: GoalAwareInventoryResponse,
+    pending_item_ids: list[str] | None = None,
 ) -> GoalAwareInventoryResponse:
     """
-    Deterministically validate exact accounting of model relevance output.
+    Deterministically validate exact accounting for one relevance scope.
 
     The schema validates field shapes and relevance enum values.
-    This validator additionally guarantees:
 
+    This validator additionally guarantees:
     - no invented/non-pending IDs
+    - no output for pending items outside this requested scope
     - no duplicate relevance decisions
-    - no missing pending IDs
+    - no missing requested pending IDs
     - deterministic canonical ordering
 
     It does NOT alter inventory verification status.
     """
 
-    _, pending_items = _partition_inventory(
-        inventory
+    expected_items = _resolve_pending_items(
+        inventory=inventory,
+        pending_item_ids=pending_item_ids,
     )
 
     expected_ids = [
         item.id
-        for item in pending_items
+        for item in expected_items
     ]
 
-    expected_set = set(expected_ids)
+    expected_set = set(
+        expected_ids
+    )
 
     response_by_id = {}
 
@@ -286,7 +368,7 @@ def validate_goal_relevance_response(
         if item_id not in expected_set:
             raise ValueError(
                 "Goal relevance contains an item ID that is not "
-                "a NEEDS_CONFIRMATION inventory item: "
+                "part of the requested NEEDS_CONFIRMATION scope: "
                 f"{item_id}"
             )
 
@@ -300,8 +382,9 @@ def validate_goal_relevance_response(
 
     if missing_ids:
         raise ValueError(
-            "Goal relevance is missing NEEDS_CONFIRMATION "
-            f"inventory items: {sorted(missing_ids)}"
+            "Goal relevance is missing requested "
+            "NEEDS_CONFIRMATION inventory items: "
+            f"{sorted(missing_ids)}"
         )
 
     ordered_items = [
@@ -318,50 +401,77 @@ def parse_goal_relevance_output(
     *,
     inventory: CanonicalInventory,
     raw_output: str,
+    pending_item_ids: list[str] | None = None,
 ) -> GoalAwareInventoryResponse:
     """
     Parse model JSON through the existing Pydantic schema, then apply
-    deterministic exact-accounting validation.
+    deterministic exact-accounting validation for the requested scope.
     """
 
     payload = load_model_json(
         raw_output
     )
 
-    result = GoalAwareInventoryResponse.model_validate(
-        payload
+    result = (
+        GoalAwareInventoryResponse.model_validate(
+            payload
+        )
     )
 
     return validate_goal_relevance_response(
         inventory=inventory,
         response=result,
+        pending_item_ids=pending_item_ids,
     )
 
 
-def generate_goal_relevance(
+def generate_goal_relevance_chunk(
     *,
     goal: str,
     inventory: CanonicalInventory,
+    pending_item_ids: list[str],
 ) -> GoalAwareInventoryResponse:
     """
-    Generate goal relevance decisions for pending confirmation items.
+    Make ONE bounded paid relevance call.
 
-    If there are no pending items, return an empty validated response without
-    creating a client or making a paid model call.
+    This function is deliberately limited to
+    MAX_PENDING_ITEMS_PER_CALL uncertain objects.
+
+    Chunk orchestration and per-chunk caching belong outside this function.
     """
 
-    _, pending_items = _partition_inventory(
-        inventory
+    selected_pending_items = (
+        _resolve_pending_items(
+            inventory=inventory,
+            pending_item_ids=pending_item_ids,
+        )
     )
 
-    if not pending_items:
+    if not selected_pending_items:
         return GoalAwareInventoryResponse(
             items=[]
         )
 
+    if (
+        len(selected_pending_items)
+        > MAX_PENDING_ITEMS_PER_CALL
+    ):
+        raise ValueError(
+            "Goal relevance chunk contains "
+            f"{len(selected_pending_items)} pending items, "
+            "exceeding the per-call limit of "
+            f"{MAX_PENDING_ITEMS_PER_CALL}."
+        )
+
+    selected_ids = [
+        item.id
+        for item in selected_pending_items
+    ]
+
     prompt = build_goal_relevance_prompt(
         goal=goal,
         inventory=inventory,
+        pending_item_ids=selected_ids,
     )
 
     client = _create_client()
@@ -382,15 +492,16 @@ def generate_goal_relevance(
         ],
 
         temperature=0,
-        max_tokens=6000,
+
+        max_tokens=5000,
     )
 
     choice = response.choices[0]
 
     if choice.finish_reason == "length":
         raise RuntimeError(
-            "Goal relevance output was truncated because "
-            "the output token limit was reached."
+            "Goal relevance chunk output was truncated "
+            "because the output token limit was reached."
         )
 
     message = choice.message
@@ -411,4 +522,49 @@ def generate_goal_relevance(
     return parse_goal_relevance_output(
         inventory=inventory,
         raw_output=raw_output,
+        pending_item_ids=selected_ids,
+    )
+
+
+def generate_goal_relevance(
+    *,
+    goal: str,
+    inventory: CanonicalInventory,
+) -> GoalAwareInventoryResponse:
+    """
+    Convenience boundary for inventories small enough for one bounded call.
+
+    Large pending inventories deliberately fail BEFORE client creation.
+
+    The walkthrough runner must orchestrate large inventories as cached
+    bounded chunks instead of silently issuing another oversized paid call.
+    """
+
+    _, pending_items = _partition_inventory(
+        inventory
+    )
+
+    if not pending_items:
+        return GoalAwareInventoryResponse(
+            items=[]
+        )
+
+    if (
+        len(pending_items)
+        > MAX_PENDING_ITEMS_PER_CALL
+    ):
+        raise RuntimeError(
+            "Goal relevance requires bounded chunk orchestration. "
+            f"Pending items: {len(pending_items)}; "
+            "maximum per paid call: "
+            f"{MAX_PENDING_ITEMS_PER_CALL}."
+        )
+
+    return generate_goal_relevance_chunk(
+        goal=goal,
+        inventory=inventory,
+        pending_item_ids=[
+            item.id
+            for item in pending_items
+        ],
     )
