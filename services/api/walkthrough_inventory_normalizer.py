@@ -78,12 +78,11 @@ class PotentialDuplicateGroup(
     BaseModel,
 ):
     """
-    Candidate inventory items that might actually refer to fewer
-    physical objects than the resolver currently represents.
+    Candidates that might represent fewer physical objects than the
+    resolver currently believes.
 
-    We do NOT auto-merge these.
-
-    Instead every member is placed behind NEEDS_CONFIRMATION.
+    Only candidates that would otherwise be active planning resources
+    participate in this check.
     """
 
     item_ids: list[str] = Field(
@@ -121,7 +120,7 @@ class WalkthroughInventoryNormalizationResult(
 
 
 # ---------------------------------------------------------------------------
-# OBSERVATION-ID HELPERS
+# OBSERVATION IDS
 # ---------------------------------------------------------------------------
 
 
@@ -137,8 +136,11 @@ def _observation_sort_key(
     int,
     str,
 ]:
-    match = OBSERVATION_ID_PATTERN.match(
-        observation_id
+    match = (
+        OBSERVATION_ID_PATTERN
+        .match(
+            observation_id
+        )
     )
 
     if match is None:
@@ -166,8 +168,11 @@ def _observation_sort_key(
 def _frame_number(
     observation_id: str,
 ) -> int | None:
-    match = OBSERVATION_ID_PATTERN.match(
-        observation_id
+    match = (
+        OBSERVATION_ID_PATTERN
+        .match(
+            observation_id
+        )
     )
 
     if match is None:
@@ -217,19 +222,6 @@ def _anchor_observation_id(
 def _build_stable_item_id(
     entity: ResolvedPhysicalEntity,
 ) -> str:
-    """
-    Use the earliest grounded observation ID as the stable identity
-    anchor.
-
-    Example:
-
-        computer_monitor_f05_o01
-
-    This is safer than numbered IDs such as computer_monitor_01,
-    because excluding or inserting another item will not renumber all
-    later inventory IDs.
-    """
-
     anchor = (
         _anchor_observation_id(
             entity
@@ -270,7 +262,7 @@ def _build_stable_item_id(
 
 
 # ---------------------------------------------------------------------------
-# CONSERVATIVE NON-INDEPENDENT-OBJECT FILTER
+# NON-INDEPENDENT OBJECT FILTER
 # ---------------------------------------------------------------------------
 
 
@@ -299,7 +291,8 @@ def _find_same_frame_parent(
             continue
 
         if (
-            candidate.canonical_name
+            candidate
+            .canonical_name
             .strip()
             .lower()
             != parent_name
@@ -324,22 +317,16 @@ def _exclusion_for_entity(
         ResolvedPhysicalEntity
     ],
 ) -> ExcludedResolvedEntity | None:
-    """
-    Exclude only cases where we have strong deterministic evidence.
-
-    Do NOT remove objects merely because they seem unimportant.
-
-    ZERO is goal-independent at this stage.
-    """
-
     name = (
-        entity.canonical_name
+        entity
+        .canonical_name
         .strip()
         .lower()
     )
 
     description = (
-        entity.canonical_description
+        entity
+        .canonical_description
         .strip()
         .lower()
     )
@@ -366,13 +353,6 @@ def _exclusion_for_entity(
             ),
         )
 
-    # Example from the real walkthrough:
-    #
-    # "drawers" with description:
-    # "... integrated into the wardrobe"
-    #
-    # Only exclude this when the wardrobe itself is also observed in
-    # the SAME frame. That gives us deterministic part-whole evidence.
     if (
         name == "drawers"
         and "integrated" in description
@@ -408,19 +388,13 @@ def _exclusion_for_entity(
 
 
 # ---------------------------------------------------------------------------
-# DUPLICATE-RISK NORMALIZATION
+# IDENTITY NORMALIZATION
 # ---------------------------------------------------------------------------
 
 
 def _singularize_token(
     token: str,
 ) -> str:
-    """
-    Very deliberately small normalizer.
-
-    This is not intended to be a general English stemmer.
-    """
-
     explicit = {
         "books": "book",
         "bottles": "bottle",
@@ -462,8 +436,6 @@ def _normalized_identity_name(
         tokens
     )
 
-    # Small semantic aliases for object names that the perception model
-    # frequently varies between views.
     aliases = {
         "nightstand":
             "bedside table",
@@ -490,19 +462,87 @@ def _normalized_identity_name(
     )
 
 
+# ---------------------------------------------------------------------------
+# BASE CONFIRMATION STATE
+# ---------------------------------------------------------------------------
+
+
+AMBIGUOUS_TEXT_MARKERS = (
+    " or ",
+    "possibly ",
+    "possibly a ",
+    "unidentified",
+    "unclear",
+)
+
+
+def _description_is_ambiguous(
+    entity: ResolvedPhysicalEntity,
+) -> bool:
+    text = (
+        f"{entity.canonical_name} "
+        f"{entity.canonical_description}"
+    ).lower()
+
+    return any(
+        marker in text
+        for marker
+        in AMBIGUOUS_TEXT_MARKERS
+    )
+
+
+def _base_uncertainty_reasons(
+    entity: ResolvedPhysicalEntity,
+) -> list[str]:
+    """
+    Determine whether an entity already requires confirmation BEFORE
+    considering multiplicity / false-split risk.
+    """
+
+    reasons = []
+
+    if (
+        entity.merge_confidence
+        < CONFIRMATION_THRESHOLD
+    ):
+        reasons.append(
+            "The perception/entity-resolution "
+            "confidence is below the automatic "
+            "acceptance threshold."
+        )
+
+    if entity.identity_uncertainty:
+        reasons.append(
+            entity.identity_uncertainty
+        )
+
+    if _description_is_ambiguous(
+        entity
+    ):
+        reasons.append(
+            "The visual identity description "
+            "contains unresolved ambiguity."
+        )
+
+    return reasons
+
+
+# ---------------------------------------------------------------------------
+# ACTIVE-RESOURCE DUPLICATE PROTECTION
+# ---------------------------------------------------------------------------
+
+
 def _possible_duplicate(
     *,
     left: ResolvedPhysicalEntity,
     right: ResolvedPhysicalEntity,
 ) -> bool:
     """
-    Identify candidate FALSE SPLITS.
+    This function is called only for candidates that would otherwise
+    be AUTO_ACCEPTED.
 
-    This never merges items.
-
-    A positive result merely forces both candidates behind human
-    confirmation so the planner cannot use both as independent physical
-    resources until their multiplicity is established.
+    It therefore protects active planning multiplicity without
+    creating confirmation work for objects that are already withheld.
     """
 
     left_frames = (
@@ -517,40 +557,27 @@ def _possible_duplicate(
         )
     )
 
-    # If both were observed in the same frame, they are physically
-    # simultaneous and therefore distinct.
+    # Simultaneously observed objects are definitely physically
+    # distinct.
     if (
         left_frames
         & right_frames
     ):
         return False
 
-    left_name = (
+    return (
         _normalized_identity_name(
             left.canonical_name
         )
-    )
-
-    right_name = (
+        ==
         _normalized_identity_name(
             right.canonical_name
         )
     )
 
-    if (
-        left_name
-        != right_name
-    ):
-        return False
-
-    # Matching normalized identity across non-overlapping frames is
-    # enough to create a confirmation requirement.
-    #
-    # We intentionally DO NOT auto-merge here.
-    return True
-
 
 def _duplicate_groups(
+    *,
     entities: list[
         ResolvedPhysicalEntity
     ],
@@ -558,33 +585,34 @@ def _duplicate_groups(
         int,
         str,
     ],
+    eligible_indices: set[int],
 ) -> list[
     PotentialDuplicateGroup
 ]:
     """
-    Build connected components of possible false-split relationships.
+    Duplicate ambiguity is relevant here only when BOTH candidates
+    could otherwise reach downstream planning.
 
-    Example:
-
-        small_box_A ~ small_box_B
-        small_box_B ~ small_box_C
-
-    becomes one ambiguity group containing A/B/C.
-
-    This does NOT claim all three are the same object. It means their
-    multiplicity has not been established strongly enough for planning
-    to treat all three as independent resources.
+    Already-pending items cannot currently be double-counted by the
+    planner, because ZERO's orchestrator excludes NEEDS_CONFIRMATION.
     """
 
     parent = {
         index:
             index
         for index
-        in range(
-            len(
-                entities
+        in eligible_indices
+    }
+
+    frames_by_root = {
+        index:
+            _entity_frames(
+                entities[
+                    index
+                ]
             )
-        )
+        for index
+        in eligible_indices
     }
 
     def find(
@@ -624,7 +652,7 @@ def _duplicate_groups(
 
         return root
 
-    def union(
+    def union_if_safe(
         left: int,
         right: int,
     ) -> None:
@@ -642,6 +670,20 @@ def _duplicate_groups(
         ):
             return
 
+        # Preserve the same physical invariant used by entity
+        # resolution: an ambiguity component may not collapse two
+        # objects that were simultaneously visible.
+        if (
+            frames_by_root[
+                root_left
+            ]
+            &
+            frames_by_root[
+                root_right
+            ]
+        ):
+            return
+
         new_root = min(
             root_left,
             root_right,
@@ -652,20 +694,43 @@ def _duplicate_groups(
             root_right,
         )
 
+        merged_frames = (
+            frames_by_root[
+                root_left
+            ]
+            |
+            frames_by_root[
+                root_right
+            ]
+        )
+
         parent[
             old_root
         ] = new_root
 
-    for left_index in range(
-        len(
-            entities
-        )
+        frames_by_root[
+            new_root
+        ] = merged_frames
+
+        if (
+            old_root
+            in frames_by_root
+        ):
+            del frames_by_root[
+                old_root
+            ]
+
+    ordered_indices = sorted(
+        eligible_indices
+    )
+
+    for position, left_index in enumerate(
+        ordered_indices
     ):
-        for right_index in range(
-            left_index + 1,
-            len(
-                entities
-            ),
+        for right_index in (
+            ordered_indices[
+                position + 1:
+            ]
         ):
             if _possible_duplicate(
                 left=(
@@ -679,7 +744,7 @@ def _duplicate_groups(
                     ]
                 ),
             ):
-                union(
+                union_if_safe(
                     left_index,
                     right_index,
                 )
@@ -689,11 +754,7 @@ def _duplicate_groups(
         list[int],
     ] = {}
 
-    for index in range(
-        len(
-            entities
-        )
-    ):
+    for index in ordered_indices:
         root = find(
             index
         )
@@ -728,11 +789,10 @@ def _duplicate_groups(
                 item_ids=ids,
 
                 reason=(
-                    "These candidates have the same "
-                    "normalized physical identity but were "
-                    "not observed simultaneously. Confirm "
-                    "whether they are distinct objects before "
-                    "using them independently."
+                    "These otherwise auto-accepted "
+                    "candidates may refer to the same "
+                    "physical object. Confirm multiplicity "
+                    "before both can be used independently."
                 ),
             )
         )
@@ -749,32 +809,8 @@ def _duplicate_groups(
 
 
 # ---------------------------------------------------------------------------
-# AMBIGUITY HELPERS
+# UNCERTAINTY TEXT
 # ---------------------------------------------------------------------------
-
-
-AMBIGUOUS_TEXT_MARKERS = (
-    " or ",
-    "possibly ",
-    "possibly a ",
-    "unidentified",
-    "unclear",
-)
-
-
-def _description_is_ambiguous(
-    entity: ResolvedPhysicalEntity,
-) -> bool:
-    text = (
-        f"{entity.canonical_name} "
-        f"{entity.canonical_description}"
-    ).lower()
-
-    return any(
-        marker in text
-        for marker
-        in AMBIGUOUS_TEXT_MARKERS
-    )
 
 
 def _combine_uncertainty_reasons(
@@ -783,9 +819,7 @@ def _combine_uncertainty_reasons(
     cleaned = []
 
     for reason in reasons:
-        reason = (
-            reason.strip()
-        )
+        reason = reason.strip()
 
         if (
             reason
@@ -816,36 +850,11 @@ def _combine_uncertainty_reasons(
 def normalize_walkthrough_inventory(
     resolution: WalkthroughEntityResolution,
 ) -> WalkthroughInventoryNormalizationResult:
-    """
-    Convert resolved walkthrough entities into ZERO's existing
-    CanonicalInventory contract.
-
-    Rules:
-
-    1. Strongly evidenced non-independent details may be explicitly
-       excluded.
-
-    2. IDs are anchored to source observation IDs rather than list
-       position.
-
-    3. Low confidence remains NEEDS_CONFIRMATION.
-
-    4. Ambiguous descriptions remain NEEDS_CONFIRMATION.
-
-    5. Resolver identity uncertainty remains NEEDS_CONFIRMATION.
-
-    6. Possible false splits remain NEEDS_CONFIRMATION until a user
-       establishes that the candidates are genuinely distinct.
-
-    No possible duplicates are automatically merged here.
-    """
-
     all_entities = list(
         resolution.entities
     )
 
     retained_entities = []
-
     excluded_entities = []
 
     for entity in all_entities:
@@ -867,6 +876,10 @@ def normalize_walkthrough_inventory(
             retained_entities.append(
                 entity
             )
+
+    # ------------------------------------------------------------------
+    # STABLE IDS
+    # ------------------------------------------------------------------
 
     item_ids: dict[
         int,
@@ -899,10 +912,40 @@ def normalize_walkthrough_inventory(
             index
         ] = item_id
 
+    # ------------------------------------------------------------------
+    # BASE CONFIRMATION STATE
+    # ------------------------------------------------------------------
+
+    base_reasons_by_index = {
+        index:
+            _base_uncertainty_reasons(
+                entity
+            )
+        for index, entity
+        in enumerate(
+            retained_entities
+        )
+    }
+
+    # Only candidates with no existing uncertainty can currently reach
+    # planning. Therefore only those candidates need immediate
+    # duplicate-multiplicity protection.
+    duplicate_eligible_indices = {
+        index
+        for index, reasons
+        in base_reasons_by_index.items()
+        if not reasons
+    }
+
     duplicate_groups = (
         _duplicate_groups(
-            retained_entities,
-            item_ids,
+            entities=(
+                retained_entities
+            ),
+            item_ids=item_ids,
+            eligible_indices=(
+                duplicate_eligible_indices
+            ),
         )
     )
 
@@ -914,8 +957,11 @@ def normalize_walkthrough_inventory(
         in group.item_ids
     }
 
-    items = []
+    # ------------------------------------------------------------------
+    # FINAL INVENTORY
+    # ------------------------------------------------------------------
 
+    items = []
     provenance = []
 
     for index, entity in enumerate(
@@ -927,41 +973,20 @@ def normalize_walkthrough_inventory(
             ]
         )
 
-        reasons = []
-
-        if (
-            entity.merge_confidence
-            < CONFIRMATION_THRESHOLD
-        ):
-            reasons.append(
-                "The perception/entity-resolution "
-                "confidence is below the automatic "
-                "acceptance threshold."
-            )
-
-        if (
-            entity.identity_uncertainty
-        ):
-            reasons.append(
-                entity.identity_uncertainty
-            )
-
-        if _description_is_ambiguous(
-            entity
-        ):
-            reasons.append(
-                "The visual identity description "
-                "contains unresolved ambiguity."
-            )
+        reasons = list(
+            base_reasons_by_index[
+                index
+            ]
+        )
 
         if (
             item_id
             in duplicate_item_ids
         ):
             reasons.append(
-                "This candidate may be a duplicate "
-                "sighting of another inventory candidate; "
-                "its physical multiplicity requires "
+                "This otherwise auto-accepted candidate "
+                "may duplicate another active inventory "
+                "candidate; physical multiplicity requires "
                 "confirmation."
             )
 
@@ -1038,9 +1063,7 @@ def normalize_walkthrough_inventory(
                 )
             ),
 
-            provenance=(
-                provenance
-            ),
+            provenance=provenance,
 
             excluded_entities=(
                 excluded_entities

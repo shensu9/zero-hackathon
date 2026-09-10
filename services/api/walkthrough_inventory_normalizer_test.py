@@ -49,7 +49,10 @@ def main() -> None:
     resolution = (
         WalkthroughEntityResolution(
             entities=[
+                # ------------------------------------------------------
                 # Strong repeated object.
+                # ------------------------------------------------------
+
                 entity(
                     name=(
                         "computer monitor"
@@ -71,9 +74,13 @@ def main() -> None:
                     confidence=0.98,
                 ),
 
+                # ------------------------------------------------------
                 # Two distinct blankets visible simultaneously.
+                #
                 # Same-frame evidence means they must NOT be flagged
                 # as duplicate multiplicity risk.
+                # ------------------------------------------------------
+
                 entity(
                     name="blanket",
 
@@ -106,8 +113,15 @@ def main() -> None:
                     confidence=0.95,
                 ),
 
+                # ------------------------------------------------------
                 # Potential false split:
-                # nightstand and side table in different frames.
+                #
+                # nightstand and side table appear in different frames.
+                #
+                # Both are otherwise high-confidence and could reach
+                # planning, so multiplicity must be protected.
+                # ------------------------------------------------------
+
                 entity(
                     name="nightstand",
 
@@ -146,7 +160,10 @@ def main() -> None:
                     confidence=0.95,
                 ),
 
-                # Low confidence real object.
+                # ------------------------------------------------------
+                # Low-confidence real object.
+                # ------------------------------------------------------
+
                 entity(
                     name=(
                         "small black object"
@@ -167,7 +184,51 @@ def main() -> None:
                     confidence=0.50,
                 ),
 
+                # ------------------------------------------------------
+                # Same generic name across different frames, but BOTH
+                # are already low-confidence.
+                #
+                # They should remain NEEDS_CONFIRMATION because of
+                # confidence, but they should NOT create an additional
+                # active-resource duplicate group.
+                # ------------------------------------------------------
+
+                entity(
+                    name="small box",
+
+                    description=(
+                        "small box on desk"
+                    ),
+
+                    location="desk",
+
+                    observation_ids=[
+                        "f05_o10"
+                    ],
+
+                    confidence=0.70,
+                ),
+
+                entity(
+                    name="small box",
+
+                    description=(
+                        "small box near wardrobe"
+                    ),
+
+                    location="wardrobe",
+
+                    observation_ids=[
+                        "f07_o10"
+                    ],
+
+                    confidence=0.70,
+                ),
+
+                # ------------------------------------------------------
                 # Tiny non-independent hardware.
+                # ------------------------------------------------------
+
                 entity(
                     name="door hinge",
 
@@ -186,7 +247,10 @@ def main() -> None:
                     confidence=0.95,
                 ),
 
+                # ------------------------------------------------------
                 # Complete parent.
+                # ------------------------------------------------------
+
                 entity(
                     name="wardrobe",
 
@@ -205,7 +269,10 @@ def main() -> None:
                     confidence=0.98,
                 ),
 
+                # ------------------------------------------------------
                 # Explicit same-frame integrated component.
+                # ------------------------------------------------------
+
                 entity(
                     name="drawers",
 
@@ -449,6 +516,58 @@ def main() -> None:
     )
 
     # ------------------------------------------------------------------
+    # ALREADY-PENDING DUPLICATE SUPPRESSION
+    # ------------------------------------------------------------------
+
+    small_boxes = (
+        items_by_name[
+            "small box"
+        ]
+    )
+
+    assert len(
+        small_boxes
+    ) == 2
+
+    assert all(
+        item.verification_status
+        == (
+            VerificationStatus
+            .NEEDS_CONFIRMATION
+        )
+        for item
+        in small_boxes
+    )
+
+    small_box_ids = {
+        item.id
+        for item
+        in small_boxes
+    }
+
+    assert not any(
+        small_box_ids
+        .intersection(
+            set(
+                group.item_ids
+            )
+        )
+        for group
+        in result.potential_duplicate_groups
+    )
+
+    assert (
+        len(
+            result.potential_duplicate_groups
+        )
+        == 1
+    )
+
+    print(
+        "PENDING-DUPLICATE SUPPRESSION TEST: passed"
+    )
+
+    # ------------------------------------------------------------------
     # LOW CONFIDENCE
     # ------------------------------------------------------------------
 
@@ -512,6 +631,7 @@ def main() -> None:
     )
 
     print()
+
     print(
         "WALKTHROUGH INVENTORY NORMALIZER TEST: passed"
     )
