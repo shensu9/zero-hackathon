@@ -1,5 +1,7 @@
+import hashlib
 import json
 import os
+from pathlib import Path
 
 from dotenv import load_dotenv
 from openai import OpenAI
@@ -9,8 +11,6 @@ from json_format_repair import (
     load_or_repair_json,
 )
 from walkthrough_entity_resolution_schemas import (
-    IgnoredObservationReason,
-    IgnoredWalkthroughObservation,
     ResolvedPhysicalEntity,
     WalkthroughEntityResolution,
 )
@@ -30,53 +30,69 @@ BASE_URL = (
     "us-central1.nebius.com/v1/"
 )
 
+ALGORITHM_VERSION = 3
+
+WINDOW_SIZE = 4
+WINDOW_STRIDE = 2
+
+MIN_LINK_CONFIDENCE = 0.85
+
+
+REPO_ROOT = (
+    Path(__file__)
+    .resolve()
+    .parents[2]
+)
+
+CHUNK_CACHE_DIR = (
+    REPO_ROOT
+    / "sample_data"
+    / "private"
+    / "entity-resolution-chunk-cache"
+)
+
 
 # ---------------------------------------------------------------------------
-# COMPACT MODEL-OUTPUT CONTRACT
+# MODEL OUTPUT
 # ---------------------------------------------------------------------------
 
 
-class CompactEntityGroup(
+class SameObjectLink(
     BaseModel,
 ):
     """
-    The model's only entity responsibility is deciding which
-    observation IDs belong to the same physical object.
+    Positive proposal that two cross-frame observations refer to the
+    same physical object.
     """
 
-    observation_ids: list[str] = Field(
+    a: str = Field(
         min_length=1,
-        max_length=20,
     )
 
-    merge_confidence: float = Field(
+    b: str = Field(
+        min_length=1,
+    )
+
+    confidence: float = Field(
         ge=0.0,
         le=1.0,
     )
 
 
-class CompactIgnoredObservation(
+class WindowEntityLinks(
     BaseModel,
 ):
-    observation_id: str = Field(
-        min_length=1,
-    )
+    """
+    The model does NOT account for every observation.
 
-    reason: IgnoredObservationReason
+    It reports positive identity matches only.
 
+    Anything not linked automatically remains a separate physical
+    entity.
+    """
 
-class CompactEntityResolution(
-    BaseModel,
-):
-    groups: list[
-        CompactEntityGroup
-    ] = Field(
-        default_factory=list,
-        max_length=100,
-    )
-
-    ignored: list[
-        CompactIgnoredObservation
+    links: list[
+        SameObjectLink
     ] = Field(
         default_factory=list,
         max_length=100,
@@ -89,13 +105,6 @@ class CompactEntityResolution(
 
 
 def _get_client() -> OpenAI:
-    """
-    Create the Nebius client lazily.
-
-    Importing this module therefore does not require an API call and
-    local tests remain free.
-    """
-
     load_dotenv()
 
     api_key = os.getenv(
@@ -114,7 +123,7 @@ def _get_client() -> OpenAI:
 
 
 # ---------------------------------------------------------------------------
-# SOURCE OBSERVATION HELPERS
+# SOURCE HELPERS
 # ---------------------------------------------------------------------------
 
 
@@ -136,8 +145,7 @@ def _observation_lookup(
 
             if observation_id in lookup:
                 raise RuntimeError(
-                    "Source walkthrough contains "
-                    "duplicate observation ID: "
+                    "Duplicate source observation ID: "
                     f"{observation_id}"
                 )
 
@@ -148,34 +156,101 @@ def _observation_lookup(
     return lookup
 
 
-def _compact_observations_text(
+def _frame_windows(
+    frames: list[
+        WalkthroughFrameObservation
+    ],
+) -> list[
+    list[
+        WalkthroughFrameObservation
+    ]
+]:
+    """
+    Build overlapping temporal windows.
+
+    For eight keyframes:
+
+        [1, 2, 3, 4]
+        [3, 4, 5, 6]
+        [5, 6, 7, 8]
+
+    This gives continuity while keeping each reasoning problem small.
+    """
+
+    ordered = sorted(
+        frames,
+        key=lambda frame: (
+            frame.sample_number
+        ),
+    )
+
+    if not ordered:
+        return []
+
+    if (
+        len(ordered)
+        <= WINDOW_SIZE
+    ):
+        return [
+            ordered
+        ]
+
+    last_start = (
+        len(ordered)
+        - WINDOW_SIZE
+    )
+
+    starts = list(
+        range(
+            0,
+            last_start + 1,
+            WINDOW_STRIDE,
+        )
+    )
+
+    if (
+        not starts
+        or starts[-1]
+        != last_start
+    ):
+        starts.append(
+            last_start
+        )
+
+    windows = []
+
+    for start in starts:
+        window = ordered[
+            start:
+            start + WINDOW_SIZE
+        ]
+
+        windows.append(
+            window
+        )
+
+    return windows
+
+
+def _window_observation_text(
     frames: list[
         WalkthroughFrameObservation
     ],
 ) -> str:
-    """
-    Provide the resolver enough semantic evidence without sending
-    pretty-printed JSON and schema-shaped repetition.
-
-    Format:
-
-        ID | FRAME | NAME | DESCRIPTION | LOCATION | CONFIDENCE
-    """
-
     lines = []
 
     for frame in frames:
         for observation in frame.objects:
+            name = " ".join(
+                observation.name.split()
+            )
+
             description = " ".join(
                 observation.description.split()
             )
 
             location = " ".join(
                 observation.location_hint.split()
-            )
-
-            name = " ".join(
-                observation.name.split()
             )
 
             lines.append(
@@ -203,703 +278,305 @@ def _compact_observations_text(
 
 
 # ---------------------------------------------------------------------------
-# COMPACT ACCOUNTING VALIDATION
+# PRIVATE CHUNK CACHE
 # ---------------------------------------------------------------------------
 
 
-def _validate_compact_accounting(
+def _resolver_source_sha256() -> str:
+    path = Path(
+        __file__
+    ).resolve()
+
+    return hashlib.sha256(
+        path.read_bytes()
+    ).hexdigest()
+
+
+def _cache_path_for_window(
     *,
     frames: list[
         WalkthroughFrameObservation
     ],
-    compact: CompactEntityResolution,
-) -> None:
-    """
-    Validate the compact model response BEFORE metadata hydration.
+    observation_text: str,
+) -> Path:
+    payload = {
+        "algorithm_version":
+            ALGORITHM_VERSION,
 
-    Every source observation must occur exactly once:
+        "model":
+            MODEL,
 
-        one group
+        "resolver_source_sha256":
+            _resolver_source_sha256(),
 
-    OR
+        "frame_numbers": [
+            frame.sample_number
+            for frame
+            in frames
+        ],
 
-        ignored
-
-    Never both.
-    Never neither.
-    """
-
-    lookup = _observation_lookup(
-        frames
-    )
-
-    source_ids = set(
-        lookup.keys()
-    )
-
-    grouped_ids = []
-
-    for group in compact.groups:
-        grouped_ids.extend(
-            group.observation_ids
-        )
-
-    ignored_ids = [
-        item.observation_id
-        for item
-        in compact.ignored
-    ]
-
-    # ---------------------------------------------------------------
-    # DUPLICATE GROUP ASSIGNMENTS
-    # ---------------------------------------------------------------
-
-    if (
-        len(
-            set(
-                grouped_ids
-            )
-        )
-        != len(
-            grouped_ids
-        )
-    ):
-        duplicates = sorted(
-            {
-                observation_id
-                for observation_id
-                in grouped_ids
-                if (
-                    grouped_ids.count(
-                        observation_id
-                    )
-                    > 1
-                )
-            }
-        )
-
-        raise RuntimeError(
-            "Compact entity resolution assigned "
-            "observations to multiple groups: "
-            f"{duplicates}"
-        )
-
-    # ---------------------------------------------------------------
-    # DUPLICATE IGNORE ASSIGNMENTS
-    # ---------------------------------------------------------------
-
-    if (
-        len(
-            set(
-                ignored_ids
-            )
-        )
-        != len(
-            ignored_ids
-        )
-    ):
-        duplicates = sorted(
-            {
-                observation_id
-                for observation_id
-                in ignored_ids
-                if (
-                    ignored_ids.count(
-                        observation_id
-                    )
-                    > 1
-                )
-            }
-        )
-
-        raise RuntimeError(
-            "Compact entity resolution duplicated "
-            "ignored observations: "
-            f"{duplicates}"
-        )
-
-    grouped_set = set(
-        grouped_ids
-    )
-
-    ignored_set = set(
-        ignored_ids
-    )
-
-    output_set = (
-        grouped_set
-        | ignored_set
-    )
-
-    # ---------------------------------------------------------------
-    # UNKNOWN / INVENTED IDS
-    # ---------------------------------------------------------------
-
-    unknown_ids = sorted(
-        output_set
-        - source_ids
-    )
-
-    if unknown_ids:
-        raise RuntimeError(
-            "Compact entity resolution invented "
-            "unknown observation IDs: "
-            f"{unknown_ids}"
-        )
-
-    # ---------------------------------------------------------------
-    # GROUPED + IGNORED AT ONCE
-    # ---------------------------------------------------------------
-
-    overlap = sorted(
-        grouped_set
-        & ignored_set
-    )
-
-    if overlap:
-        raise RuntimeError(
-            "Compact entity resolution both grouped "
-            "and ignored observations: "
-            f"{overlap}"
-        )
-
-    # ---------------------------------------------------------------
-    # SILENTLY DROPPED
-    # ---------------------------------------------------------------
-
-    missing_ids = sorted(
-        source_ids
-        - output_set
-    )
-
-    if missing_ids:
-        raise RuntimeError(
-            "Compact entity resolution silently "
-            "dropped source observations: "
-            f"{missing_ids}"
-        )
-
-
-# ---------------------------------------------------------------------------
-# DETERMINISTIC METADATA HYDRATION
-# ---------------------------------------------------------------------------
-
-
-def _representative_observation(
-    *,
-    observation_ids: list[str],
-    lookup: dict[
-        str,
-        WalkthroughObjectObservation,
-    ],
-) -> WalkthroughObjectObservation:
-    """
-    Choose a grounded source observation to supply canonical metadata.
-
-    Highest visual confidence wins.
-
-    Ties:
-        earlier frame
-        then lexical observation ID
-    """
-
-    observations = [
-        lookup[
-            observation_id
-        ]
-        for observation_id
-        in observation_ids
-    ]
-
-    observations.sort(
-        key=lambda observation: (
-            -observation.confidence,
-            observation.frame_sample_number,
-            observation.observation_id,
-        )
-    )
-
-    return observations[
-        0
-    ]
-
-
-def _ignored_explanation(
-    reason: IgnoredObservationReason,
-) -> str:
-    explanations = {
-        (
-            IgnoredObservationReason
-            .INTEGRATED_COMPONENT
-        ): (
-            "Perception sighting is treated as an "
-            "integrated component of a larger retained object."
-        ),
-
-        (
-            IgnoredObservationReason
-            .TINY_INCIDENTAL_DETAIL
-        ): (
-            "Perception sighting is a tiny incidental "
-            "detail unlikely to matter independently."
-        ),
-
-        (
-            IgnoredObservationReason
-            .NON_INDEPENDENT_PART
-        ): (
-            "Perception sighting is not treated as an "
-            "independently meaningful physical object."
-        ),
-
-        (
-            IgnoredObservationReason
-            .LOW_CONFIDENCE_OR_AMBIGUOUS
-        ): (
-            "Perception sighting is too ambiguous or "
-            "uncertain to retain as a physical entity."
-        ),
-
-        (
-            IgnoredObservationReason
-            .OTHER
-        ): (
-            "Perception sighting was explicitly excluded "
-            "from the physical entity inventory."
-        ),
+        "observations":
+            observation_text,
     }
 
-    return explanations[
-        reason
-    ]
+    serialized = json.dumps(
+        payload,
+        sort_keys=True,
+        ensure_ascii=False,
+    ).encode(
+        "utf-8"
+    )
+
+    digest = hashlib.sha256(
+        serialized
+    ).hexdigest()
+
+    return (
+        CHUNK_CACHE_DIR
+        / f"links_{digest}.json"
+    )
 
 
-def _hydrate_compact_resolution(
+def _load_cached_window(
+    path: Path,
+) -> WindowEntityLinks | None:
+    if not path.exists():
+        return None
+
+    try:
+        payload = json.loads(
+            path.read_text(
+                encoding="utf-8"
+            )
+        )
+
+        return (
+            WindowEntityLinks
+            .model_validate(
+                payload
+            )
+        )
+
+    except Exception:
+        return None
+
+
+def _save_cached_window(
     *,
-    frames: list[
-        WalkthroughFrameObservation
-    ],
-    compact: CompactEntityResolution,
-) -> WalkthroughEntityResolution:
-    """
-    Convert compact grouping decisions into the existing full
-    WalkthroughEntityResolution contract.
-
-    Names/descriptions/locations stay grounded in perception output
-    instead of asking the resolver to rewrite them.
-    """
-
-    _validate_compact_accounting(
-        frames=frames,
-        compact=compact,
+    path: Path,
+    result: WindowEntityLinks,
+) -> None:
+    path.parent.mkdir(
+        parents=True,
+        exist_ok=True,
     )
 
-    lookup = _observation_lookup(
-        frames
-    )
-
-    entities = []
-
-    for group in compact.groups:
-        representative = (
-            _representative_observation(
-                observation_ids=(
-                    group.observation_ids
-                ),
-                lookup=lookup,
-            )
-        )
-
-        identity_uncertainty = None
-
-        if (
-            len(
-                group.observation_ids
-            )
-            > 1
-            and group.merge_confidence
-            < 0.90
-        ):
-            identity_uncertainty = (
-                "Cross-frame identity match "
-                "remains somewhat uncertain."
-            )
-
-        entities.append(
-            ResolvedPhysicalEntity(
-                canonical_name=(
-                    representative.name.strip()
-                ),
-
-                canonical_description=(
-                    representative
-                    .description
-                    .strip()
-                ),
-
-                location_hint=(
-                    representative
-                    .location_hint
-                    .strip()
-                ),
-
-                observation_ids=list(
-                    group.observation_ids
-                ),
-
-                merge_confidence=(
-                    group.merge_confidence
-                ),
-
-                identity_uncertainty=(
-                    identity_uncertainty
-                ),
-            )
-        )
-
-    ignored = [
-        IgnoredWalkthroughObservation(
-            observation_id=(
-                item.observation_id
+    path.write_text(
+        json.dumps(
+            result.model_dump(
+                mode="json"
             ),
-
-            reason=(
-                item.reason
-            ),
-
-            explanation=(
-                _ignored_explanation(
-                    item.reason
-                )
-            ),
-        )
-        for item
-        in compact.ignored
-    ]
-
-    resolution = (
-        WalkthroughEntityResolution(
-            entities=entities,
-            ignored_observations=ignored,
-        )
-    )
-
-    # Keep the already-tested full validator as the final authority.
-    return validate_entity_resolution(
-        frames=frames,
-        resolution=resolution,
+            indent=2,
+            ensure_ascii=False,
+        ),
+        encoding="utf-8",
     )
 
 
 # ---------------------------------------------------------------------------
-# MODEL RESOLUTION
+# WINDOW MODEL CALL
 # ---------------------------------------------------------------------------
 
 
-def resolve_walkthrough_entities(
+def _resolve_window(
     frames: list[
         WalkthroughFrameObservation
     ],
-) -> WalkthroughEntityResolution:
-    """
-    Resolve per-frame sightings into real physical objects.
-
-    The model outputs ONLY identity grouping decisions.
-
-    Existing grounded perception metadata is hydrated
-    deterministically afterward.
-    """
-
-    if not frames:
-        raise ValueError(
-            "At least one walkthrough frame "
-            "is required."
-        )
-
-    lookup = _observation_lookup(
-        frames
-    )
-
-    if not lookup:
-        raise ValueError(
-            "Walkthrough contains no object observations."
-        )
-
+) -> tuple[
+    WindowEntityLinks,
+    bool,
+]:
     observation_text = (
-        _compact_observations_text(
+        _window_observation_text(
             frames
         )
     )
 
+    cache_path = (
+        _cache_path_for_window(
+            frames=frames,
+            observation_text=(
+                observation_text
+            ),
+        )
+    )
+
+    cached = (
+        _load_cached_window(
+            cache_path
+        )
+    )
+
+    if cached is not None:
+        return (
+            cached,
+            True,
+        )
+
+    frame_numbers = [
+        frame.sample_number
+        for frame
+        in frames
+    ]
+
     prompt = f"""
-You are ZERO's cross-frame PHYSICAL IDENTITY resolver.
+You are ZERO's cross-frame physical identity matcher.
 
-You receive object sightings from sampled frames of ONE continuous
-room walkthrough.
+You receive object sightings from a SMALL TEMPORAL WINDOW of one
+continuous room walkthrough.
 
-Your ONLY task is:
+Your ONLY task is to report POSITIVE pairs of observations that are
+very likely sightings of the SAME real physical object.
 
-1. group sightings that refer to the SAME real physical object
-2. preserve distinct physical objects as separate groups
-3. explicitly ignore only incidental/non-independent sightings
+Do not perform exhaustive accounting.
 
-Do NOT generate:
+Do not output observations that have no match.
 
-- canonical names
-- descriptions
-- locations
-- Object DNA
-- affordances
-- plans
-- explanations outside JSON
+Do not output singleton objects.
 
-The application already has grounded metadata.
-Your job is ONLY identity grouping.
+Do not output canonical names, descriptions, explanations,
+affordances, or plans.
 
 
-======================================================================
-OUTPUT
-======================================================================
-
-Return ONLY valid JSON in exactly this compact shape:
+Return ONLY valid JSON:
 
 {{
-  "groups": [
+  "links": [
     {{
-      "observation_ids": [
-        "f05_o01",
-        "f06_o01"
-      ],
-      "merge_confidence": 0.98
-    }},
-    {{
-      "observation_ids": [
-        "f02_o02"
-      ],
-      "merge_confidence": 0.99
-    }}
-  ],
-
-  "ignored": [
-    {{
-      "observation_id": "f01_o06",
-      "reason": "tiny_incidental_detail"
+      "a": "f05_o01",
+      "b": "f06_o01",
+      "confidence": 0.98
     }}
   ]
 }}
 
+If there are no sufficiently strong same-object matches:
 
-Allowed ignored reasons:
-
-- integrated_component
-- tiny_incidental_detail
-- non_independent_part
-- low_confidence_or_ambiguous
-- other
+{{
+  "links": []
+}}
 
 
 ======================================================================
-EXACT ACCOUNTING — CRITICAL
+CONSERVATIVE IDENTITY RULE
 ======================================================================
 
-There are exactly {len(lookup)} source observation IDs.
+A false merge is worse than leaving two sightings separate.
 
-EVERY source observation ID must occur EXACTLY ONCE.
+Only output a link when confidence that they represent the SAME
+physical object is at least {MIN_LINK_CONFIDENCE:.2f}.
 
-Each ID must be:
-
-A. inside exactly ONE group's observation_ids
-
-OR
-
-B. inside ignored
-
-Never both.
-Never neither.
-
-Never invent an ID.
-Never alter an ID.
-
-A physical object seen only once MUST still receive its own
-single-observation group.
+If uncertain, omit the link.
 
 
 ======================================================================
-MERGE CONSERVATIVELY
+CROSS-FRAME ONLY
 ======================================================================
 
-Merge sightings only when evidence makes it reasonably likely they
-are the same real physical object.
+a and b MUST come from DIFFERENT frames.
 
-Useful evidence:
+Never link two observations from the same frame.
 
-- compatible identity
-- distinctive appearance
-- compatible colors/forms
-- neighboring walkthrough frames
-- same workspace or furniture context
-- compatible surrounding objects
-
-When uncertain, KEEP THEM SEPARATE.
-
-A false merge is worse than a cautious duplicate.
+Objects visible simultaneously are presumed physically distinct.
 
 
 ======================================================================
-SAME NAME != SAME PHYSICAL OBJECT
+SAME NAME IS NOT ENOUGH
 ======================================================================
 
-Do not merge simply because names match.
+Do not link objects merely because their names match.
 
-Example:
+For example, three blankets visible in one area may be:
 
-F2:
-beige blanket
+- beige blanket
+- gray blanket
+- cow-print blanket
 
-F2:
-dark gray blanket
-
-F2:
-cow-print blanket
-
-These are THREE separate objects.
+They are distinct physical objects.
 
 
-Likewise:
-
-red/white shoe box
-green/white shoe box
-
-are separate boxes unless later sightings provide strong evidence
-for a cross-frame match.
+Likewise, two different shoe boxes remain different objects.
 
 
 ======================================================================
-SAME-FRAME RULE
+USE CONTEXT
 ======================================================================
 
-Two observations from the SAME frame normally represent two different
-physical objects.
+Strong evidence can include:
 
-Same-frame merging is exceptional and should occur only when perception
-clearly duplicated one visible object.
-
-
-======================================================================
-EXPECTED CROSS-FRAME PATTERNS
-======================================================================
-
-Examples of reasonable merges IF the supplied evidence supports them:
-
-computer monitor in adjacent desk views
-    -> likely same monitor
-
-MIDI keyboard in adjacent room views
-    -> likely same MIDI keyboard
-
-desk in adjacent workstation views
-    -> likely same desk
-
-toy car in adjacent workstation views
-    -> likely same toy car
-
-bed visible from multiple nearby angles
-    -> likely same bed
+- compatible appearance
+- compatible color/form
+- compatible location
+- neighboring frames
+- same desk/workstation context
+- same surrounding objects
+- distinctive shared description
 
 
-Do not force these merges if the actual observation evidence conflicts.
+Examples of plausible cross-frame identity:
+
+- computer monitor seen from adjacent desk angles
+- MIDI keyboard seen in neighboring room views
+- same desk seen in consecutive views
+- same toy car on the same shelf
+- same bed from nearby angles
 
 
 ======================================================================
-INCIDENTAL / PART-WHOLE HANDLING
+PARTS ARE NOT THE SAME OBJECT
 ======================================================================
 
-You MAY explicitly ignore sightings such as:
+Do not link a component to a larger object merely because it belongs
+to it.
 
-- door hinge
-- drawer pull tag
-- tiny attached hardware
-- a clearly integrated component already represented by the complete
-  larger physical object
-- extremely ambiguous tiny clutter
+Examples:
 
-Do NOT ignore independently meaningful removable objects merely
-because they are small.
+wardrobe != drawer
+bed != power cord
+monitor != desk
+pegboard != shelf
 
-Generally retain:
-
-- bags
-- pouches
-- bottles
-- cables
-- headphones
-- books
-- blankets
-- pillows
-- hangers
-- shoe boxes
-- storage bins
-- clothing
-- power devices
+Entity normalization will deal with incidental/integrated components
+later.
 
 
 ======================================================================
-GROUP OBSERVATIONS
+MINIMAL LINKS
 ======================================================================
 
-A source sighting such as:
+If three sightings A, B, C clearly represent one physical object, you
+do not need every possible pair.
 
-- books
-- bottles
-- cables
-- clothes hangers
-- folded clothing
+A-B and B-C are enough.
 
-may already represent a visually unresolved group.
-
-Treat that source observation as one observation entity.
-
-Do NOT invent individual members or counts.
+Avoid redundant all-pairs output.
 
 
 ======================================================================
-MERGE CONFIDENCE
+GROUNDING
 ======================================================================
 
-For cross-frame groups:
+Use ONLY observation IDs supplied below.
 
-0.90–1.00
-strong same-object evidence
-
-0.75–0.89
-reasonable but uncertain
-
-Below 0.75
-prefer separate groups
-
-
-For a singleton group, merge_confidence represents confidence that the
-sighting should stand as its own entity rather than being merged with
-another sighting.
+Never invent or alter IDs.
 
 
 ======================================================================
-TOKEN DISCIPLINE
+WINDOW
 ======================================================================
 
-Keep output extremely compact.
-
-Do not repeat names.
-Do not repeat descriptions.
-Do not repeat locations.
-Do not provide rationale.
-
-Output IDs, merge confidence, and ignored reasons only.
-
-
-======================================================================
-SOURCE SIGHTINGS
-======================================================================
+Frames:
+{frame_numbers}
 
 ID | FRAME | NAME | DESCRIPTION | LOCATION | CONFIDENCE
 
@@ -926,10 +603,9 @@ ID | FRAME | NAME | DESCRIPTION | LOCATION | CONFIDENCE
 
             temperature=0,
 
-            # Compact output should fit comfortably.
-            # If this still truncates, the next architecture change
-            # should be chunked resolution, not an unbounded increase.
-            max_tokens=6000,
+            # Output is now only positive links, normally a very small
+            # response.
+            max_tokens=2500,
         )
     )
 
@@ -942,14 +618,20 @@ ID | FRAME | NAME | DESCRIPTION | LOCATION | CONFIDENCE
         == "length"
     ):
         raise RuntimeError(
-            "Compact walkthrough entity-resolution "
-            "output was truncated."
+            "Chunked entity-link output was truncated "
+            f"for frames {frame_numbers}."
         )
 
-    if choice.message.refusal:
+    refusal = getattr(
+        choice.message,
+        "refusal",
+        None,
+    )
+
+    if refusal:
         raise RuntimeError(
-            "Walkthrough entity resolution refused: "
-            f"{choice.message.refusal}"
+            "Chunked entity resolver refused: "
+            f"{refusal}"
         )
 
     raw_output = (
@@ -958,7 +640,7 @@ ID | FRAME | NAME | DESCRIPTION | LOCATION | CONFIDENCE
 
     if not raw_output:
         raise RuntimeError(
-            "Walkthrough entity resolution returned "
+            "Chunked entity resolver returned "
             "no final content."
         )
 
@@ -966,14 +648,785 @@ ID | FRAME | NAME | DESCRIPTION | LOCATION | CONFIDENCE
         raw_output
     )
 
-    compact = (
-        CompactEntityResolution
+    result = (
+        WindowEntityLinks
         .model_validate(
             payload
         )
     )
 
-    return _hydrate_compact_resolution(
+    _save_cached_window(
+        path=cache_path,
+        result=result,
+    )
+
+    return (
+        result,
+        False,
+    )
+
+
+# ---------------------------------------------------------------------------
+# PROPOSAL VALIDATION
+# ---------------------------------------------------------------------------
+
+
+def _validate_link_proposals(
+    *,
+    window_frames: list[
+        WalkthroughFrameObservation
+    ],
+    proposals: WindowEntityLinks,
+) -> tuple[
+    list[
+        SameObjectLink
+    ],
+    int,
+]:
+    """
+    Treat model links as proposals.
+
+    Invalid, ungrounded, same-frame, and low-confidence proposals are
+    safely discarded rather than allowed to mutate identity state.
+    """
+
+    lookup = _observation_lookup(
+        window_frames
+    )
+
+    allowed_ids = set(
+        lookup.keys()
+    )
+
+    valid_by_pair = {}
+
+    rejected = 0
+
+    for link in proposals.links:
+        if (
+            link.a not in allowed_ids
+            or link.b not in allowed_ids
+        ):
+            rejected += 1
+            continue
+
+        if link.a == link.b:
+            rejected += 1
+            continue
+
+        observation_a = lookup[
+            link.a
+        ]
+
+        observation_b = lookup[
+            link.b
+        ]
+
+        if (
+            observation_a
+            .frame_sample_number
+            == observation_b
+            .frame_sample_number
+        ):
+            rejected += 1
+            continue
+
+        if (
+            link.confidence
+            < MIN_LINK_CONFIDENCE
+        ):
+            rejected += 1
+            continue
+
+        a, b = sorted(
+            (
+                link.a,
+                link.b,
+            )
+        )
+
+        pair = (
+            a,
+            b,
+        )
+
+        normalized = (
+            SameObjectLink(
+                a=a,
+                b=b,
+                confidence=(
+                    link.confidence
+                ),
+            )
+        )
+
+        existing = (
+            valid_by_pair.get(
+                pair
+            )
+        )
+
+        if (
+            existing is None
+            or normalized.confidence
+            > existing.confidence
+        ):
+            valid_by_pair[
+                pair
+            ] = normalized
+
+    valid = sorted(
+        valid_by_pair.values(),
+        key=lambda link: (
+            -link.confidence,
+            link.a,
+            link.b,
+        ),
+    )
+
+    return (
+        valid,
+        rejected,
+    )
+
+
+# ---------------------------------------------------------------------------
+# DETERMINISTIC UNION-FIND
+# ---------------------------------------------------------------------------
+
+
+def _build_components(
+    *,
+    frames: list[
+        WalkthroughFrameObservation
+    ],
+    links: list[
+        SameObjectLink
+    ],
+) -> tuple[
+    list[
+        list[str]
+    ],
+    list[
+        SameObjectLink
+    ],
+    int,
+]:
+    """
+    Construct physical-identity components from positive links.
+
+    Safety invariant:
+
+    A component may contain at most one observation from any source
+    frame.
+
+    Therefore a transitive merge cannot accidentally collapse two
+    simultaneously visible objects into one entity.
+    """
+
+    lookup = _observation_lookup(
+        frames
+    )
+
+    parent = {
+        observation_id:
+            observation_id
+        for observation_id
+        in lookup
+    }
+
+    frames_by_root = {
+        observation_id: {
+            observation
+            .frame_sample_number
+        }
+        for (
+            observation_id,
+            observation,
+        )
+        in lookup.items()
+    }
+
+    def find(
+        observation_id: str,
+    ) -> str:
+        root = (
+            observation_id
+        )
+
+        while (
+            parent[
+                root
+            ]
+            != root
+        ):
+            root = parent[
+                root
+            ]
+
+        while (
+            parent[
+                observation_id
+            ]
+            != observation_id
+        ):
+            next_id = parent[
+                observation_id
+            ]
+
+            parent[
+                observation_id
+            ] = root
+
+            observation_id = (
+                next_id
+            )
+
+        return root
+
+    accepted_links = []
+
+    conflict_rejections = 0
+
+    ordered_links = sorted(
+        links,
+        key=lambda link: (
+            -link.confidence,
+            link.a,
+            link.b,
+        ),
+    )
+
+    for link in ordered_links:
+        if (
+            link.a not in lookup
+            or link.b not in lookup
+        ):
+            # Should already be grounded, but keep the boundary safe.
+            continue
+
+        root_a = find(
+            link.a
+        )
+
+        root_b = find(
+            link.b
+        )
+
+        if root_a == root_b:
+            continue
+
+        if (
+            frames_by_root[
+                root_a
+            ]
+            & frames_by_root[
+                root_b
+            ]
+        ):
+            # Joining these components would create two sightings from
+            # the same source frame inside one physical entity.
+            conflict_rejections += 1
+            continue
+
+        # Deterministic root choice.
+        new_root = min(
+            root_a,
+            root_b,
+        )
+
+        old_root = max(
+            root_a,
+            root_b,
+        )
+
+        parent[
+            old_root
+        ] = new_root
+
+        frames_by_root[
+            new_root
+        ] = (
+            frames_by_root[
+                root_a
+            ]
+            | frames_by_root[
+                root_b
+            ]
+        )
+
+        if (
+            old_root
+            in frames_by_root
+            and old_root
+            != new_root
+        ):
+            del frames_by_root[
+                old_root
+            ]
+
+        accepted_links.append(
+            link
+        )
+
+    components_by_root = {}
+
+    for observation_id in lookup:
+        root = find(
+            observation_id
+        )
+
+        components_by_root.setdefault(
+            root,
+            [],
+        ).append(
+            observation_id
+        )
+
+    def observation_sort_key(
+        observation_id: str,
+    ):
+        observation = lookup[
+            observation_id
+        ]
+
+        return (
+            observation
+            .frame_sample_number,
+
+            observation_id,
+        )
+
+    components = []
+
+    for component in (
+        components_by_root.values()
+    ):
+        component.sort(
+            key=observation_sort_key
+        )
+
+        components.append(
+            component
+        )
+
+    components.sort(
+        key=lambda component: (
+            observation_sort_key(
+                component[
+                    0
+                ]
+            )
+        )
+    )
+
+    return (
+        components,
+        accepted_links,
+        conflict_rejections,
+    )
+
+
+# ---------------------------------------------------------------------------
+# GROUNDED HYDRATION
+# ---------------------------------------------------------------------------
+
+
+def _representative_observation(
+    *,
+    observation_ids: list[str],
+    lookup: dict[
+        str,
+        WalkthroughObjectObservation,
+    ],
+) -> WalkthroughObjectObservation:
+    observations = [
+        lookup[
+            observation_id
+        ]
+        for observation_id
+        in observation_ids
+    ]
+
+    observations.sort(
+        key=lambda observation: (
+            -observation.confidence,
+            observation.frame_sample_number,
+            observation.observation_id,
+        )
+    )
+
+    return observations[
+        0
+    ]
+
+
+def _component_merge_confidence(
+    *,
+    component: list[str],
+    accepted_links: list[
+        SameObjectLink
+    ],
+    representative: (
+        WalkthroughObjectObservation
+    ),
+) -> float:
+    if len(
+        component
+    ) == 1:
+        return (
+            representative
+            .confidence
+        )
+
+    component_set = set(
+        component
+    )
+
+    connecting_confidences = [
+        link.confidence
+        for link
+        in accepted_links
+        if (
+            link.a in component_set
+            and link.b in component_set
+        )
+    ]
+
+    if not connecting_confidences:
+        raise RuntimeError(
+            "Multi-observation component has no "
+            "accepted connecting links."
+        )
+
+    # Weakest accepted edge controls confidence for the chain.
+    return min(
+        connecting_confidences
+    )
+
+
+def _hydrate_components(
+    *,
+    frames: list[
+        WalkthroughFrameObservation
+    ],
+    components: list[
+        list[str]
+    ],
+    accepted_links: list[
+        SameObjectLink
+    ],
+) -> WalkthroughEntityResolution:
+    lookup = _observation_lookup(
+        frames
+    )
+
+    entities = []
+
+    for component in components:
+        representative = (
+            _representative_observation(
+                observation_ids=(
+                    component
+                ),
+                lookup=lookup,
+            )
+        )
+
+        merge_confidence = (
+            _component_merge_confidence(
+                component=component,
+                accepted_links=(
+                    accepted_links
+                ),
+                representative=(
+                    representative
+                ),
+            )
+        )
+
+        identity_uncertainty = None
+
+        if (
+            len(component) > 1
+            and merge_confidence
+            < 0.90
+        ):
+            identity_uncertainty = (
+                "Cross-frame identity match "
+                "remains somewhat uncertain."
+            )
+
+        entities.append(
+            ResolvedPhysicalEntity(
+                canonical_name=(
+                    representative
+                    .name
+                    .strip()
+                ),
+
+                canonical_description=(
+                    representative
+                    .description
+                    .strip()
+                ),
+
+                location_hint=(
+                    representative
+                    .location_hint
+                    .strip()
+                ),
+
+                observation_ids=list(
+                    component
+                ),
+
+                merge_confidence=(
+                    merge_confidence
+                ),
+
+                identity_uncertainty=(
+                    identity_uncertainty
+                ),
+            )
+        )
+
+    resolution = (
+        WalkthroughEntityResolution(
+            entities=entities,
+
+            # Identity resolution no longer performs relevance/noise
+            # filtering. Every unmerged sighting becomes a singleton.
+            #
+            # Canonical inventory normalization handles filtering in
+            # the next layer.
+            ignored_observations=[],
+        )
+    )
+
+    return validate_entity_resolution(
         frames=frames,
-        compact=compact,
+        resolution=resolution,
+    )
+
+
+# ---------------------------------------------------------------------------
+# PUBLIC SERVICE
+# ---------------------------------------------------------------------------
+
+
+def resolve_walkthrough_entities(
+    frames: list[
+        WalkthroughFrameObservation
+    ],
+) -> WalkthroughEntityResolution:
+    """
+    Chunked cross-frame physical identity resolution.
+
+    Model:
+        proposes only positive same-object links.
+
+    Code:
+        grounds links,
+        rejects unsafe proposals,
+        performs union-find,
+        protects same-frame object identity,
+        preserves all unmatched observations as singletons,
+        hydrates metadata from perception,
+        validates exact accounting.
+    """
+
+    if not frames:
+        raise ValueError(
+            "At least one walkthrough frame "
+            "is required."
+        )
+
+    lookup = _observation_lookup(
+        frames
+    )
+
+    if not lookup:
+        raise ValueError(
+            "Walkthrough contains no object observations."
+        )
+
+    windows = _frame_windows(
+        frames
+    )
+
+    print(
+        "Identity windows:",
+        len(
+            windows
+        ),
+    )
+
+    proposals_by_pair = {}
+
+    total_raw_proposals = 0
+    total_rejected_proposals = 0
+
+    model_calls = 0
+    cache_hits = 0
+
+    for window_index, window in enumerate(
+        windows,
+        start=1,
+    ):
+        frame_numbers = [
+            frame.sample_number
+            for frame
+            in window
+        ]
+
+        print(
+            f"  window "
+            f"{window_index}/"
+            f"{len(windows)} "
+            f"frames {frame_numbers}"
+        )
+
+        result, cache_hit = (
+            _resolve_window(
+                window
+            )
+        )
+
+        if cache_hit:
+            cache_hits += 1
+
+            print(
+                "    CACHE HIT"
+            )
+
+        else:
+            model_calls += 1
+
+            print(
+                "    Nemotron call complete"
+            )
+
+        total_raw_proposals += len(
+            result.links
+        )
+
+        valid_links, rejected = (
+            _validate_link_proposals(
+                window_frames=window,
+                proposals=result,
+            )
+        )
+
+        total_rejected_proposals += (
+            rejected
+        )
+
+        print(
+            "    raw links:",
+            len(
+                result.links
+            ),
+        )
+
+        print(
+            "    grounded links:",
+            len(
+                valid_links
+            ),
+        )
+
+        if rejected:
+            print(
+                "    rejected proposals:",
+                rejected,
+            )
+
+        for link in valid_links:
+            pair = tuple(
+                sorted(
+                    (
+                        link.a,
+                        link.b,
+                    )
+                )
+            )
+
+            existing = (
+                proposals_by_pair.get(
+                    pair
+                )
+            )
+
+            if (
+                existing is None
+                or link.confidence
+                > existing.confidence
+            ):
+                proposals_by_pair[
+                    pair
+                ] = link
+
+    unique_links = list(
+        proposals_by_pair.values()
+    )
+
+    components, accepted_links, conflicts = (
+        _build_components(
+            frames=frames,
+            links=unique_links,
+        )
+    )
+
+    print()
+    print(
+        "Chunk resolver model calls:",
+        model_calls,
+    )
+
+    print(
+        "Chunk resolver cache hits:",
+        cache_hits,
+    )
+
+    print(
+        "Raw link proposals:",
+        total_raw_proposals,
+    )
+
+    print(
+        "Rejected malformed/weak proposals:",
+        total_rejected_proposals,
+    )
+
+    print(
+        "Unique grounded links:",
+        len(
+            unique_links
+        ),
+    )
+
+    print(
+        "Accepted union links:",
+        len(
+            accepted_links
+        ),
+    )
+
+    print(
+        "Same-frame transitive conflicts rejected:",
+        conflicts,
+    )
+
+    print(
+        "Candidate physical entities:",
+        len(
+            components
+        ),
+    )
+
+    return _hydrate_components(
+        frames=frames,
+        components=components,
+        accepted_links=accepted_links,
     )
