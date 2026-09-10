@@ -42,14 +42,14 @@ def make_relevance(
     )
 
 
-def test_selects_only_goal_relevant_pending_items() -> None:
+def test_only_relevant_items_are_asked_now() -> None:
     relevant_pending = make_item(
-        "blanket_01",
+        "cardboard_box_01",
         status=VerificationStatus.NEEDS_CONFIRMATION,
     )
 
     possible_pending = make_item(
-        "power_strip_01",
+        "blanket_01",
         status=VerificationStatus.NEEDS_CONFIRMATION,
     )
 
@@ -81,24 +81,16 @@ def test_selects_only_goal_relevant_pending_items() -> None:
     relevance = GoalAwareInventoryResponse(
         items=[
             make_relevance(
-                "blanket_01",
+                "cardboard_box_01",
                 RelevanceLabel.RELEVANT,
             ),
             make_relevance(
-                "power_strip_01",
+                "blanket_01",
                 RelevanceLabel.POSSIBLY_RELEVANT,
             ),
             make_relevance(
                 "shoe_box_01",
                 RelevanceLabel.NOT_RELEVANT,
-            ),
-            make_relevance(
-                "desk_01",
-                RelevanceLabel.RELEVANT,
-            ),
-            make_relevance(
-                "lamp_01",
-                RelevanceLabel.RELEVANT,
             ),
         ]
     )
@@ -114,12 +106,15 @@ def test_selects_only_goal_relevant_pending_items() -> None:
     ]
 
     assert candidate_ids == [
+        "cardboard_box_01",
+    ]
+
+    assert result.deferred_possible_item_ids == [
         "blanket_01",
-        "power_strip_01",
     ]
 
     assert (
-        result.not_selected_pending_item_ids
+        result.not_relevant_pending_item_ids
         == ["shoe_box_01"]
     )
 
@@ -128,32 +123,49 @@ def test_selects_only_goal_relevant_pending_items() -> None:
         == RelevanceLabel.RELEVANT
     )
 
-    assert (
-        result.candidates[1].relevance
-        == RelevanceLabel.POSSIBLY_RELEVANT
-    )
-
     print(
-        "GOAL-SCOPED PENDING SELECTION TEST: passed"
+        "RELEVANT-ONLY IMMEDIATE CONFIRMATION TEST: passed"
     )
 
 
-def test_does_not_change_verification_status() -> None:
-    pending_item = make_item(
+def test_selection_never_changes_verification_status() -> None:
+    relevant_pending = make_item(
+        "cardboard_box_01",
+        status=VerificationStatus.NEEDS_CONFIRMATION,
+    )
+
+    possible_pending = make_item(
         "blanket_01",
         status=VerificationStatus.NEEDS_CONFIRMATION,
     )
 
+    irrelevant_pending = make_item(
+        "shoe_box_01",
+        status=VerificationStatus.NEEDS_CONFIRMATION,
+    )
+
     inventory = CanonicalInventory(
-        items=[pending_item]
+        items=[
+            relevant_pending,
+            possible_pending,
+            irrelevant_pending,
+        ]
     )
 
     relevance = GoalAwareInventoryResponse(
         items=[
             make_relevance(
-                "blanket_01",
+                "cardboard_box_01",
                 RelevanceLabel.RELEVANT,
-            )
+            ),
+            make_relevance(
+                "blanket_01",
+                RelevanceLabel.POSSIBLY_RELEVANT,
+            ),
+            make_relevance(
+                "shoe_box_01",
+                RelevanceLabel.NOT_RELEVANT,
+            ),
         ]
     )
 
@@ -162,10 +174,11 @@ def test_does_not_change_verification_status() -> None:
         relevance=relevance,
     )
 
-    assert (
-        pending_item.verification_status
-        == VerificationStatus.NEEDS_CONFIRMATION
-    )
+    for item in inventory.items:
+        assert (
+            item.verification_status
+            == VerificationStatus.NEEDS_CONFIRMATION
+        )
 
     assert (
         result.candidates[
@@ -175,7 +188,7 @@ def test_does_not_change_verification_status() -> None:
     )
 
     print(
-        "NO MODEL-CONFIRMATION TEST: passed"
+        "NO AUTOMATIC CONFIRMATION TEST: passed"
     )
 
 
@@ -184,9 +197,7 @@ def test_rejects_unknown_relevance_item_id() -> None:
         items=[
             make_item(
                 "blanket_01",
-                status=(
-                    VerificationStatus.NEEDS_CONFIRMATION
-                ),
+                status=VerificationStatus.NEEDS_CONFIRMATION,
             )
         ]
     )
@@ -223,14 +234,62 @@ def test_rejects_unknown_relevance_item_id() -> None:
     )
 
 
+def test_rejects_active_inventory_relevance() -> None:
+    inventory = CanonicalInventory(
+        items=[
+            make_item(
+                "desk_01",
+                status=VerificationStatus.AUTO_ACCEPTED,
+            ),
+            make_item(
+                "blanket_01",
+                status=VerificationStatus.NEEDS_CONFIRMATION,
+            ),
+        ]
+    )
+
+    relevance = GoalAwareInventoryResponse(
+        items=[
+            make_relevance(
+                "desk_01",
+                RelevanceLabel.RELEVANT,
+            ),
+            make_relevance(
+                "blanket_01",
+                RelevanceLabel.NOT_RELEVANT,
+            ),
+        ]
+    )
+
+    try:
+        select_goal_scoped_confirmation_candidates(
+            inventory=inventory,
+            relevance=relevance,
+        )
+
+    except ValueError as exc:
+        assert (
+            "not a NEEDS_CONFIRMATION inventory item"
+            in str(exc)
+        )
+
+        print(
+            "ACTIVE INVENTORY RELEVANCE REJECTION TEST: passed"
+        )
+
+        return
+
+    raise AssertionError(
+        "Active inventory relevance output was not rejected."
+    )
+
+
 def test_rejects_duplicate_relevance_item_id() -> None:
     inventory = CanonicalInventory(
         items=[
             make_item(
                 "blanket_01",
-                status=(
-                    VerificationStatus.NEEDS_CONFIRMATION
-                ),
+                status=VerificationStatus.NEEDS_CONFIRMATION,
             )
         ]
     )
@@ -276,15 +335,11 @@ def test_rejects_missing_pending_relevance() -> None:
         items=[
             make_item(
                 "blanket_01",
-                status=(
-                    VerificationStatus.NEEDS_CONFIRMATION
-                ),
+                status=VerificationStatus.NEEDS_CONFIRMATION,
             ),
             make_item(
                 "power_strip_01",
-                status=(
-                    VerificationStatus.NEEDS_CONFIRMATION
-                ),
+                status=VerificationStatus.NEEDS_CONFIRMATION,
             ),
         ]
     )
@@ -305,10 +360,7 @@ def test_rejects_missing_pending_relevance() -> None:
         )
 
     except ValueError as exc:
-        assert (
-            "power_strip_01"
-            in str(exc)
-        )
+        assert "power_strip_01" in str(exc)
 
         print(
             "MISSING PENDING RELEVANCE TEST: passed"
@@ -326,15 +378,11 @@ def test_rejects_duplicate_inventory_item_id() -> None:
         items=[
             make_item(
                 "blanket_01",
-                status=(
-                    VerificationStatus.NEEDS_CONFIRMATION
-                ),
+                status=VerificationStatus.NEEDS_CONFIRMATION,
             ),
             make_item(
                 "blanket_01",
-                status=(
-                    VerificationStatus.NEEDS_CONFIRMATION
-                ),
+                status=VerificationStatus.NEEDS_CONFIRMATION,
             ),
         ]
     )
@@ -372,11 +420,13 @@ def test_rejects_duplicate_inventory_item_id() -> None:
 
 
 def main() -> None:
-    test_selects_only_goal_relevant_pending_items()
+    test_only_relevant_items_are_asked_now()
 
-    test_does_not_change_verification_status()
+    test_selection_never_changes_verification_status()
 
     test_rejects_unknown_relevance_item_id()
+
+    test_rejects_active_inventory_relevance()
 
     test_rejects_duplicate_relevance_item_id()
 
@@ -387,7 +437,7 @@ def main() -> None:
     print()
 
     print(
-        "GOAL-SCOPED CONFIRMATION SELECTION TEST: passed"
+        "GOAL-SCOPED CONFIRMATION POLICY TEST: passed"
     )
 
 
