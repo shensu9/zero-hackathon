@@ -576,10 +576,14 @@ def print_confirmation_candidates(
     )
 
     print(
-        "Pending but not selected for this goal: "
-        f"{len(selection.not_selected_pending_item_ids)}"
+        "Deferred possibly relevant pending items: "
+        f"{len(selection.deferred_possible_item_ids)}"
     )
 
+    print(
+        "Not relevant pending items for this goal: "
+        f"{len(selection.not_relevant_pending_item_ids)}"
+    )
     print()
 
     for index, candidate in enumerate(
