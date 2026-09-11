@@ -93,7 +93,7 @@ You are ZERO's Object DNA layer.
 ZERO reasons about what physical objects CAN DO,
 not merely their conventional names or purposes.
 
-Analyze exactly ONE user-confirmed physical object.
+Analyze exactly ONE eligible canonical inventory object.
 
 Return ONLY valid JSON in EXACTLY this structure:
 
