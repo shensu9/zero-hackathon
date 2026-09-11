@@ -176,9 +176,18 @@ Do NOT use "contain" for:
 
 
 "provide_surface":
-Requires a genuinely useful placement, work, display, or support surface.
+Requires a genuinely useful PHYSICAL surface for placing, working on,
+displaying, or supporting another physical object or material.
 
-Do not use it merely because every physical object has an exterior surface.
+This capability is about physical placement geometry.
+
+Do NOT use "provide_surface" merely because:
+- every object has an exterior surface
+- a monitor or screen displays visual information
+- a device has a screen, panel, or user interface
+
+A computer monitor showing images is NOT a provide_surface affordance merely
+because its screen is called a display surface.
 
 
 "support":
