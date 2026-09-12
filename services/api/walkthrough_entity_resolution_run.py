@@ -6,6 +6,7 @@ import json
 import re
 import sys
 from pathlib import Path
+import walkthrough_entity_resolver as entity_resolver_module
 
 from walkthrough_entity_resolution_schemas import (
     WalkthroughEntityResolution,
@@ -226,6 +227,59 @@ def retained_observation_count(
     )
 
 
+def missing_chunk_model_calls(
+    frames: list[
+        WalkthroughFrameObservation
+    ],
+) -> int:
+    """
+    Count resolver windows that do not already have a
+    valid production chunk cache.
+
+    This lets the outer runner report actual expected
+    Nemotron calls without modifying the resolver itself.
+    """
+
+    windows = (
+        entity_resolver_module
+        ._frame_windows(
+            frames
+        )
+    )
+
+    missing = 0
+
+    for window in windows:
+        observation_text = (
+            entity_resolver_module
+            ._window_observation_text(
+                window
+            )
+        )
+
+        cache_path = (
+            entity_resolver_module
+            ._cache_path_for_window(
+                frames=window,
+                observation_text=(
+                    observation_text
+                ),
+            )
+        )
+
+        cached = (
+            entity_resolver_module
+            ._load_cached_window(
+                cache_path
+            )
+        )
+
+        if cached is None:
+            missing += 1
+
+    return missing
+
+
 def load_cached_resolution(
     *,
     frames: list[
@@ -372,10 +426,12 @@ def run_dry_run(
     )
 
     expected_model_calls = (
-        0
-        if cache_hit
-        else 1
+    0
+    if cache_hit
+    else missing_chunk_model_calls(
+        frames
     )
+)
 
     print()
     print("=" * 72)
@@ -548,8 +604,19 @@ def main() -> None:
         )
 
     else:
+        model_calls = (
+            missing_chunk_model_calls(
+                frames
+            )
+        )
+
         print(
-            "Calling Nemotron entity resolver..."
+            "Running entity resolver..."
+        )
+
+        print(
+            "Expected Nemotron chunk calls:",
+            model_calls,
         )
 
         resolution = (
@@ -557,8 +624,6 @@ def main() -> None:
                 frames
             )
         )
-
-        model_calls += 1
 
         save_resolution(
             resolution=resolution,
