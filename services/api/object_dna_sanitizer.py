@@ -133,6 +133,24 @@ def sanitize_object_dna(
 
         if (
             capability
+            == CapabilityType.PROVIDE_SURFACE
+        ):
+            has_surface_geometry = (
+                PhysicalTraitType.FLAT
+                in traits
+                and (
+                    PhysicalTraitType.LARGE_SURFACE
+                    in traits
+                    or PhysicalTraitType.SMALL_SURFACE
+                    in traits
+                )
+            )
+
+            if not has_surface_geometry:
+                continue
+
+        if (
+            capability
             == CapabilityType.PROVIDE_WEIGHT
         ):
             if (

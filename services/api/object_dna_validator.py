@@ -247,6 +247,27 @@ def validate_object_dna(
     # ------------------------------------------------------------------
 
     if (
+        CapabilityType.PROVIDE_SURFACE
+        in capabilities
+    ):
+        has_surface_geometry = (
+            PhysicalTraitType.FLAT
+            in traits
+            and (
+                PhysicalTraitType.LARGE_SURFACE
+                in traits
+                or PhysicalTraitType.SMALL_SURFACE
+                in traits
+            )
+        )
+
+        if not has_surface_geometry:
+            errors.append(
+                "provide_surface requires flat plus "
+                "large_surface or small_surface traits."
+            )
+
+    if (
         CapabilityType.PROVIDE_WEIGHT
         in capabilities
         and PhysicalTraitType.WEIGHTED
