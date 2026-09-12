@@ -3,6 +3,10 @@ import hashlib
 import json
 from pathlib import Path
 
+from walkthrough_external_resource_state import (
+    load_external_resource_state,
+)
+
 from pydantic import BaseModel, Field
 
 from plan_outcome_schemas import (
@@ -529,7 +533,23 @@ def main() -> None:
         planner_pipeline_fingerprint()
     )
 
-    external_resources: list[str] = []
+    external_resource_state = (
+    load_external_resource_state()
+)
+
+    if external_resource_state is None:
+        external_resources: list[str] = []
+
+    else:
+        if external_resource_state.goal != GOAL:
+            raise RuntimeError(
+                "Persisted external-resource state belongs to a "
+                "different goal."
+            )
+
+        external_resources = list(
+            external_resource_state.resources
+        )
 
     input_sha256 = (
         planning_input_fingerprint(
