@@ -1,5 +1,9 @@
+from __future__ import annotations
+
+import argparse
 import hashlib
 import json
+import re
 import sys
 from pathlib import Path
 
@@ -13,6 +17,12 @@ from walkthrough_perception import (
 RUN_VERSION = 1
 EXPECTED_KEYFRAME_COUNT = 8
 
+DEFAULT_WALKTHROUGH_ID = "walkthrough-01"
+
+WALKTHROUGH_ID_PATTERN = re.compile(
+    r"^[A-Za-z0-9][A-Za-z0-9_-]*$"
+)
+
 
 REPO_ROOT = (
     Path(__file__)
@@ -20,25 +30,25 @@ REPO_ROOT = (
     .parents[2]
 )
 
-KEYFRAME_DIR = (
+PRIVATE_DIR = (
     REPO_ROOT
     / "sample_data"
     / "private"
-    / "walkthrough-01-keyframes"
+)
+
+KEYFRAME_DIR = (
+    PRIVATE_DIR
+    / f"{DEFAULT_WALKTHROUGH_ID}-keyframes"
 )
 
 CACHE_DIR = (
-    REPO_ROOT
-    / "sample_data"
-    / "private"
-    / "walkthrough-01-perception-cache"
+    PRIVATE_DIR
+    / f"{DEFAULT_WALKTHROUGH_ID}-perception-cache"
 )
 
 OUTPUT_PATH = (
-    REPO_ROOT
-    / "sample_data"
-    / "private"
-    / "walkthrough-01-perception.json"
+    PRIVATE_DIR
+    / f"{DEFAULT_WALKTHROUGH_ID}-perception.json"
 )
 
 SERVICE_SOURCE_PATH = (
@@ -69,6 +79,77 @@ def configure_utf8_console() -> None:
                 pass
 
 
+def validate_walkthrough_id(
+    value: str,
+) -> str:
+    if not WALKTHROUGH_ID_PATTERN.fullmatch(
+        value
+    ):
+        raise ValueError(
+            "walkthrough id may contain only letters, "
+            "numbers, hyphens, and underscores"
+        )
+
+    return value
+
+
+def configure_walkthrough_paths(
+    walkthrough_id: str,
+) -> None:
+    global KEYFRAME_DIR
+    global CACHE_DIR
+    global OUTPUT_PATH
+
+    walkthrough_id = validate_walkthrough_id(
+        walkthrough_id
+    )
+
+    KEYFRAME_DIR = (
+        PRIVATE_DIR
+        / f"{walkthrough_id}-keyframes"
+    )
+
+    CACHE_DIR = (
+        PRIVATE_DIR
+        / f"{walkthrough_id}-perception-cache"
+    )
+
+    OUTPUT_PATH = (
+        PRIVATE_DIR
+        / f"{walkthrough_id}-perception.json"
+    )
+
+
+def parse_args() -> argparse.Namespace:
+    parser = argparse.ArgumentParser(
+        description=(
+            "Run ZERO walkthrough perception for a "
+            "namespaced walkthrough."
+        )
+    )
+
+    parser.add_argument(
+        "--walkthrough-id",
+        default=DEFAULT_WALKTHROUGH_ID,
+        help=(
+            "Artifact namespace such as walkthrough-02. "
+            "Defaults to walkthrough-01 for backwards "
+            "compatibility."
+        ),
+    )
+
+    parser.add_argument(
+        "--dry-run",
+        action="store_true",
+        help=(
+            "Validate inputs and matching caches without "
+            "calling the perception model or writing output."
+        ),
+    )
+
+    return parser.parse_args()
+
+
 def sha256_file(
     path: Path,
 ) -> str:
@@ -82,8 +163,8 @@ def service_fingerprint() -> str:
     Any change to walkthrough_perception.py invalidates old
     frame-perception cache entries automatically.
 
-    This prevents us from silently reusing results generated with an
-    older perception prompt or schema.
+    This prevents us from silently reusing results generated
+    with an older perception prompt or schema.
     """
 
     if not SERVICE_SOURCE_PATH.exists():
@@ -182,7 +263,8 @@ def load_cached_frame(
             )
         )
 
-        # The cache must correspond to the same actual source frame.
+        # The cache must correspond to the same actual
+        # source frame.
         if (
             Path(
                 observation.image_path
@@ -272,8 +354,8 @@ def save_progress(
     """
     Persist aggregate progress after every successful frame.
 
-    If a later call fails, the successfully completed observations are
-    still available for inspection.
+    If a later call fails, the successfully completed
+    observations are still available for inspection.
     """
 
     OUTPUT_PATH.parent.mkdir(
@@ -319,8 +401,98 @@ def save_progress(
     )
 
 
+def run_dry_run(
+    *,
+    keyframes: list[Path],
+    perception_sha256: str,
+    walkthrough_id: str,
+) -> None:
+    cache_hits = 0
+
+    for sample_number, image_path in enumerate(
+        keyframes,
+        start=1,
+    ):
+        image_sha256 = sha256_file(
+            image_path
+        )
+
+        cached = load_cached_frame(
+            sample_number=sample_number,
+            image_path=image_path,
+            image_sha256=image_sha256,
+            perception_sha256=(
+                perception_sha256
+            ),
+        )
+
+        if cached is not None:
+            cache_hits += 1
+
+    expected_model_calls = (
+        len(keyframes)
+        - cache_hits
+    )
+
+    print()
+    print("=" * 72)
+    print("ZERO WALKTHROUGH PERCEPTION — DRY RUN")
+    print("=" * 72)
+    print()
+    print(
+        "Walkthrough:",
+        walkthrough_id,
+    )
+    print(
+        "Model:",
+        MODEL,
+    )
+    print(
+        "Keyframe directory:",
+        KEYFRAME_DIR,
+    )
+    print(
+        "Cache directory:",
+        CACHE_DIR,
+    )
+    print(
+        "Output:",
+        OUTPUT_PATH,
+    )
+    print(
+        "Keyframes:",
+        len(keyframes),
+    )
+    print(
+        "Matching cache entries:",
+        cache_hits,
+    )
+    print(
+        "Expected model calls on real run:",
+        expected_model_calls,
+    )
+    print(
+        "Perception fingerprint:",
+        perception_sha256,
+    )
+    print()
+    print(
+        "Model calls executed by dry run: 0"
+    )
+
+
 def main() -> None:
     configure_utf8_console()
+
+    args = parse_args()
+
+    walkthrough_id = validate_walkthrough_id(
+        args.walkthrough_id
+    )
+
+    configure_walkthrough_paths(
+        walkthrough_id
+    )
 
     keyframes = sorted(
         KEYFRAME_DIR.glob(
@@ -343,10 +515,28 @@ def main() -> None:
         service_fingerprint()
     )
 
+    if args.dry_run:
+        run_dry_run(
+            keyframes=keyframes,
+            perception_sha256=(
+                perception_sha256
+            ),
+            walkthrough_id=(
+                walkthrough_id
+            ),
+        )
+
+        return
+
     print()
     print("=" * 72)
     print("ZERO WALKTHROUGH PERCEPTION")
     print("=" * 72)
+
+    print(
+        "Walkthrough:",
+        walkthrough_id,
+    )
 
     print(
         "Model:",
@@ -365,7 +555,9 @@ def main() -> None:
 
     print()
 
-    results = []
+    results: list[
+        WalkthroughFrameObservation
+    ] = []
 
     cache_hits = 0
     model_calls = 0
@@ -395,12 +587,12 @@ def main() -> None:
             print(
                 f"[frame {sample_number:02d}/"
                 f"{EXPECTED_KEYFRAME_COUNT}] "
-                f"CACHE HIT — "
+                "CACHE HIT - "
                 f"{image_path.name}"
             )
 
             print(
-                f"    objects: "
+                "    objects: "
                 f"{len(result.objects)}"
             )
 
@@ -408,7 +600,7 @@ def main() -> None:
             print(
                 f"[frame {sample_number:02d}/"
                 f"{EXPECTED_KEYFRAME_COUNT}] "
-                f"Calling MiniMax — "
+                "Calling MiniMax - "
                 f"{image_path.name}"
             )
 
@@ -433,12 +625,12 @@ def main() -> None:
             )
 
             print(
-                f"    objects: "
+                "    objects: "
                 f"{len(result.objects)}"
             )
 
             print(
-                f"    cached: "
+                "    cached: "
                 f"{cache_path.name}"
             )
 
@@ -466,6 +658,11 @@ def main() -> None:
     print("=" * 72)
     print("WALKTHROUGH PERCEPTION COMPLETE")
     print("=" * 72)
+
+    print(
+        "Walkthrough:",
+        walkthrough_id,
+    )
 
     print(
         "Frames:",
