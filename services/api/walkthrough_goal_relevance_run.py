@@ -1,6 +1,9 @@
+from __future__ import annotations
+
 import argparse
 import hashlib
 import json
+import re
 from pathlib import Path
 
 from pydantic import BaseModel, Field
@@ -22,24 +25,54 @@ from schemas import (
 )
 
 
-INVENTORY_PATH = Path(
-    "sample_data/private/"
-    "walkthrough-01-canonical-inventory.json"
-)
+DEFAULT_WALKTHROUGH_ID = "walkthrough-01"
 
-CACHE_DIR = Path(
-    "sample_data/private/"
-    "walkthrough-01-goal-relevance-product-photography-cache"
-)
+DEFAULT_GOAL_KEY = "product-photography"
 
-AGGREGATE_CACHE_PATH = Path(
-    "sample_data/private/"
-    "walkthrough-01-goal-relevance-product-photography.json"
-)
-
-GOAL = (
+DEFAULT_GOAL = (
     "Create a $0 product photography setup at home using only "
     "what I already have, without permanent modifications."
+)
+
+SCOPE_PATTERN = re.compile(
+    r"^[A-Za-z0-9][A-Za-z0-9_-]*$"
+)
+
+
+REPO_ROOT = (
+    Path(__file__)
+    .resolve()
+    .parents[2]
+)
+
+PRIVATE_DIR = (
+    REPO_ROOT
+    / "sample_data"
+    / "private"
+)
+
+
+GOAL = DEFAULT_GOAL
+
+INVENTORY_PATH = (
+    PRIVATE_DIR
+    / f"{DEFAULT_WALKTHROUGH_ID}-canonical-inventory.json"
+)
+
+CACHE_DIR = (
+    PRIVATE_DIR
+    / (
+        f"{DEFAULT_WALKTHROUGH_ID}-goal-relevance-"
+        f"{DEFAULT_GOAL_KEY}-cache"
+    )
+)
+
+AGGREGATE_CACHE_PATH = (
+    PRIVATE_DIR
+    / (
+        f"{DEFAULT_WALKTHROUGH_ID}-goal-relevance-"
+        f"{DEFAULT_GOAL_KEY}.json"
+    )
 )
 
 
@@ -78,8 +111,8 @@ class GoalRelevanceChunkCache(BaseModel):
 
 class GoalRelevanceAggregateCache(BaseModel):
     """
-    Fully assembled relevance result after every pending chunk has been
-    validated.
+    Fully assembled relevance result after every pending
+    chunk has been validated.
 
     This gives later runs a zero-call fast path.
     """
@@ -97,9 +130,135 @@ class GoalRelevanceAggregateCache(BaseModel):
     relevance: GoalAwareInventoryResponse
 
 
+def validate_scope_component(
+    value: str,
+    *,
+    label: str,
+) -> str:
+    if not SCOPE_PATTERN.fullmatch(
+        value
+    ):
+        raise ValueError(
+            f"{label} may contain only letters, "
+            "numbers, hyphens, and underscores"
+        )
+
+    return value
+
+
+def configure_scope(
+    *,
+    walkthrough_id: str,
+    goal_key: str,
+    goal: str,
+) -> None:
+    global GOAL
+    global INVENTORY_PATH
+    global CACHE_DIR
+    global AGGREGATE_CACHE_PATH
+
+    walkthrough_id = (
+        validate_scope_component(
+            walkthrough_id,
+            label="walkthrough id",
+        )
+    )
+
+    goal_key = (
+        validate_scope_component(
+            goal_key,
+            label="goal key",
+        )
+    )
+
+    goal = goal.strip()
+
+    if not goal:
+        raise ValueError(
+            "goal must not be empty"
+        )
+
+    if len(goal) > 2000:
+        raise ValueError(
+            "goal must not exceed 2000 characters"
+        )
+
+    GOAL = goal
+
+    INVENTORY_PATH = (
+        PRIVATE_DIR
+        / f"{walkthrough_id}-canonical-inventory.json"
+    )
+
+    CACHE_DIR = (
+        PRIVATE_DIR
+        / (
+            f"{walkthrough_id}-goal-relevance-"
+            f"{goal_key}-cache"
+        )
+    )
+
+    AGGREGATE_CACHE_PATH = (
+        PRIVATE_DIR
+        / (
+            f"{walkthrough_id}-goal-relevance-"
+            f"{goal_key}.json"
+        )
+    )
+
+
+def parse_args() -> argparse.Namespace:
+    parser = argparse.ArgumentParser(
+        description=(
+            "Run ZERO goal-scoped relevance for a "
+            "namespaced walkthrough and exact goal."
+        )
+    )
+
+    parser.add_argument(
+        "--walkthrough-id",
+        default=DEFAULT_WALKTHROUGH_ID,
+        help=(
+            "Artifact namespace such as walkthrough-02. "
+            "Defaults to walkthrough-01."
+        ),
+    )
+
+    parser.add_argument(
+        "--goal-key",
+        default=DEFAULT_GOAL_KEY,
+        help=(
+            "Short filesystem-safe cache namespace for "
+            "the goal, such as temporary-curtain."
+        ),
+    )
+
+    parser.add_argument(
+        "--goal",
+        default=DEFAULT_GOAL,
+        help=(
+            "Exact goal text. Cache validity also checks "
+            "this exact string."
+        ),
+    )
+
+    parser.add_argument(
+        "--dry-run",
+        action="store_true",
+        help=(
+            "Validate inventory, chunk prompts, and "
+            "matching caches without making paid "
+            "model calls or writing new caches."
+        ),
+    )
+
+    return parser.parse_args()
+
+
 def load_inventory() -> CanonicalInventory:
     """
-    Load CanonicalInventory from the saved walkthrough normalization wrapper.
+    Load CanonicalInventory from the saved walkthrough
+    normalization wrapper.
     """
 
     if not INVENTORY_PATH.exists():
@@ -114,26 +273,32 @@ def load_inventory() -> CanonicalInventory:
         )
     )
 
-    if not isinstance(payload, dict):
+    if not isinstance(
+        payload,
+        dict,
+    ):
         raise RuntimeError(
-            "Walkthrough normalization output must be a JSON object."
+            "Walkthrough normalization output must be "
+            "a JSON object."
         )
 
     if "inventory" not in payload:
         raise RuntimeError(
-            "Walkthrough normalization output does not contain "
-            "the required 'inventory' field."
+            "Walkthrough normalization output does not "
+            "contain the required 'inventory' field."
         )
 
-    inventory_payload = payload["inventory"]
+    inventory_payload = payload[
+        "inventory"
+    ]
 
     if not isinstance(
         inventory_payload,
         dict,
     ):
         raise RuntimeError(
-            "Walkthrough normalization 'inventory' field must "
-            "contain a JSON object."
+            "Walkthrough normalization 'inventory' "
+            "field must contain a JSON object."
         )
 
     return CanonicalInventory.model_validate(
@@ -145,7 +310,8 @@ def inventory_fingerprint(
     inventory: CanonicalInventory,
 ) -> str:
     """
-    Produce a deterministic fingerprint of the exact canonical inventory.
+    Produce a deterministic fingerprint of the exact
+    canonical inventory.
     """
 
     canonical_json = json.dumps(
@@ -158,7 +324,9 @@ def inventory_fingerprint(
     )
 
     return hashlib.sha256(
-        canonical_json.encode("utf-8")
+        canonical_json.encode(
+            "utf-8"
+        )
     ).hexdigest()
 
 
@@ -166,15 +334,19 @@ def get_pending_item_ids(
     inventory: CanonicalInventory,
 ) -> list[str]:
     """
-    Return NEEDS_CONFIRMATION IDs in canonical inventory order.
+    Return NEEDS_CONFIRMATION IDs in canonical inventory
+    order.
     """
 
     return [
         item.id
-        for item in inventory.items
+        for item
+        in inventory.items
         if (
             item.verification_status
-            == VerificationStatus.NEEDS_CONFIRMATION
+            ==
+            VerificationStatus
+            .NEEDS_CONFIRMATION
         )
     ]
 
@@ -183,23 +355,30 @@ def build_chunk_plan(
     inventory: CanonicalInventory,
 ) -> list[list[str]]:
     """
-    Deterministically split pending inventory into bounded relevance chunks.
+    Deterministically split pending inventory into bounded
+    relevance chunks.
 
     Chunk membership follows canonical inventory order.
     """
 
-    pending_item_ids = get_pending_item_ids(
-        inventory
+    pending_item_ids = (
+        get_pending_item_ids(
+            inventory
+        )
     )
 
     return [
         pending_item_ids[
             start:
-            start + MAX_PENDING_ITEMS_PER_CALL
+            start
+            + MAX_PENDING_ITEMS_PER_CALL
         ]
-        for start in range(
+        for start
+        in range(
             0,
-            len(pending_item_ids),
+            len(
+                pending_item_ids
+            ),
             MAX_PENDING_ITEMS_PER_CALL,
         )
     ]
@@ -208,8 +387,9 @@ def build_chunk_plan(
 def chunk_cache_path(
     chunk_index: int,
 ) -> Path:
-    return CACHE_DIR / (
-        f"chunk-{chunk_index:02d}.json"
+    return (
+        CACHE_DIR
+        / f"chunk-{chunk_index:02d}.json"
     )
 
 
@@ -219,9 +399,11 @@ def load_matching_aggregate_cache(
     fingerprint: str,
 ) -> GoalAwareInventoryResponse | None:
     """
-    Reuse a complete aggregate cache only when both goal and inventory match.
+    Reuse a complete aggregate cache only when both goal
+    and inventory match.
 
-    A matching cache is always revalidated against current CanonicalInventory.
+    A matching cache is always revalidated against current
+    CanonicalInventory.
     """
 
     if not AGGREGATE_CACHE_PATH.exists():
@@ -235,26 +417,33 @@ def load_matching_aggregate_cache(
         )
 
         cached = (
-            GoalRelevanceAggregateCache.model_validate(
+            GoalRelevanceAggregateCache
+            .model_validate(
                 payload
             )
         )
 
     except Exception as exc:
         raise RuntimeError(
-            "Existing aggregate goal-relevance cache is invalid. "
-            "Refusing to make paid calls until it is inspected."
+            "Existing aggregate goal-relevance cache "
+            "is invalid. Refusing to make paid calls "
+            "until it is inspected."
         ) from exc
 
     if cached.goal != GOAL:
         return None
 
-    if cached.inventory_sha256 != fingerprint:
+    if (
+        cached.inventory_sha256
+        != fingerprint
+    ):
         return None
 
-    return validate_goal_relevance_response(
-        inventory=inventory,
-        response=cached.relevance,
+    return (
+        validate_goal_relevance_response(
+            inventory=inventory,
+            response=cached.relevance,
+        )
     )
 
 
@@ -272,10 +461,14 @@ def save_aggregate_cache(
         exist_ok=True,
     )
 
-    cache = GoalRelevanceAggregateCache(
-        goal=GOAL,
-        inventory_sha256=fingerprint,
-        relevance=relevance,
+    cache = (
+        GoalRelevanceAggregateCache(
+            goal=GOAL,
+            inventory_sha256=(
+                fingerprint
+            ),
+            relevance=relevance,
+        )
     )
 
     AGGREGATE_CACHE_PATH.write_text(
@@ -294,10 +487,11 @@ def load_matching_chunk_cache(
     pending_item_ids: list[str],
 ) -> GoalAwareInventoryResponse | None:
     """
-    Load one chunk cache when it exactly matches this experiment scope.
+    Load one chunk cache when it exactly matches this
+    experiment scope.
 
-    If the cache file exists but is malformed, fail rather than silently
-    making another paid call.
+    If the cache file exists but is malformed, fail rather
+    than silently making another paid call.
 
     A valid but stale cache is ignored.
     """
@@ -317,34 +511,49 @@ def load_matching_chunk_cache(
         )
 
         cached = (
-            GoalRelevanceChunkCache.model_validate(
+            GoalRelevanceChunkCache
+            .model_validate(
                 payload
             )
         )
 
     except Exception as exc:
         raise RuntimeError(
-            "Existing goal-relevance chunk cache is invalid: "
-            f"{path}. Refusing to make another paid call "
-            "until the cache is inspected."
+            "Existing goal-relevance chunk cache "
+            f"is invalid: {path}. Refusing to make "
+            "another paid call until the cache is "
+            "inspected."
         ) from exc
 
     if cached.goal != GOAL:
         return None
 
-    if cached.inventory_sha256 != fingerprint:
+    if (
+        cached.inventory_sha256
+        != fingerprint
+    ):
         return None
 
-    if cached.chunk_index != chunk_index:
+    if (
+        cached.chunk_index
+        != chunk_index
+    ):
         return None
 
-    if cached.pending_item_ids != pending_item_ids:
+    if (
+        cached.pending_item_ids
+        != pending_item_ids
+    ):
         return None
 
-    return validate_goal_relevance_response(
-        inventory=inventory,
-        response=cached.relevance,
-        pending_item_ids=pending_item_ids,
+    return (
+        validate_goal_relevance_response(
+            inventory=inventory,
+            response=cached.relevance,
+            pending_item_ids=(
+                pending_item_ids
+            ),
+        )
     )
 
 
@@ -368,9 +577,15 @@ def save_chunk_cache(
 
     cache = GoalRelevanceChunkCache(
         goal=GOAL,
-        inventory_sha256=fingerprint,
-        chunk_index=chunk_index,
-        pending_item_ids=pending_item_ids,
+        inventory_sha256=(
+            fingerprint
+        ),
+        chunk_index=(
+            chunk_index
+        ),
+        pending_item_ids=(
+            pending_item_ids
+        ),
         relevance=relevance,
     )
 
@@ -394,24 +609,30 @@ def combine_chunk_results(
     ],
 ) -> GoalAwareInventoryResponse:
     """
-    Combine independently validated chunks and validate exact accounting
-    across the complete NEEDS_CONFIRMATION inventory.
+    Combine independently validated chunks and validate
+    exact accounting across the complete
+    NEEDS_CONFIRMATION inventory.
 
-    Full validation catches any unexpected cross-chunk duplicate, omission,
-    or ordering problem before an aggregate cache is accepted.
+    Full validation catches any unexpected cross-chunk
+    duplicate, omission, or ordering problem before an
+    aggregate cache is accepted.
     """
 
     combined = GoalAwareInventoryResponse(
         items=[
             relevance_item
-            for chunk_result in chunk_results
-            for relevance_item in chunk_result.items
+            for chunk_result
+            in chunk_results
+            for relevance_item
+            in chunk_result.items
         ]
     )
 
-    return validate_goal_relevance_response(
-        inventory=inventory,
-        response=combined,
+    return (
+        validate_goal_relevance_response(
+            inventory=inventory,
+            response=combined,
+        )
     )
 
 
@@ -425,37 +646,46 @@ def print_inventory_summary(
     for item in inventory.items:
         if (
             item.verification_status
-            == VerificationStatus.AUTO_ACCEPTED
+            ==
+            VerificationStatus
+            .AUTO_ACCEPTED
         ):
             auto_accepted += 1
 
         elif (
             item.verification_status
-            == VerificationStatus.USER_CONFIRMED
+            ==
+            VerificationStatus
+            .USER_CONFIRMED
         ):
             user_confirmed += 1
 
         elif (
             item.verification_status
-            == VerificationStatus.NEEDS_CONFIRMATION
+            ==
+            VerificationStatus
+            .NEEDS_CONFIRMATION
         ):
             needs_confirmation += 1
 
     print(
-        f"Canonical inventory items: "
+        "Canonical inventory items: "
         f"{len(inventory.items)}"
     )
 
     print(
-        f"AUTO_ACCEPTED: {auto_accepted}"
+        f"AUTO_ACCEPTED: "
+        f"{auto_accepted}"
     )
 
     print(
-        f"USER_CONFIRMED: {user_confirmed}"
+        f"USER_CONFIRMED: "
+        f"{user_confirmed}"
     )
 
     print(
-        f"NEEDS_CONFIRMATION: {needs_confirmation}"
+        f"NEEDS_CONFIRMATION: "
+        f"{needs_confirmation}"
     )
 
 
@@ -467,34 +697,45 @@ def print_chunk_plan(
     """
     Build every chunk prompt locally and report its size.
 
-    This doubles as a free validation that every requested chunk scope can
-    produce a prompt before paid execution begins.
+    This doubles as a free validation that every requested
+    chunk scope can produce a prompt before paid execution
+    begins.
     """
 
     print()
     print("=" * 72)
-    print("BOUNDED CHUNK PLAN")
+    print(
+        "BOUNDED CHUNK PLAN"
+    )
     print("=" * 72)
 
     print(
-        f"Maximum pending items per call: "
+        "Maximum pending items per call: "
         f"{MAX_PENDING_ITEMS_PER_CALL}"
     )
 
     print(
-        f"Chunk count: {len(chunks)}"
+        f"Chunk count: "
+        f"{len(chunks)}"
     )
 
     print()
 
-    for chunk_index, pending_item_ids in enumerate(
+    for (
+        chunk_index,
+        pending_item_ids,
+    ) in enumerate(
         chunks,
         start=1,
     ):
-        prompt = build_goal_relevance_prompt(
-            goal=GOAL,
-            inventory=inventory,
-            pending_item_ids=pending_item_ids,
+        prompt = (
+            build_goal_relevance_prompt(
+                goal=GOAL,
+                inventory=inventory,
+                pending_item_ids=(
+                    pending_item_ids
+                ),
+            )
         )
 
         print(
@@ -514,41 +755,51 @@ def print_relevance_summary(
     for item in relevance.items:
         if (
             item.relevance
-            == RelevanceLabel.RELEVANT
+            ==
+            RelevanceLabel.RELEVANT
         ):
             relevant += 1
 
         elif (
             item.relevance
-            == RelevanceLabel.POSSIBLY_RELEVANT
+            ==
+            RelevanceLabel
+            .POSSIBLY_RELEVANT
         ):
             possibly_relevant += 1
 
         elif (
             item.relevance
-            == RelevanceLabel.NOT_RELEVANT
+            ==
+            RelevanceLabel
+            .NOT_RELEVANT
         ):
             not_relevant += 1
 
     print()
     print("=" * 72)
-    print("GOAL RELEVANCE SUMMARY")
+    print(
+        "GOAL RELEVANCE SUMMARY"
+    )
     print("=" * 72)
 
     print(
-        f"RELEVANT: {relevant}"
+        f"RELEVANT: "
+        f"{relevant}"
     )
 
     print(
-        f"POSSIBLY_RELEVANT: {possibly_relevant}"
+        "POSSIBLY_RELEVANT: "
+        f"{possibly_relevant}"
     )
 
     print(
-        f"NOT_RELEVANT: {not_relevant}"
+        "NOT_RELEVANT: "
+        f"{not_relevant}"
     )
 
     print(
-        f"Accounted pending items: "
+        "Accounted pending items: "
         f"{len(relevance.items)}"
     )
 
@@ -567,7 +818,9 @@ def print_confirmation_candidates(
 
     print()
     print("=" * 72)
-    print("GOAL-SCOPED CONFIRMATION CANDIDATES")
+    print(
+        "GOAL-SCOPED CONFIRMATION CANDIDATES"
+    )
     print("=" * 72)
 
     print(
@@ -584,6 +837,7 @@ def print_confirmation_candidates(
         "Not relevant pending items for this goal: "
         f"{len(selection.not_relevant_pending_item_ids)}"
     )
+
     print()
 
     for index, candidate in enumerate(
@@ -591,11 +845,13 @@ def print_confirmation_candidates(
         start=1,
     ):
         print(
-            f"{index}. {candidate.item.id}"
+            f"{index}. "
+            f"{candidate.item.id}"
         )
 
         print(
-            f"   name: {candidate.item.name}"
+            "   name: "
+            f"{candidate.item.name}"
         )
 
         print(
@@ -619,6 +875,77 @@ def print_confirmation_candidates(
         )
 
 
+def inspect_cache_plan(
+    *,
+    inventory: CanonicalInventory,
+    fingerprint: str,
+    chunks: list[list[str]],
+) -> tuple[
+    bool,
+    int,
+    int,
+]:
+    """
+    Inspect aggregate/chunk caches without making or
+    writing any model calls.
+
+    Returns:
+        matching aggregate cache exists
+        matching chunk cache hits
+        expected Nemotron calls on a real run
+    """
+
+    aggregate_cache = (
+        load_matching_aggregate_cache(
+            inventory=inventory,
+            fingerprint=fingerprint,
+        )
+    )
+
+    if aggregate_cache is not None:
+        return (
+            True,
+            len(chunks),
+            0,
+        )
+
+    chunk_cache_hits = 0
+
+    for (
+        chunk_index,
+        pending_item_ids,
+    ) in enumerate(
+        chunks,
+        start=1,
+    ):
+        cached = (
+            load_matching_chunk_cache(
+                inventory=inventory,
+                fingerprint=fingerprint,
+                chunk_index=(
+                    chunk_index
+                ),
+                pending_item_ids=(
+                    pending_item_ids
+                ),
+            )
+        )
+
+        if cached is not None:
+            chunk_cache_hits += 1
+
+    expected_model_calls = (
+        len(chunks)
+        - chunk_cache_hits
+    )
+
+    return (
+        False,
+        chunk_cache_hits,
+        expected_model_calls,
+    )
+
+
 def run_chunked_relevance(
     *,
     inventory: CanonicalInventory,
@@ -637,7 +964,8 @@ def run_chunked_relevance(
         number of paid Nemotron calls made
         number of chunk cache hits
 
-    Every newly generated chunk is cached immediately before proceeding.
+    Every newly generated chunk is cached immediately
+    before proceeding.
     """
 
     chunk_results: list[
@@ -647,21 +975,33 @@ def run_chunked_relevance(
     model_calls = 0
     cache_hits = 0
 
-    for chunk_index, pending_item_ids in enumerate(
+    for (
+        chunk_index,
+        pending_item_ids,
+    ) in enumerate(
         chunks,
         start=1,
     ):
         print()
+
         print(
-            f"Chunk {chunk_index}/{len(chunks)} "
-            f"({len(pending_item_ids)} pending items)"
+            f"Chunk {chunk_index}/"
+            f"{len(chunks)} "
+            f"({len(pending_item_ids)} "
+            "pending items)"
         )
 
-        cached = load_matching_chunk_cache(
-            inventory=inventory,
-            fingerprint=fingerprint,
-            chunk_index=chunk_index,
-            pending_item_ids=pending_item_ids,
+        cached = (
+            load_matching_chunk_cache(
+                inventory=inventory,
+                fingerprint=fingerprint,
+                chunk_index=(
+                    chunk_index
+                ),
+                pending_item_ids=(
+                    pending_item_ids
+                ),
+            )
         )
 
         if cached is not None:
@@ -686,36 +1026,48 @@ def run_chunked_relevance(
         )
 
         print(
-            "  Running one bounded Nemotron call..."
+            "  Running one bounded "
+            "Nemotron call..."
         )
 
         try:
-            result = generate_goal_relevance_chunk(
-                goal=GOAL,
-                inventory=inventory,
-                pending_item_ids=pending_item_ids,
+            result = (
+                generate_goal_relevance_chunk(
+                    goal=GOAL,
+                    inventory=inventory,
+                    pending_item_ids=(
+                        pending_item_ids
+                    ),
+                )
             )
 
         except Exception:
             print()
+
             print(
                 f"Chunk {chunk_index} failed."
             )
 
             print(
-                "Any earlier successful chunk caches remain saved."
+                "Any earlier successful chunk "
+                "caches remain saved."
             )
 
             print(
-                "Do not delete them before investigating the failure."
+                "Do not delete them before "
+                "investigating the failure."
             )
 
             raise
 
         save_chunk_cache(
             fingerprint=fingerprint,
-            chunk_index=chunk_index,
-            pending_item_ids=pending_item_ids,
+            chunk_index=(
+                chunk_index
+            ),
+            pending_item_ids=(
+                pending_item_ids
+            ),
             relevance=result,
         )
 
@@ -733,9 +1085,13 @@ def run_chunked_relevance(
 
         model_calls += 1
 
-    complete_relevance = combine_chunk_results(
-        inventory=inventory,
-        chunk_results=chunk_results,
+    complete_relevance = (
+        combine_chunk_results(
+            inventory=inventory,
+            chunk_results=(
+                chunk_results
+            ),
+        )
     )
 
     return (
@@ -746,31 +1102,77 @@ def run_chunked_relevance(
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser()
+    args = parse_args()
 
-    parser.add_argument(
-        "--dry-run",
-        action="store_true",
-        help=(
-            "Validate the real walkthrough inventory and every "
-            "bounded chunk prompt without making paid model calls."
-        ),
+    walkthrough_id = (
+        validate_scope_component(
+            args.walkthrough_id,
+            label="walkthrough id",
+        )
     )
 
-    args = parser.parse_args()
+    goal_key = (
+        validate_scope_component(
+            args.goal_key,
+            label="goal key",
+        )
+    )
+
+    configure_scope(
+        walkthrough_id=(
+            walkthrough_id
+        ),
+        goal_key=goal_key,
+        goal=args.goal,
+    )
 
     print("=" * 72)
-    print("ZERO WALKTHROUGH GOAL-SCOPED RELEVANCE")
+    print(
+        "ZERO WALKTHROUGH GOAL-SCOPED RELEVANCE"
+    )
     print("=" * 72)
 
     print()
-    print(f"Goal: {GOAL}")
+
+    print(
+        "Walkthrough:",
+        walkthrough_id,
+    )
+
+    print(
+        "Goal key:",
+        goal_key,
+    )
+
+    print(
+        f"Goal: {GOAL}"
+    )
+
+    print()
+
+    print(
+        "Inventory input:",
+        INVENTORY_PATH.resolve(),
+    )
+
+    print(
+        "Chunk cache directory:",
+        CACHE_DIR.resolve(),
+    )
+
+    print(
+        "Aggregate cache:",
+        AGGREGATE_CACHE_PATH.resolve(),
+    )
+
     print()
 
     inventory = load_inventory()
 
-    fingerprint = inventory_fingerprint(
-        inventory
+    fingerprint = (
+        inventory_fingerprint(
+            inventory
+        )
     )
 
     print_inventory_summary(
@@ -782,8 +1184,10 @@ def main() -> None:
         f"{fingerprint}"
     )
 
-    chunks = build_chunk_plan(
-        inventory
+    chunks = (
+        build_chunk_plan(
+            inventory
+        )
     )
 
     print_chunk_plan(
@@ -792,9 +1196,43 @@ def main() -> None:
     )
 
     if args.dry_run:
+        (
+            aggregate_hit,
+            chunk_cache_hits,
+            expected_model_calls,
+        ) = inspect_cache_plan(
+            inventory=inventory,
+            fingerprint=fingerprint,
+            chunks=chunks,
+        )
+
         print()
+        print("=" * 72)
         print(
-            "DRY RUN COMPLETE — NO MODEL CALL MADE"
+            "GOAL RELEVANCE DRY RUN"
+        )
+        print("=" * 72)
+
+        print(
+            "Matching aggregate cache:",
+            aggregate_hit,
+        )
+
+        print(
+            "Matching chunk caches:",
+            chunk_cache_hits,
+        )
+
+        print(
+            "Expected Nemotron calls "
+            "on real run:",
+            expected_model_calls,
+        )
+
+        print(
+            "Model calls executed by "
+            "dry run:",
+            0,
         )
 
         return
@@ -808,20 +1246,26 @@ def main() -> None:
 
     if aggregate_cache is not None:
         print()
+
         print(
-            "Valid complete aggregate cache found."
+            "Valid complete aggregate "
+            "cache found."
         )
 
         print(
             "Nemotron calls: 0"
         )
 
-        relevance = aggregate_cache
+        relevance = (
+            aggregate_cache
+        )
 
     else:
         print()
+
         print(
-            "No matching complete aggregate cache found."
+            "No matching complete "
+            "aggregate cache found."
         )
 
         (
@@ -841,31 +1285,37 @@ def main() -> None:
 
         print()
         print("=" * 72)
-        print("CHUNK EXECUTION COMPLETE")
+        print(
+            "CHUNK EXECUTION COMPLETE"
+        )
         print("=" * 72)
 
         print(
-            f"Nemotron calls made this run: "
+            "Nemotron calls made "
+            "this run: "
             f"{model_calls}"
         )
 
         print(
-            f"Chunk cache hits: "
+            "Chunk cache hits: "
             f"{chunk_cache_hits}"
         )
 
         print(
-            f"Validated chunks: "
+            "Validated chunks: "
             f"{len(chunks)}"
         )
 
         print()
+
         print(
-            "Saved complete private aggregate cache:"
+            "Saved complete private "
+            "aggregate cache:"
         )
 
         print(
-            AGGREGATE_CACHE_PATH.resolve()
+            AGGREGATE_CACHE_PATH
+            .resolve()
         )
 
     print_relevance_summary(
