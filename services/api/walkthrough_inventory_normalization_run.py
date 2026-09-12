@@ -1,4 +1,8 @@
+from __future__ import annotations
+
+import argparse
 import json
+import re
 import sys
 from collections import Counter
 from pathlib import Path
@@ -15,24 +19,33 @@ from walkthrough_inventory_normalizer import (
 )
 
 
+DEFAULT_WALKTHROUGH_ID = "walkthrough-01"
+
+WALKTHROUGH_ID_PATTERN = re.compile(
+    r"^[A-Za-z0-9][A-Za-z0-9_-]*$"
+)
+
+
 REPO_ROOT = (
     Path(__file__)
     .resolve()
     .parents[2]
 )
 
-ENTITY_RESOLUTION_PATH = (
+PRIVATE_DIR = (
     REPO_ROOT
     / "sample_data"
     / "private"
-    / "walkthrough-01-entity-resolution.json"
+)
+
+ENTITY_RESOLUTION_PATH = (
+    PRIVATE_DIR
+    / f"{DEFAULT_WALKTHROUGH_ID}-entity-resolution.json"
 )
 
 OUTPUT_PATH = (
-    REPO_ROOT
-    / "sample_data"
-    / "private"
-    / "walkthrough-01-canonical-inventory.json"
+    PRIVATE_DIR
+    / f"{DEFAULT_WALKTHROUGH_ID}-canonical-inventory.json"
 )
 
 
@@ -54,6 +67,72 @@ def configure_utf8_console() -> None:
                 )
             except Exception:
                 pass
+
+
+def validate_walkthrough_id(
+    value: str,
+) -> str:
+    if not WALKTHROUGH_ID_PATTERN.fullmatch(
+        value
+    ):
+        raise ValueError(
+            "walkthrough id may contain only letters, "
+            "numbers, hyphens, and underscores"
+        )
+
+    return value
+
+
+def configure_walkthrough_paths(
+    walkthrough_id: str,
+) -> None:
+    global ENTITY_RESOLUTION_PATH
+    global OUTPUT_PATH
+
+    walkthrough_id = validate_walkthrough_id(
+        walkthrough_id
+    )
+
+    ENTITY_RESOLUTION_PATH = (
+        PRIVATE_DIR
+        / f"{walkthrough_id}-entity-resolution.json"
+    )
+
+    OUTPUT_PATH = (
+        PRIVATE_DIR
+        / f"{walkthrough_id}-canonical-inventory.json"
+    )
+
+
+def parse_args() -> argparse.Namespace:
+    parser = argparse.ArgumentParser(
+        description=(
+            "Normalize ZERO entity resolution into "
+            "canonical inventory for a namespaced "
+            "walkthrough."
+        )
+    )
+
+    parser.add_argument(
+        "--walkthrough-id",
+        default=DEFAULT_WALKTHROUGH_ID,
+        help=(
+            "Artifact namespace such as walkthrough-02. "
+            "Defaults to walkthrough-01 for backwards "
+            "compatibility."
+        ),
+    )
+
+    parser.add_argument(
+        "--dry-run",
+        action="store_true",
+        help=(
+            "Run deterministic normalization and validation "
+            "without writing the canonical inventory file."
+        ),
+    )
+
+    return parser.parse_args()
 
 
 def load_resolution(
@@ -204,42 +283,12 @@ def save_result(
     )
 
 
-def main() -> None:
-    configure_utf8_console()
-
-    resolution = (
-        load_resolution()
-    )
-
-    print()
-    print("=" * 72)
-    print(
-        "ZERO WALKTHROUGH INVENTORY NORMALIZATION"
-    )
-    print("=" * 72)
-
-    print(
-        "Resolved candidate entities:",
-        len(
-            resolution.entities
-        ),
-    )
-
-    result = (
-        normalize_walkthrough_inventory(
-            resolution
-        )
-    )
-
-    validate_normalization_result(
-        source_resolution=resolution,
-        result=result,
-    )
-
-    save_result(
-        result
-    )
-
+def print_result_summary(
+    *,
+    walkthrough_id: str,
+    result: WalkthroughInventoryNormalizationResult,
+    dry_run: bool,
+) -> None:
     status_counts = Counter(
         item.verification_status
         for item
@@ -263,10 +312,22 @@ def main() -> None:
 
     print()
     print("=" * 72)
-    print(
-        "NORMALIZATION COMPLETE"
-    )
+
+    if dry_run:
+        print(
+            "NORMALIZATION DRY RUN COMPLETE"
+        )
+    else:
+        print(
+            "NORMALIZATION COMPLETE"
+        )
+
     print("=" * 72)
+
+    print(
+        "Walkthrough:",
+        walkthrough_id,
+    )
 
     print(
         "Canonical inventory items:",
@@ -479,12 +540,96 @@ def main() -> None:
 
     print()
 
-    print(
-        "Saved private canonical inventory:"
-    )
+    if dry_run:
+        print(
+            "Dry run only — output not written."
+        )
+        print(
+            "Would save:"
+        )
+    else:
+        print(
+            "Saved private canonical inventory:"
+        )
 
     print(
         OUTPUT_PATH
+    )
+
+    print()
+
+    print(
+        "Model calls:",
+        0,
+    )
+
+
+def main() -> None:
+    configure_utf8_console()
+
+    args = parse_args()
+
+    walkthrough_id = validate_walkthrough_id(
+        args.walkthrough_id
+    )
+
+    configure_walkthrough_paths(
+        walkthrough_id
+    )
+
+    resolution = (
+        load_resolution()
+    )
+
+    print()
+    print("=" * 72)
+    print(
+        "ZERO WALKTHROUGH INVENTORY NORMALIZATION"
+    )
+    print("=" * 72)
+
+    print(
+        "Walkthrough:",
+        walkthrough_id,
+    )
+
+    print(
+        "Entity-resolution input:",
+        ENTITY_RESOLUTION_PATH,
+    )
+
+    print(
+        "Resolved candidate entities:",
+        len(
+            resolution.entities
+        ),
+    )
+
+    print(
+        "Model calls:",
+        0,
+    )
+
+    result = (
+        normalize_walkthrough_inventory(
+            resolution
+        )
+    )
+
+    validate_normalization_result(
+        source_resolution=resolution,
+        result=result,
+    )
+
+    if not args.dry_run:
+        save_result(
+            result
+        )
+
+    print_result_summary(
+        walkthrough_id=walkthrough_id,
+        result=result,
+        dry_run=args.dry_run,
     )
 
 
