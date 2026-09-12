@@ -231,6 +231,40 @@ Only genuine electrical receptacles or electrical connections.
 Only a mechanism intended to release liquid.
 
 
+CONTAINER / BOX RULES
+
+For boxes, bins, baskets, bags, containers, drawers, and similar objects:
+
+- "contain" may use conservative common knowledge when a bounded interior is
+  established by the object type.
+
+- Do NOT assume the container is empty.
+  Current contents remain unknown unless explicitly established.
+
+- Do NOT infer "provide_surface" merely because a box or container normally
+  has a top.
+  The supplied description must establish a usable physical top/lid/surface.
+
+- Do NOT infer "support" or "elevate" merely because an object could
+  theoretically be placed on top.
+  Unknown closure state, structural condition, and load-bearing capacity
+  matter.
+
+- Do NOT infer "stack" or the "stackable" trait merely because the object is
+  called a cardboard box.
+  Stable stacking geometry must be sufficiently established.
+
+- Do NOT assume a cardboard box is safely load-bearing.
+
+- Do NOT assume a cardboard box can be flattened/folded unless its
+  construction or ordinary identified type sufficiently supports that claim.
+
+- When support, elevate, or stack is only plausible rather than established,
+  OMIT the affordance instead of expressing unjustified confidence.
+
+- Prefer omission over speculative physical reuse.
+
+
 PHYSICAL TRAIT RULES
 
 "has_electrical_outlets":
