@@ -4,9 +4,11 @@ from json import JSONDecodeError
 
 from dotenv import load_dotenv
 from openai import OpenAI
+from pydantic import BaseModel, Field
 
 from critic_schemas import (
     CriticSeverity,
+    PlanCriticFinding,
     PlanCriticResult,
 )
 from model_json import load_model_json
@@ -42,6 +44,50 @@ client = OpenAI(
 MODEL = (
     "nvidia/nemotron-3-super-120b-a12b"
 )
+
+SEMANTIC_CRITIC_MAX_TOKENS = 8000
+JSON_REPAIR_MAX_TOKENS = 2500
+
+
+class IncompleteSemanticCoverageError(
+    RuntimeError
+):
+    """
+    Raised when the semantic critic does not provide exact
+    field-by-field coverage for the PhysicalPlan.
+    """
+
+    pass
+
+
+class SemanticAuditEnvelope(BaseModel):
+    """
+    Private model-output contract.
+
+    This is intentionally NOT the public PlanCriticResult consumed by
+    the rest of ZERO.
+
+    coverage maps every required semantic field ID to the 1-based finding
+    numbers that apply to that field.
+
+    Example:
+
+        "step:1:why_it_helps": [1]
+
+    An empty list means the field was audited and no finding applies.
+    """
+
+    findings: list[
+        PlanCriticFinding
+    ] = Field(
+        default_factory=list,
+        max_length=8,
+    )
+
+    coverage: dict[
+        str,
+        list[int],
+    ]
 
 
 def _build_compact_dna(
@@ -82,6 +128,82 @@ def _build_compact_dna(
     return result
 
 
+def _build_semantic_field_map(
+    plan: PhysicalPlan,
+) -> dict[str, str]:
+    """
+    Deterministically enumerate every natural-language field that the
+    semantic critic is required to inspect.
+
+    item_ids and capability enum values are already covered by the hard
+    deterministic validator, so they are not semantic audit fields.
+
+    The returned IDs are compact, stable, and suitable for exact
+    accounting in model output.
+    """
+
+    fields: dict[
+        str,
+        str,
+    ] = {
+        "title":
+            plan.title,
+
+        "summary":
+            plan.summary,
+    }
+
+    for step in plan.steps:
+        step_prefix = (
+            f"step:{step.order}"
+        )
+
+        fields[
+            f"{step_prefix}:action"
+        ] = step.action
+
+        for index, use in enumerate(
+            step.capability_uses,
+            start=1,
+        ):
+            fields[
+                (
+                    f"{step_prefix}:"
+                    f"capability:{index}:purpose"
+                )
+            ] = use.purpose
+
+        fields[
+            f"{step_prefix}:why_it_helps"
+        ] = step.why_it_helps
+
+    for index, assumption in enumerate(
+        plan.assumptions,
+        start=1,
+    ):
+        fields[
+            f"assumption:{index}"
+        ] = assumption
+
+    for index, risk in enumerate(
+        plan.unresolved_risks,
+        start=1,
+    ):
+        fields[
+            f"risk:{index}"
+        ] = risk
+
+    for index, check in enumerate(
+        plan.constraint_check,
+        start=1,
+    ):
+        fields[
+            f"constraint:{index}"
+        ] = check
+
+    return fields
+
+
 def _normalize_critic_payload(
     payload: dict,
 ) -> dict:
@@ -112,14 +234,131 @@ def _normalize_critic_payload(
     return payload
 
 
+def _validate_semantic_coverage(
+    *,
+    envelope: SemanticAuditEnvelope,
+    required_field_ids: list[str],
+) -> None:
+    """
+    Deterministically prove exact audit-field accounting.
+
+    Rules:
+    - every required field ID must appear
+    - no unknown field ID may appear
+    - each finding reference is a valid 1-based finding index
+    - duplicate references within one field are rejected
+    - every finding must be attached to at least one audited field
+
+    This does not decide whether a semantic judgment is correct.
+    It guarantees that the critic response cannot silently omit a
+    PhysicalPlan field and still be trusted by ZERO.
+    """
+
+    expected = set(
+        required_field_ids
+    )
+
+    actual = set(
+        envelope.coverage.keys()
+    )
+
+    missing = sorted(
+        expected - actual
+    )
+
+    extra = sorted(
+        actual - expected
+    )
+
+    if missing or extra:
+        raise IncompleteSemanticCoverageError(
+            "Semantic critic coverage does not exactly match "
+            "the required PhysicalPlan fields. "
+            f"Missing: {missing}. "
+            f"Unexpected: {extra}."
+        )
+
+    finding_count = len(
+        envelope.findings
+    )
+
+    referenced_findings: set[
+        int
+    ] = set()
+
+    for field_id in required_field_ids:
+        references = (
+            envelope.coverage[
+                field_id
+            ]
+        )
+
+        if len(references) != len(
+            set(references)
+        ):
+            raise IncompleteSemanticCoverageError(
+                "Semantic critic coverage contains duplicate "
+                f"finding references for field {field_id!r}: "
+                f"{references}"
+            )
+
+        for finding_index in references:
+            if finding_index < 1:
+                raise IncompleteSemanticCoverageError(
+                    "Semantic critic coverage uses a finding "
+                    "index below 1 for field "
+                    f"{field_id!r}: {finding_index}"
+                )
+
+            if (
+                finding_index
+                > finding_count
+            ):
+                raise IncompleteSemanticCoverageError(
+                    "Semantic critic coverage references "
+                    "a finding that does not exist. "
+                    f"Field: {field_id!r}. "
+                    f"Finding index: {finding_index}. "
+                    f"Finding count: {finding_count}."
+                )
+
+            referenced_findings.add(
+                finding_index
+            )
+
+    expected_findings = set(
+        range(
+            1,
+            finding_count + 1,
+        )
+    )
+
+    unreferenced = sorted(
+        expected_findings
+        - referenced_findings
+    )
+
+    if unreferenced:
+        raise IncompleteSemanticCoverageError(
+            "Semantic critic returned findings that were not "
+            "attached to any audited PhysicalPlan field: "
+            f"{unreferenced}"
+        )
+
+
 def _repair_malformed_critic_json(
+    *,
     raw_output: str,
+    required_field_ids: list[str],
 ) -> dict:
     """
     Repair formatting only.
 
-    This call is not allowed to invent, remove, or reinterpret critic
-    findings. It only converts malformed model output into valid JSON.
+    This call may not invent, remove, or reinterpret findings or coverage.
+
+    If the original response omitted semantic coverage, the formatting
+    repair must not fabricate it. The deterministic coverage validator
+    will reject the incomplete result afterward.
     """
 
     response = (
@@ -141,13 +380,12 @@ def _repair_malformed_critic_json(
                         f"""
 You are a JSON formatting repair tool.
 
-The following text was intended to be ZERO semantic-critic JSON,
+The following text was intended to be ZERO semantic-audit JSON,
 but it is malformed.
 
-Convert it into valid JSON with EXACTLY this structure:
+Convert the existing content into valid JSON with this structure:
 
 {{
-  "passed": false,
   "findings": [
     {{
       "step_order": 1,
@@ -157,20 +395,39 @@ Convert it into valid JSON with EXACTLY this structure:
       "explanation": "brief explanation",
       "recommended_fix": "brief fix"
     }}
-  ]
+  ],
+  "coverage": {{
+    "field-id": []
+  }}
 }}
 
-Rules:
+Formatting-repair rules:
 
 - Preserve the original findings and meaning.
+- Preserve the original coverage decisions.
 - Do NOT invent new findings.
 - Do NOT remove findings.
-- Do NOT change severity unless required to recover malformed syntax.
+- Do NOT invent missing coverage decisions.
+- Do NOT add a required field merely because it appears in the list below
+  if it was absent from the malformed input.
+- Do NOT change severity except when necessary to recover malformed syntax.
 - Use null for plan-level step_order.
 - Never use step_order 0.
+- coverage values are lists of 1-based finding numbers.
 - Return JSON only.
 
-Malformed input:
+The complete expected field-ID set is shown only so you can preserve
+field-ID spelling when the malformed input clearly contains that field.
+It is NOT permission to fabricate missing coverage.
+
+EXPECTED FIELD IDS:
+
+{json.dumps(
+    required_field_ids,
+    indent=2,
+)}
+
+MALFORMED INPUT:
 
 {raw_output}
 """.strip(),
@@ -178,7 +435,9 @@ Malformed input:
             ],
 
             temperature=0,
-            max_tokens=2500,
+            max_tokens=(
+                JSON_REPAIR_MAX_TOKENS
+            ),
         )
     )
 
@@ -213,13 +472,15 @@ Malformed input:
 
 
 def _parse_critic_output(
+    *,
     raw_output: str,
+    required_field_ids: list[str],
 ) -> PlanCriticResult:
     """
-    Parse normal critic JSON.
+    Parse and validate the private semantic-audit envelope.
 
-    If the model produced malformed JSON, make one tightly constrained
-    formatting-repair attempt rather than rerunning the whole ZERO pipeline.
+    Only after exact deterministic coverage succeeds is the response
+    converted into ZERO's existing public PlanCriticResult.
     """
 
     try:
@@ -235,7 +496,10 @@ def _parse_critic_output(
 
         payload = (
             _repair_malformed_critic_json(
-                raw_output
+                raw_output=raw_output,
+                required_field_ids=(
+                    required_field_ids
+                ),
             )
         )
 
@@ -245,10 +509,17 @@ def _parse_critic_output(
         )
     )
 
-    result = (
-        PlanCriticResult.model_validate(
+    envelope = (
+        SemanticAuditEnvelope.model_validate(
             payload
         )
+    )
+
+    _validate_semantic_coverage(
+        envelope=envelope,
+        required_field_ids=(
+            required_field_ids
+        ),
     )
 
     has_blocking_findings = any(
@@ -258,14 +529,16 @@ def _parse_critic_output(
             CriticSeverity.HIGH,
         }
         for finding
-        in result.findings
+        in envelope.findings
     )
 
-    return result.model_copy(
-        update={
-            "passed":
-                not has_blocking_findings,
-        }
+    return PlanCriticResult(
+        passed=(
+            not has_blocking_findings
+        ),
+        findings=(
+            envelope.findings
+        ),
     )
 
 
@@ -276,13 +549,13 @@ def _build_semantic_critic_prompt(
     inventory_payload: list[dict],
     compact_dna: list[dict],
     external_resources: list[str],
+    semantic_field_map: dict[str, str],
 ) -> str:
     """
     Build ZERO's semantic physical-plan audit prompt.
 
-    The critic must perform an exhaustive field-by-field sweep before it
-    decides whether the plan passes. This avoids a model finding one issue
-    and then overlooking a separate unsupported claim elsewhere in the plan.
+    The model must explicitly account for every required field.
+    Deterministic code validates that accounting before findings are trusted.
     """
 
     return f"""
@@ -294,55 +567,99 @@ The plan has ALREADY passed deterministic validation:
 - every physical item use cites a capability
 - every cited capability exists in validated Object DNA
 
-Do NOT repeat those checks unless the language stretches a capability
-beyond its actual meaning.
+Do NOT repeat those checks unless natural-language wording stretches a
+capability beyond its actual meaning.
 
-Your job is to detect unsupported physical claims that remain in the
-plan's natural language.
+Your job is to detect unsupported physical claims that remain anywhere
+in the plan's natural language.
 
 
 ======================================================================
-FULL-PLAN COVERAGE CONTRACT
+MANDATORY FIELD-BY-FIELD AUDIT
 ======================================================================
 
-Before deciding whether the plan passes, perform a COMPLETE field-by-field
-semantic sweep of the entire PhysicalPlan.
+ZERO has deterministically enumerated every natural-language PhysicalPlan
+field that you must audit.
 
-Internally inspect ALL of these locations:
+You MUST evaluate EVERY field ID in SEMANTIC FIELD CHECKLIST.
 
-1. title
-2. summary
-3. EVERY step.action
-4. EVERY capability_uses[].purpose in EVERY step
-5. EVERY step.why_it_helps
-6. EVERY assumption
-7. EVERY unresolved_risk
-8. EVERY constraint_check entry
+Do NOT stop after finding one problem.
 
-Do NOT stop auditing after finding the first problem.
+For every field ID, decide whether one or more semantic findings apply.
 
-Finding one unsupported claim does not excuse overlooking another one.
+Your output MUST contain a "coverage" object with EXACTLY the same field
+IDs as SEMANTIC FIELD CHECKLIST.
 
-Treat each materially different physical property, physical outcome,
-causal effect, resource dependency, safety claim, or required condition
-as a separate claim that must be grounded.
+Coverage values are lists of 1-based finding numbers.
 
-A field is not automatically safe merely because it sounds descriptive,
-helpful, cautious, or appears in why_it_helps, summary, assumptions,
-risks, or constraint_check.
+Example:
 
-Before returning passed=true, complete the entire sweep above and verify
-that NO meaningful unsupported physical claim remains in ANY listed field.
+{{
+  "findings": [
+    {{
+      "step_order": 1,
+      "claim": "Provides a uniform background",
+      "issue_type": "unsupported_physical_claim",
+      "severity": "medium",
+      "explanation": "Uniform appearance is not established.",
+      "recommended_fix": "Remove the uniformity claim."
+    }}
+  ],
+  "coverage": {{
+    "title": [],
+    "summary": [],
+    "step:1:action": [],
+    "step:1:capability:1:purpose": [],
+    "step:1:why_it_helps": [1]
+  }}
+}}
 
-The output may contain at most 8 findings. If more than 8 issues exist,
-return the most important 8, but passed must still be false.
+Meaning:
+
+- [] means you audited that field and found no semantic issue.
+- [1] means finding #1 applies to that field.
+- A finding may be referenced by more than one field when genuinely needed.
+- Every finding must be referenced by at least one field.
+- Do not reference a finding number that does not exist.
+- Do not omit a checklist field.
+- Do not add a field that is not in the checklist.
+
+ZERO will deterministically reject your entire response if coverage is
+missing, incomplete, contains unknown fields, references invalid findings,
+or leaves a finding unattached.
+
+The model's own "passed" judgment is NOT requested and will NOT be trusted.
+ZERO derives pass/fail deterministically from validated finding severity.
+
+
+======================================================================
+FULL SEMANTIC SWEEP
+======================================================================
+
+Audit:
+
+- title
+- summary
+- every step action
+- every capability-use purpose
+- every why_it_helps
+- every assumption
+- every unresolved risk
+- every constraint check
+
+Treat each materially different physical property, outcome, causal effect,
+resource dependency, safety claim, or required condition as something that
+must be grounded.
+
+A field is not automatically safe merely because it appears in summary,
+why_it_helps, assumptions, risks, or constraint checks.
 
 
 ======================================================================
 APPEARANCE / QUALITY CLAIMS
 ======================================================================
 
-Capabilities such as:
+Direct capabilities such as:
 
 - cover
 - hang
@@ -350,9 +667,7 @@ Capabilities such as:
 - provide_surface
 - fasten
 
-establish only their direct physical meanings.
-
-They do NOT automatically establish visual or quality properties such as:
+do NOT automatically establish:
 
 - clean
 - uniform
@@ -365,41 +680,34 @@ They do NOT automatically establish visual or quality properties such as:
 - professional-looking
 - visually neutral
 
-For example:
+Example:
 
-A blanket that can "cover" or "hang" may be usable as a backdrop.
+A blanket that can cover or hang may be usable as a backdrop.
 
-That alone does NOT prove:
+That does NOT by itself prove:
 
 "Provides a uniform background."
 
-It also does NOT prove:
+or:
 
 "Provides a clean background."
 
-It also does NOT prove:
+or:
 
 "Provides a consistent color or texture."
 
-Those appearance claims require supporting observed description,
-validated traits, capabilities, or explicitly confirmed information.
+These terms are not a blind blacklist.
 
-Do NOT use these words as a blind blacklist.
-
-If the evidence genuinely establishes the property, the claim may be
-grounded.
-
-Reject only when the specific claim exceeds the available evidence.
+If validated evidence genuinely establishes the property, the claim may
+be supported.
 
 
 ======================================================================
 CAUSAL / CERTAINTY CLAIMS
 ======================================================================
 
-A direct capability does not automatically prove its hoped-for downstream
+A direct capability does not automatically prove a hoped-for downstream
 effect.
-
-Examples:
 
 "fasten" does not by itself prove:
 - prevents slipping
@@ -409,32 +717,28 @@ Examples:
 - makes an arrangement safe
 
 "diffuse_light" does not by itself prove:
-- enough light for exposure
-- well-lit result
-- correct exposure
+- the window produces light
+- enough ambient illumination exists
+- exposure will be sufficient
+- the image will be well-lit
 - professional-quality lighting
 
 "provide_surface" does not by itself prove:
-- arbitrary product fits
-- load capacity is sufficient
-- surface is clean
-- surface is stable under an unknown load
+- an arbitrary product fits
+- unknown load capacity is sufficient
+- the surface is clean
+- an unknown load will be stable
 
-Audit causal words and certainty words carefully, including phrases such
-as:
+Distinguish carefully between:
 
-- prevents
-- reduces
-- ensures
-- guarantees
-- keeps stable
-- makes safe
-- sufficient
-- adequate
-- comfortably fits
-- professional-quality
+"The window diffuses available light."
 
-Again, these are not automatic violations. They require grounding.
+and the stronger claim:
+
+"The window provides illumination."
+
+A window may transmit or diffuse available light without proving that an
+adequate external light source exists.
 
 
 ======================================================================
@@ -444,7 +748,6 @@ RETURN FORMAT
 Return ONLY valid JSON:
 
 {{
-  "passed": false,
   "findings": [
     {{
       "step_order": 1,
@@ -454,9 +757,11 @@ Return ONLY valid JSON:
       "explanation": "brief explanation",
       "recommended_fix": "brief specific fix"
     }}
-  ]
+  ],
+  "coverage": {{
+    "exact-field-id": []
+  }}
 }}
-
 
 OUTPUT LIMITS
 
@@ -466,8 +771,7 @@ OUTPUT LIMITS
 - claim: maximum about 15 words.
 - explanation: maximum about 35 words.
 - recommended_fix: maximum about 30 words.
-- Do not duplicate the same issue at plan level and step level unless
-  both are genuinely useful.
+- Do not duplicate the same issue unnecessarily.
 
 
 STEP ORDER RULE
@@ -478,89 +782,52 @@ STEP ORDER RULE
 - Never use 0.
 
 
-PASS RULE
-
-passed should be true only when:
-
-1. the FULL-PLAN COVERAGE CONTRACT has been completed, AND
-2. no meaningful unsupported physical claim remains anywhere in the plan.
-
-Do not return passed=true merely because one previously known finding
-has been fixed.
-
-Do not invent findings merely to be critical.
-
-
 ISSUE TYPES
 
 unlisted_resource:
-The plan relies on a physical resource that is not in canonical
-inventory or explicit external resources.
-
-Examples:
-- tabletop
-- lamp
-- window
-- tape
-- tripod
-- shelf
-
+The plan relies on a physical resource not present in canonical inventory
+or explicit external resources.
 
 unsupported_physical_claim:
 The plan states a physical property or outcome not established by
-validated traits/capabilities.
-
-Examples:
-- non-slip
-- waterproof
-- reflective
-- stable
-- well-lit
-- minimal shadow
-- sufficient illumination
-- clean surface
-- uniform background
-- consistent color or texture
-
+validated evidence.
 
 unsupported_capability:
-A real capability is stretched beyond what it means.
-
-Example:
-Using "cushion" to justify "non-slip."
-
+A real capability is stretched beyond its actual meaning.
 
 hidden_assumption:
 The plan requires an unstated or unverified physical condition.
 
-Examples:
-- enough ambient illumination
-- chair wheels lock
-- object fits into another object
-- product fits on a surface of unknown size
-- unknown load-bearing capacity is sufficient
-- unlisted furniture or mounting point exists
-
-
 safety_or_uncertainty:
-The plan ignores an unknown_property or caution_note that matters
-to the proposed use.
-
+The plan ignores an unknown property or caution that matters to the use.
 
 constraint_violation:
 The plan conflicts with the user's stated constraints.
 
 
-GROUNDING
+GROUNDING RULES
 
-Available inventory:
+- Medium/high validated traits and capabilities may support claims.
+- Low-certainty properties do not establish claims.
+- Unknown properties remain unknown.
+- Caution notes remain active.
+- Object names alone do not establish extra physical properties.
+- Generic category expectations do not override explicit unknowns.
+- Do not require laboratory-level certainty for ordinary physical use.
+- Do reject specific claims that exceed available evidence.
+- A capability supports its direct affordance, not every desirable
+  consequence that might follow from using it.
+
+
+AVAILABLE INVENTORY
 
 {json.dumps(
     inventory_payload,
     indent=2,
 )}
 
-Explicit external resources:
+
+EXPLICIT EXTERNAL RESOURCES
 
 {json.dumps(
     external_resources,
@@ -578,92 +845,14 @@ VALIDATED COMPACT OBJECT DNA
 )}
 
 
-GROUNDING RULES
+SEMANTIC FIELD CHECKLIST
 
-- Medium/high traits and capabilities may support claims.
-- Low-certainty properties do not establish claims.
-- Unknown properties remain unknown.
-- Caution notes remain active.
-- Object names alone do not establish extra physical properties.
-- Generic category expectations do not override explicit unknowns.
-- Do not require laboratory-level certainty for ordinary physical use.
-- Do reject specific claims that exceed the available evidence.
-- A capability supports its direct affordance, not every desirable
-  consequence that might follow from using it.
+The keys below are the EXACT field IDs required in your coverage object.
 
-
-EXAMPLES
-
-BAD:
-
-"The blanket is non-slip."
-
-If Object DNA only provides:
-- soft
-- flexible
-- cushion
-
-then non-slip is unsupported.
-
-
-BAD:
-
-"The blanket provides a uniform background."
-
-If Object DNA establishes only capabilities such as:
-- cover
-- hang
-
-but does not establish uniform color or texture,
-then uniform background is unsupported.
-
-
-BAD:
-
-"The blanket provides a clean background."
-
-If cleanliness is not observed, validated, or confirmed,
-then clean background is unsupported.
-
-
-BAD:
-
-"This produces a well-lit image."
-
-If the available lighting evidence does not establish sufficient
-illumination for exposure, the statement is unsupported.
-
-
-BAD:
-
-"Place the books on the tabletop."
-
-If no tabletop exists in inventory or external resources,
-that is an unlisted resource.
-
-
-GOOD:
-
-"Stack the books to elevate the phone."
-
-If books have:
-- stack
-- elevate
-
-that direct claim is grounded.
-
-
-GOOD:
-
-"Use the blanket as a backdrop."
-
-If the blanket has:
-- cover
-or
-- hang
-
-that direct use may be grounded without claiming unsupported
-uniformity, cleanliness, color, texture, or image quality.
+{json.dumps(
+    semantic_field_map,
+    indent=2,
+)}
 
 
 USER GOAL
@@ -671,7 +860,7 @@ USER GOAL
 {goal}
 
 
-PLAN TO AUDIT
+FULL PLAN CONTEXT
 
 {plan.model_dump_json(
     indent=2
@@ -694,8 +883,12 @@ def audit_plan_semantics(
 
     inventory_payload = [
         {
-            "id": item.id,
-            "name": item.name,
+            "id":
+                item.id,
+
+            "name":
+                item.name,
+
             "description":
                 item.description,
         }
@@ -707,6 +900,16 @@ def audit_plan_semantics(
         _build_compact_dna(
             object_dna
         )
+    )
+
+    semantic_field_map = (
+        _build_semantic_field_map(
+            plan
+        )
+    )
+
+    required_field_ids = list(
+        semantic_field_map.keys()
     )
 
     prompt = (
@@ -721,6 +924,9 @@ def audit_plan_semantics(
             ),
             external_resources=(
                 external_resources
+            ),
+            semantic_field_map=(
+                semantic_field_map
             ),
         )
     )
@@ -746,7 +952,9 @@ def audit_plan_semantics(
             ],
 
             temperature=0,
-            max_tokens=4500,
+            max_tokens=(
+                SEMANTIC_CRITIC_MAX_TOKENS
+            ),
         )
     )
 
@@ -776,5 +984,8 @@ def audit_plan_semantics(
         )
 
     return _parse_critic_output(
-        raw_output
+        raw_output=raw_output,
+        required_field_ids=(
+            required_field_ids
+        ),
     )

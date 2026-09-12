@@ -1,27 +1,34 @@
+import json
+
+from critic_schemas import (
+    PlanCriticFinding,
+)
 from plan_schemas import (
     CapabilityUse,
     PhysicalPlan,
     PlanStep,
 )
 from semantic_critic import (
+    IncompleteSemanticCoverageError,
+    SemanticAuditEnvelope,
     _build_semantic_critic_prompt,
+    _build_semantic_field_map,
+    _parse_critic_output,
+    _validate_semantic_coverage,
 )
 
 
-def build_regression_plan() -> PhysicalPlan:
+def build_plan() -> PhysicalPlan:
     return PhysicalPlan(
         title="Zero-Cost Product Photography Setup",
-
         summary=(
             "Use a blanket backdrop and desk surface "
             "for product photography."
         ),
-
         item_ids_used=[
             "blanket_01",
             "desk_01",
         ],
-
         steps=[
             PlanStep(
                 order=1,
@@ -38,13 +45,12 @@ def build_regression_plan() -> PhysicalPlan:
                         purpose=(
                             "Hang blanket as backdrop."
                         ),
-                    )
+                    ),
                 ],
                 why_it_helps=(
                     "Provides a uniform background."
                 ),
             ),
-
             PlanStep(
                 order=2,
                 action=(
@@ -60,274 +66,621 @@ def build_regression_plan() -> PhysicalPlan:
                         purpose=(
                             "Provide surface for product."
                         ),
-                    )
+                    ),
                 ],
                 why_it_helps=(
-                    "Provides a clean stable surface."
+                    "Offers a flat area for the product."
                 ),
             ),
         ],
-
         assumptions=[
             (
                 "Product fits comfortably on the desk."
-            )
+            ),
         ],
-
         unresolved_risks=[
             (
                 "Blanket may move during use."
-            )
+            ),
         ],
-
         constraint_check=[
             (
                 "Budget remains $0."
-            )
+            ),
         ],
     )
 
 
-def build_prompt() -> str:
-    return _build_semantic_critic_prompt(
-        plan=build_regression_plan(),
-
-        goal=(
-            "Create a $0 product photography setup "
-            "using only existing resources."
+def build_finding(
+    *,
+    claim: str = "Provides a uniform background",
+    severity: str = "medium",
+) -> PlanCriticFinding:
+    return PlanCriticFinding(
+        step_order=1,
+        claim=claim,
+        issue_type=(
+            "unsupported_physical_claim"
         ),
-
-        inventory_payload=[
-            {
-                "id": "blanket_01",
-                "name": "blanket",
-                "description": (
-                    "Large blanket."
-                ),
-            },
-            {
-                "id": "desk_01",
-                "name": "desk",
-                "description": (
-                    "Desk with flat top."
-                ),
-            },
-        ],
-
-        compact_dna=[
-            {
-                "item_id": "blanket_01",
-                "traits": [
-                    "soft",
-                    "flexible",
-                ],
-                "capabilities": [
-                    "cover",
-                    "hang",
-                ],
-                "unknown_properties": [],
-                "caution_notes": [],
-            },
-            {
-                "item_id": "desk_01",
-                "traits": [
-                    "flat",
-                    "large_surface",
-                ],
-                "capabilities": [
-                    "provide_surface",
-                ],
-                "unknown_properties": [
-                    (
-                        "load-bearing capacity"
-                    )
-                ],
-                "caution_notes": [],
-            },
-        ],
-
-        external_resources=[
-            "smartphone",
-        ],
+        severity=severity,
+        explanation=(
+            "Uniform appearance is not established "
+            "by the blanket capabilities."
+        ),
+        recommended_fix=(
+            "Remove the uniformity claim."
+        ),
     )
 
 
-def test_full_plan_coverage_contract():
-    prompt = " ".join(build_prompt().split())
+def test_field_map_is_exact_and_complete():
+    field_map = _build_semantic_field_map(
+        build_plan()
+    )
 
-    required_coverage_phrases = [
-        "FULL-PLAN COVERAGE CONTRACT",
+    expected_keys = [
         "title",
         "summary",
-        "EVERY step.action",
-        (
-            "EVERY capability_uses[].purpose"
-        ),
-        "EVERY step.why_it_helps",
-        "EVERY assumption",
-        "EVERY unresolved_risk",
-        "EVERY constraint_check entry",
-        (
-            "Do NOT stop auditing after "
-            "finding the first problem."
-        ),
-        (
-            "Before returning passed=true"
-        ),
+        "step:1:action",
+        "step:1:capability:1:purpose",
+        "step:1:why_it_helps",
+        "step:2:action",
+        "step:2:capability:1:purpose",
+        "step:2:why_it_helps",
+        "assumption:1",
+        "risk:1",
+        "constraint:1",
     ]
 
-    for phrase in required_coverage_phrases:
-        assert phrase in prompt, (
-            f"Missing coverage rule: {phrase}"
+    assert list(
+        field_map.keys()
+    ) == expected_keys
+
+    assert field_map[
+        "step:1:why_it_helps"
+    ] == (
+        "Provides a uniform background."
+    )
+
+    assert field_map[
+        "assumption:1"
+    ] == (
+        "Product fits comfortably on the desk."
+    )
+
+
+def test_valid_exact_coverage_passes():
+    field_ids = list(
+        _build_semantic_field_map(
+            build_plan()
+        ).keys()
+    )
+
+    coverage = {
+        field_id: []
+        for field_id in field_ids
+    }
+
+    coverage[
+        "step:1:why_it_helps"
+    ] = [1]
+
+    envelope = SemanticAuditEnvelope(
+        findings=[
+            build_finding()
+        ],
+        coverage=coverage,
+    )
+
+    _validate_semantic_coverage(
+        envelope=envelope,
+        required_field_ids=field_ids,
+    )
+
+
+def test_missing_field_is_rejected():
+    field_ids = list(
+        _build_semantic_field_map(
+            build_plan()
+        ).keys()
+    )
+
+    coverage = {
+        field_id: []
+        for field_id in field_ids
+    }
+
+    del coverage[
+        "step:1:why_it_helps"
+    ]
+
+    envelope = SemanticAuditEnvelope(
+        findings=[],
+        coverage=coverage,
+    )
+
+    try:
+        _validate_semantic_coverage(
+            envelope=envelope,
+            required_field_ids=field_ids,
         )
 
+    except IncompleteSemanticCoverageError:
+        return
 
-def test_blanket_direct_capability_does_not_imply_uniformity():
-    prompt = " ".join(build_prompt().split())
+    raise AssertionError(
+        "Missing semantic field was accepted."
+    )
+
+
+def test_unknown_extra_field_is_rejected():
+    field_ids = list(
+        _build_semantic_field_map(
+            build_plan()
+        ).keys()
+    )
+
+    coverage = {
+        field_id: []
+        for field_id in field_ids
+    }
+
+    coverage[
+        "step:99:why_it_helps"
+    ] = []
+
+    envelope = SemanticAuditEnvelope(
+        findings=[],
+        coverage=coverage,
+    )
+
+    try:
+        _validate_semantic_coverage(
+            envelope=envelope,
+            required_field_ids=field_ids,
+        )
+
+    except IncompleteSemanticCoverageError:
+        return
+
+    raise AssertionError(
+        "Unknown semantic field was accepted."
+    )
+
+
+def test_invalid_finding_reference_is_rejected():
+    field_ids = list(
+        _build_semantic_field_map(
+            build_plan()
+        ).keys()
+    )
+
+    coverage = {
+        field_id: []
+        for field_id in field_ids
+    }
+
+    coverage[
+        "step:1:why_it_helps"
+    ] = [2]
+
+    envelope = SemanticAuditEnvelope(
+        findings=[
+            build_finding()
+        ],
+        coverage=coverage,
+    )
+
+    try:
+        _validate_semantic_coverage(
+            envelope=envelope,
+            required_field_ids=field_ids,
+        )
+
+    except IncompleteSemanticCoverageError:
+        return
+
+    raise AssertionError(
+        "Reference to nonexistent finding was accepted."
+    )
+
+
+def test_zero_finding_reference_is_rejected():
+    field_ids = list(
+        _build_semantic_field_map(
+            build_plan()
+        ).keys()
+    )
+
+    coverage = {
+        field_id: []
+        for field_id in field_ids
+    }
+
+    coverage[
+        "step:1:why_it_helps"
+    ] = [0]
+
+    envelope = SemanticAuditEnvelope(
+        findings=[
+            build_finding()
+        ],
+        coverage=coverage,
+    )
+
+    try:
+        _validate_semantic_coverage(
+            envelope=envelope,
+            required_field_ids=field_ids,
+        )
+
+    except IncompleteSemanticCoverageError:
+        return
+
+    raise AssertionError(
+        "Finding reference 0 was accepted."
+    )
+
+
+def test_duplicate_reference_is_rejected():
+    field_ids = list(
+        _build_semantic_field_map(
+            build_plan()
+        ).keys()
+    )
+
+    coverage = {
+        field_id: []
+        for field_id in field_ids
+    }
+
+    coverage[
+        "step:1:why_it_helps"
+    ] = [
+        1,
+        1,
+    ]
+
+    envelope = SemanticAuditEnvelope(
+        findings=[
+            build_finding()
+        ],
+        coverage=coverage,
+    )
+
+    try:
+        _validate_semantic_coverage(
+            envelope=envelope,
+            required_field_ids=field_ids,
+        )
+
+    except IncompleteSemanticCoverageError:
+        return
+
+    raise AssertionError(
+        "Duplicate finding reference was accepted."
+    )
+
+
+def test_unattached_finding_is_rejected():
+    field_ids = list(
+        _build_semantic_field_map(
+            build_plan()
+        ).keys()
+    )
+
+    coverage = {
+        field_id: []
+        for field_id in field_ids
+    }
+
+    envelope = SemanticAuditEnvelope(
+        findings=[
+            build_finding()
+        ],
+        coverage=coverage,
+    )
+
+    try:
+        _validate_semantic_coverage(
+            envelope=envelope,
+            required_field_ids=field_ids,
+        )
+
+    except IncompleteSemanticCoverageError:
+        return
+
+    raise AssertionError(
+        "Unattached semantic finding was accepted."
+    )
+
+
+def test_no_findings_with_full_coverage_passes():
+    field_ids = list(
+        _build_semantic_field_map(
+            build_plan()
+        ).keys()
+    )
+
+    envelope = SemanticAuditEnvelope(
+        findings=[],
+        coverage={
+            field_id: []
+            for field_id in field_ids
+        },
+    )
+
+    _validate_semantic_coverage(
+        envelope=envelope,
+        required_field_ids=field_ids,
+    )
+
+
+def test_parse_derives_failed_result_from_medium_finding():
+    field_ids = list(
+        _build_semantic_field_map(
+            build_plan()
+        ).keys()
+    )
+
+    coverage = {
+        field_id: []
+        for field_id in field_ids
+    }
+
+    coverage[
+        "step:1:why_it_helps"
+    ] = [1]
+
+    payload = {
+        "findings": [
+            build_finding().model_dump(
+                mode="json"
+            )
+        ],
+        "coverage": coverage,
+    }
+
+    result = _parse_critic_output(
+        raw_output=json.dumps(
+            payload
+        ),
+        required_field_ids=field_ids,
+    )
+
+    assert result.passed is False
+    assert len(
+        result.findings
+    ) == 1
+
+
+def test_parse_derives_pass_from_low_only_finding():
+    field_ids = list(
+        _build_semantic_field_map(
+            build_plan()
+        ).keys()
+    )
+
+    coverage = {
+        field_id: []
+        for field_id in field_ids
+    }
+
+    coverage[
+        "step:1:why_it_helps"
+    ] = [1]
+
+    payload = {
+        "findings": [
+            build_finding(
+                severity="low"
+            ).model_dump(
+                mode="json"
+            )
+        ],
+        "coverage": coverage,
+    }
+
+    result = _parse_critic_output(
+        raw_output=json.dumps(
+            payload
+        ),
+        required_field_ids=field_ids,
+    )
+
+    assert result.passed is True
+    assert len(
+        result.findings
+    ) == 1
+
+
+def test_prompt_contains_exact_coverage_contract():
+    plan = build_plan()
+
+    field_map = (
+        _build_semantic_field_map(
+            plan
+        )
+    )
+
+    prompt = (
+        _build_semantic_critic_prompt(
+            plan=plan,
+            goal=(
+                "Create a $0 product photography "
+                "setup using existing resources."
+            ),
+            inventory_payload=[
+                {
+                    "id":
+                        "blanket_01",
+
+                    "name":
+                        "blanket",
+
+                    "description":
+                        "Large blanket.",
+                },
+                {
+                    "id":
+                        "desk_01",
+
+                    "name":
+                        "desk",
+
+                    "description":
+                        "Desk with flat top.",
+                },
+            ],
+            compact_dna=[
+                {
+                    "item_id":
+                        "blanket_01",
+
+                    "traits": [
+                        "soft",
+                        "flexible",
+                    ],
+
+                    "capabilities": [
+                        "cover",
+                        "hang",
+                    ],
+
+                    "unknown_properties":
+                        [],
+
+                    "caution_notes":
+                        [],
+                },
+                {
+                    "item_id":
+                        "desk_01",
+
+                    "traits": [
+                        "flat",
+                    ],
+
+                    "capabilities": [
+                        "provide_surface",
+                    ],
+
+                    "unknown_properties": [
+                        (
+                            "load-bearing capacity"
+                        )
+                    ],
+
+                    "caution_notes":
+                        [],
+                },
+            ],
+            external_resources=[
+                "smartphone",
+            ],
+            semantic_field_map=(
+                field_map
+            ),
+        )
+    )
+
+    normalized_prompt = (
+        " ".join(
+            prompt.split()
+        )
+    )
 
     required_phrases = [
         (
-            'A blanket that can "cover" '
-            'or "hang" may be usable as a backdrop.'
+            "MANDATORY FIELD-BY-FIELD AUDIT"
         ),
         (
-            '"Provides a uniform background."'
+            '"coverage" object with EXACTLY the same '
+            "field IDs"
         ),
         (
-            '"Provides a clean background."'
+            "ZERO will deterministically reject "
+            "your entire response"
         ),
         (
-            '"Provides a consistent color or texture."'
+            "The model's own \"passed\" judgment "
+            "is NOT requested"
         ),
         (
-            "Those appearance claims require "
-            "supporting observed description"
+            "The window diffuses available light."
         ),
         (
-            "Do NOT use these words as a blind blacklist."
+            "The window provides illumination."
+        ),
+        (
+            "Provides a uniform background."
         ),
     ]
 
     for phrase in required_phrases:
-        assert phrase in prompt, (
-            f"Missing appearance grounding rule: {phrase}"
+        assert phrase in normalized_prompt, (
+            f"Missing semantic coverage rule: {phrase}"
         )
 
-
-def test_direct_capability_does_not_imply_downstream_effect():
-    prompt = " ".join(build_prompt().split())
-
-    required_phrases = [
-        (
-            "A direct capability does not "
-            "automatically prove its hoped-for "
-            "downstream effect."
-        ),
-        "prevents slipping",
-        "reduces slip risk",
-        "guarantees stability",
-        "makes an arrangement safe",
-        "enough light for exposure",
-        "professional-quality lighting",
-        "arbitrary product fits",
-        "load capacity is sufficient",
-    ]
-
-    for phrase in required_phrases:
-        assert phrase in prompt, (
-            f"Missing causal grounding rule: {phrase}"
-        )
-
-
-def test_pass_requires_completed_full_sweep():
-    prompt = " ".join(build_prompt().split())
-
-    required_phrases = [
-        (
-            "passed should be true only when:"
-        ),
-        (
-            "the FULL-PLAN COVERAGE CONTRACT "
-            "has been completed"
-        ),
-        (
-            "no meaningful unsupported physical "
-            "claim remains anywhere in the plan"
-        ),
-        (
-            "Do not return passed=true merely "
-            "because one previously known finding "
-            "has been fixed."
-        ),
-    ]
-
-    for phrase in required_phrases:
-        assert phrase in prompt, (
-            f"Missing pass rule: {phrase}"
-        )
-
-
-def test_prompt_includes_actual_plan_fields():
-    prompt = " ".join(build_prompt().split())
-
-    actual_plan_content = [
-        "Provides a uniform background.",
-        "Provides a clean stable surface.",
-        "Product fits comfortably on the desk.",
-        "Blanket may move during use.",
-        "Budget remains $0.",
-    ]
-
-    for text in actual_plan_content:
-        assert text in prompt, (
-            f"Plan field missing from audit prompt: {text}"
-        )
-
-
-def test_prompt_includes_grounding_context():
-    prompt = " ".join(build_prompt().split())
-
-    required_grounding = [
-        '"item_id": "blanket_01"',
-        '"cover"',
-        '"hang"',
-        '"item_id": "desk_01"',
-        '"provide_surface"',
-        '"load-bearing capacity"',
-        '"smartphone"',
-    ]
-
-    for text in required_grounding:
-        assert text in prompt, (
-            f"Grounding context missing: {text}"
+    for field_id in field_map:
+        assert (
+            f'"{field_id}"'
+            in prompt
+        ), (
+            "Required field ID missing from prompt: "
+            f"{field_id}"
         )
 
 
 def run_tests():
     tests = [
         (
-            "full plan coverage contract",
-            test_full_plan_coverage_contract,
+            "semantic field map exact",
+            test_field_map_is_exact_and_complete,
         ),
         (
-            "blanket capability does not imply uniformity",
-            test_blanket_direct_capability_does_not_imply_uniformity,
+            "valid exact coverage",
+            test_valid_exact_coverage_passes,
         ),
         (
-            "direct capability does not imply downstream effect",
-            test_direct_capability_does_not_imply_downstream_effect,
+            "missing field rejected",
+            test_missing_field_is_rejected,
         ),
         (
-            "pass requires completed full sweep",
-            test_pass_requires_completed_full_sweep,
+            "unknown field rejected",
+            test_unknown_extra_field_is_rejected,
         ),
         (
-            "actual plan fields included",
-            test_prompt_includes_actual_plan_fields,
+            "invalid finding reference rejected",
+            test_invalid_finding_reference_is_rejected,
         ),
         (
-            "grounding context included",
-            test_prompt_includes_grounding_context,
+            "zero finding reference rejected",
+            test_zero_finding_reference_is_rejected,
+        ),
+        (
+            "duplicate reference rejected",
+            test_duplicate_reference_is_rejected,
+        ),
+        (
+            "unattached finding rejected",
+            test_unattached_finding_is_rejected,
+        ),
+        (
+            "empty findings exact coverage",
+            test_no_findings_with_full_coverage_passes,
+        ),
+        (
+            "medium finding derives failure",
+            test_parse_derives_failed_result_from_medium_finding,
+        ),
+        (
+            "low-only finding derives pass",
+            test_parse_derives_pass_from_low_only_finding,
+        ),
+        (
+            "prompt exact coverage contract",
+            test_prompt_contains_exact_coverage_contract,
         ),
     ]
 
