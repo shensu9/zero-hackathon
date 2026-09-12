@@ -19,6 +19,9 @@ from plan_outcome_service import (
 from plan_repair import (
     repair_plan,
 )
+from plan_repair_closure import (
+    find_persisted_critic_findings,
+)
 from plan_validator import (
     PlanValidationError,
     normalize_plan_item_ids,
@@ -357,6 +360,15 @@ def _make_outcome_plan_safe(
 
     current_plan = outcome.plan
 
+    # One-way deterministic repair-closure signal.
+    #
+    # A non-None value proves that one or more MEDIUM/HIGH critic
+    # claims survived the previous repair literally and therefore
+    # do not need another paid semantic audit to prove failure.
+    #
+    # None does NOT prove safety. Normal semantic validation still runs.
+    pending_closure_critic: PlanCriticResult | None = None
+
     repair_attempts = 0
     repair_validation_failures = 0
 
@@ -409,30 +421,45 @@ def _make_outcome_plan_safe(
                 validated_plan
             )
 
-            last_critic = (
-                _audit_outcome_plan(
-                    outcome=outcome,
-                    goal=goal,
-                    inventory=inventory,
-                    object_dna=object_dna,
-                    external_resources=(
-                        external_resources
-                    ),
-                )
-            )
-
-            if last_critic.passed:
-                return (
-                    outcome,
-                    last_critic,
-                    repair_attempts,
-                    repair_validation_failures,
+            if pending_closure_critic is not None:
+                last_critic = (
+                    pending_closure_critic
                 )
 
-            print(
-                "Outcome plan failed semantic "
-                "physical audit."
-            )
+                pending_closure_critic = None
+
+                print(
+                    "Repair closure guard detected "
+                    "persisted critic findings; "
+                    "skipping redundant semantic "
+                    "model audit."
+                )
+
+            else:
+                last_critic = (
+                    _audit_outcome_plan(
+                        outcome=outcome,
+                        goal=goal,
+                        inventory=inventory,
+                        object_dna=object_dna,
+                        external_resources=(
+                            external_resources
+                        ),
+                    )
+                )
+
+                if last_critic.passed:
+                    return (
+                        outcome,
+                        last_critic,
+                        repair_attempts,
+                        repair_validation_failures,
+                    )
+
+                print(
+                    "Outcome plan failed semantic "
+                    "physical audit."
+                )
 
         if (
             repair_attempts
@@ -462,9 +489,12 @@ def _make_outcome_plan_safe(
             )
         )
 
-        current_plan = repair_plan(
-            plan=current_plan,
-            critic=last_critic,
+        pre_repair_plan = current_plan
+        repair_source_critic = last_critic
+
+        repaired_plan = repair_plan(
+            plan=pre_repair_plan,
+            critic=repair_source_critic,
             goal=execution_goal,
             inventory=inventory,
             object_dna=object_dna,
@@ -472,6 +502,24 @@ def _make_outcome_plan_safe(
                 external_resources
             ),
         )
+
+        pending_closure_critic = (
+            find_persisted_critic_findings(
+                before_plan=pre_repair_plan,
+                repaired_plan=repaired_plan,
+                critic=repair_source_critic,
+            )
+        )
+
+        current_plan = repaired_plan
+
+        if pending_closure_critic is not None:
+            print(
+                "Repair closure guard found "
+                f"{len(pending_closure_critic.findings)} "
+                "persisted MEDIUM/HIGH critic "
+                "finding(s)."
+            )
 
 
 # ---------------------------------------------------------------------------
