@@ -631,6 +631,148 @@ def test_prompt_contains_exact_coverage_contract():
             f"{field_id}"
         )
 
+def test_empty_known_aggregate_keys_are_allowed():
+    field_ids = list(
+        _build_semantic_field_map(
+            build_plan()
+        ).keys()
+    )
+
+    coverage = {
+        field_id: []
+        for field_id in field_ids
+    }
+
+    coverage[
+        "assumption"
+    ] = []
+
+    coverage[
+        "constraint_check"
+    ] = []
+
+    envelope = SemanticAuditEnvelope(
+        findings=[],
+        coverage=coverage,
+    )
+
+    _validate_semantic_coverage(
+        envelope=envelope,
+        required_field_ids=field_ids,
+    )
+
+
+def test_nonempty_known_aggregate_key_is_rejected():
+    field_ids = list(
+        _build_semantic_field_map(
+            build_plan()
+        ).keys()
+    )
+
+    coverage = {
+        field_id: []
+        for field_id in field_ids
+    }
+
+    coverage[
+        "assumption"
+    ] = [1]
+
+    envelope = SemanticAuditEnvelope(
+        findings=[
+            build_finding()
+        ],
+        coverage=coverage,
+    )
+
+    try:
+        _validate_semantic_coverage(
+            envelope=envelope,
+            required_field_ids=field_ids,
+        )
+
+    except IncompleteSemanticCoverageError:
+        return
+
+    raise AssertionError(
+        "Non-empty aggregate coverage key was accepted."
+    )
+
+
+def test_aggregate_key_does_not_replace_missing_exact_field():
+    field_ids = list(
+        _build_semantic_field_map(
+            build_plan()
+        ).keys()
+    )
+
+    coverage = {
+        field_id: []
+        for field_id in field_ids
+    }
+
+    del coverage[
+        "assumption:1"
+    ]
+
+    coverage[
+        "assumption"
+    ] = []
+
+    envelope = SemanticAuditEnvelope(
+        findings=[],
+        coverage=coverage,
+    )
+
+    try:
+        _validate_semantic_coverage(
+            envelope=envelope,
+            required_field_ids=field_ids,
+        )
+
+    except IncompleteSemanticCoverageError:
+        return
+
+    raise AssertionError(
+        "Aggregate assumption key incorrectly replaced "
+        "missing assumption:1."
+    )
+
+
+def test_unknown_empty_extra_key_is_still_rejected():
+    field_ids = list(
+        _build_semantic_field_map(
+            build_plan()
+        ).keys()
+    )
+
+    coverage = {
+        field_id: []
+        for field_id in field_ids
+    }
+
+    coverage[
+        "totally_unknown_group"
+    ] = []
+
+    envelope = SemanticAuditEnvelope(
+        findings=[],
+        coverage=coverage,
+    )
+
+    try:
+        _validate_semantic_coverage(
+            envelope=envelope,
+            required_field_ids=field_ids,
+        )
+
+    except IncompleteSemanticCoverageError:
+        return
+
+    raise AssertionError(
+        "Unknown empty aggregate key was accepted."
+    )
+
 
 def run_tests():
     tests = [
@@ -681,6 +823,22 @@ def run_tests():
         (
             "prompt exact coverage contract",
             test_prompt_contains_exact_coverage_contract,
+        ),
+        (
+            "empty known aggregate keys allowed",
+            test_empty_known_aggregate_keys_are_allowed,
+        ),
+        (
+            "non-empty aggregate key rejected",
+            test_nonempty_known_aggregate_key_is_rejected,
+        ),
+        (
+            "aggregate key cannot replace exact field",
+            test_aggregate_key_does_not_replace_missing_exact_field,
+        ),
+        (
+            "unknown empty extra key rejected",
+            test_unknown_empty_extra_key_is_still_rejected,
         ),
     ]
 

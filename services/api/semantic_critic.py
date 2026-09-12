@@ -49,6 +49,29 @@ SEMANTIC_CRITIC_MAX_TOKENS = 8000
 JSON_REPAIR_MAX_TOKENS = 2500
 
 
+# Compatibility for harmless redundant GROUP labels occasionally emitted
+# by Nemotron in addition to every exact indexed semantic field.
+#
+# These keys never replace exact fields such as assumption:1,
+# risk:1, or constraint:1.
+#
+# They may be ignored only when:
+# - every exact required field is already present, and
+# - the redundant group key contains zero finding references.
+ALLOWED_EMPTY_COVERAGE_GROUP_KEYS = frozenset(
+    {
+        "assumption",
+        "assumptions",
+        "risk",
+        "risks",
+        "unresolved_risk",
+        "unresolved_risks",
+        "constraint_check",
+        "constraint_checks",
+    }
+)
+
+
 class IncompleteSemanticCoverageError(
     RuntimeError
 ):
@@ -258,23 +281,66 @@ def _validate_semantic_coverage(
         required_field_ids
     )
 
+    coverage = dict(
+        envelope.coverage
+    )
+
     actual = set(
-        envelope.coverage.keys()
+        coverage.keys()
     )
 
     missing = sorted(
         expected - actual
     )
 
-    extra = sorted(
+    initial_extra = sorted(
         actual - expected
     )
 
-    if missing or extra:
+    # Never normalize extras when an exact required field is missing.
+    #
+    # Redundant aggregate keys are not substitutes for assumption:1,
+    # risk:1, constraint:1, etc.
+    if missing:
         raise IncompleteSemanticCoverageError(
             "Semantic critic coverage does not exactly match "
             "the required PhysicalPlan fields. "
             f"Missing: {missing}. "
+            f"Unexpected: {initial_extra}."
+        )
+
+    # Narrow compatibility rule:
+    #
+    # If every exact required field is already present, Nemotron may
+    # occasionally add harmless aggregate labels such as "assumption"
+    # or "constraint_check".
+    #
+    # Ignore only known aggregate keys whose finding-reference list is
+    # completely empty.
+    #
+    # Any non-empty aggregate key remains semantically meaningful and
+    # therefore must still fail exact accounting.
+    for key in initial_extra:
+        if (
+            key
+            in ALLOWED_EMPTY_COVERAGE_GROUP_KEYS
+            and coverage[key] == []
+        ):
+            del coverage[key]
+
+    actual = set(
+        coverage.keys()
+    )
+
+    extra = sorted(
+        actual - expected
+    )
+
+    if extra:
+        raise IncompleteSemanticCoverageError(
+            "Semantic critic coverage does not exactly match "
+            "the required PhysicalPlan fields. "
+            "Missing: []. "
             f"Unexpected: {extra}."
         )
 
@@ -288,7 +354,7 @@ def _validate_semantic_coverage(
 
     for field_id in required_field_ids:
         references = (
-            envelope.coverage[
+            coverage[
                 field_id
             ]
         )
