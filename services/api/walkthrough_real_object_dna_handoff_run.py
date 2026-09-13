@@ -1,3 +1,4 @@
+﻿import argparse
 import json
 
 from critic_schemas import (
@@ -17,23 +18,14 @@ from verification_gate_schemas import (
     VerificationGateAudit,
 )
 from walkthrough_goal_relevance_run import (
-    GOAL,
+    GOAL as DEFAULT_GOAL,
     inventory_fingerprint,
 )
-from walkthrough_object_dna_run import (
-    AGGREGATE_PATH,
-    ObjectDNAAggregateSnapshot,
-    get_eligible_items,
-    load_session_inventory,
-    object_dna_pipeline_fingerprint,
-)
+import walkthrough_object_dna_run as object_dna_run
 from zero_orchestrator import (
     ZeroGoalRequest,
     run_zero_goal,
 )
-
-
-CONFIRMED_BOX_ID = "cardboard_box_f08_o12"
 
 
 def load_validated_real_object_dna(
@@ -42,7 +34,8 @@ def load_validated_real_object_dna(
     eligible_items,
 ):
     """
-    Load and validate the complete real cached Object DNA snapshot.
+    Load and validate the complete cached Object DNA snapshot for the
+    currently configured walkthrough namespace.
 
     This function makes no model calls.
 
@@ -55,21 +48,27 @@ def load_validated_real_object_dna(
     - Object DNA coverage matches exactly
     """
 
-    if not AGGREGATE_PATH.exists():
+    aggregate_path = (
+        object_dna_run.AGGREGATE_PATH
+    )
+
+    if not aggregate_path.exists():
         raise RuntimeError(
             "Complete Object DNA aggregate snapshot was not found: "
-            f"{AGGREGATE_PATH}"
+            f"{aggregate_path}"
         )
 
     try:
         payload = json.loads(
-            AGGREGATE_PATH.read_text(
+            aggregate_path.read_text(
                 encoding="utf-8"
             )
         )
 
         snapshot = (
-            ObjectDNAAggregateSnapshot.model_validate(
+            object_dna_run
+            .ObjectDNAAggregateSnapshot
+            .model_validate(
                 payload
             )
         )
@@ -95,7 +94,8 @@ def load_validated_real_object_dna(
         )
 
     expected_pipeline_sha256 = (
-        object_dna_pipeline_fingerprint()
+        object_dna_run
+        .object_dna_pipeline_fingerprint()
     )
 
     if (
@@ -153,7 +153,8 @@ def build_stub_outcome() -> SafePlanOutcomeResult:
     return SafePlanOutcomeResult(
         outcome=PlanOutcome(
             status=(
-                PlanOutcomeStatus.CANNOT_SAFELY_SOLVE
+                PlanOutcomeStatus
+                .CANNOT_SAFELY_SOLVE
             ),
             explanation=(
                 "Real Object DNA handoff validated. "
@@ -169,51 +170,140 @@ def build_stub_outcome() -> SafePlanOutcomeResult:
         ),
         plan_repair_attempts=0,
         plan_repair_validation_failures=0,
-        verification_gate_audit=VerificationGateAudit(
-            passed=True,
-            findings=[],
+        verification_gate_audit=(
+            VerificationGateAudit(
+                passed=True,
+                findings=[],
+            )
         ),
         gate_repair_attempts=0,
     )
 
 
 def main() -> None:
+    parser = argparse.ArgumentParser(
+        description=(
+            "Validate the real Object DNA -> orchestrator handoff "
+            "without invoking the planner."
+        )
+    )
+
+    parser.add_argument(
+        "--walkthrough-id",
+        default=(
+            object_dna_run
+            .DEFAULT_WALKTHROUGH_ID
+        ),
+        help=(
+            "Artifact namespace such as walkthrough-02. "
+            "Defaults to walkthrough-01."
+        ),
+    )
+
+    parser.add_argument(
+        "--goal",
+        default=DEFAULT_GOAL,
+        help=(
+            "Goal passed through the deterministic orchestrator "
+            "handoff. Defaults to the original walkthrough goal."
+        ),
+    )
+
+    args = parser.parse_args()
+
+    goal = args.goal.strip()
+
+    if not goal:
+        parser.error(
+            "--goal may not be empty."
+        )
+
+    # Critical: configure the Object DNA namespace before loading
+    # inventory or aggregate state.
+    object_dna_run.configure_walkthrough_paths(
+        args.walkthrough_id
+    )
+
     print("=" * 72)
-    print("ZERO REAL OBJECT DNA -> ORCHESTRATOR HANDOFF")
+    print(
+        "ZERO REAL OBJECT DNA -> ORCHESTRATOR HANDOFF"
+    )
     print("=" * 72)
+
+    print(
+        f"Walkthrough: {args.walkthrough_id}"
+    )
+    print(
+        f"Goal: {goal}"
+    )
 
     (
         canonical_inventory,
         session_inventory,
         canonical_sha256,
-    ) = load_session_inventory()
+    ) = (
+        object_dna_run
+        .load_session_inventory()
+    )
 
-    eligible_items = get_eligible_items(
-        session_inventory
+    eligible_items = (
+        object_dna_run
+        .get_eligible_items(
+            session_inventory
+        )
     )
 
     pending_items = [
         item
-        for item in session_inventory.items
+        for item
+        in session_inventory.items
         if (
             item.verification_status
-            == VerificationStatus.NEEDS_CONFIRMATION
+            ==
+            VerificationStatus
+            .NEEDS_CONFIRMATION
         )
     ]
 
-    snapshot = load_validated_real_object_dna(
-        session_inventory=session_inventory,
-        eligible_items=eligible_items,
+    confirmed_items = [
+        item
+        for item
+        in session_inventory.items
+        if (
+            item.verification_status
+            ==
+            VerificationStatus
+            .USER_CONFIRMED
+        )
+    ]
+
+    snapshot = (
+        load_validated_real_object_dna(
+            session_inventory=(
+                session_inventory
+            ),
+            eligible_items=(
+                eligible_items
+            ),
+        )
     )
 
     expected_active_ids = [
         item.id
-        for item in eligible_items
+        for item
+        in eligible_items
     ]
 
     expected_pending_ids = [
         item.id
-        for item in pending_items
+        for item
+        in pending_items
+    ]
+
+    expected_confirmed_ids = [
+        item.id
+        for item
+        in confirmed_items
     ]
 
     captured = {}
@@ -229,35 +319,44 @@ def main() -> None:
 
         captured["inventory_ids"] = [
             item.id
-            for item in inventory
+            for item
+            in inventory
         ]
 
         captured["dna_ids"] = [
             dna.item_id
-            for dna in object_dna.objects
+            for dna
+            in object_dna.objects
         ]
 
-        captured["external_resources"] = list(
+        captured[
+            "external_resources"
+        ] = list(
             external_resources
         )
 
         return build_stub_outcome()
 
     request = ZeroGoalRequest(
-        goal=GOAL,
+        goal=goal,
         inventory=session_inventory,
         external_resources=[],
     )
 
     result = run_zero_goal(
         request,
-        object_dna=snapshot.object_dna,
-        outcome_runner=fake_outcome_runner,
+        object_dna=(
+            snapshot.object_dna
+        ),
+        outcome_runner=(
+            fake_outcome_runner
+        ),
     )
 
     result_active_ids = [
         item.id
-        for item in result.active_inventory.items
+        for item
+        in result.active_inventory.items
     ]
 
     if (
@@ -270,7 +369,8 @@ def main() -> None:
         )
 
     if (
-        result.pending_confirmation_item_ids
+        result
+        .pending_confirmation_item_ids
         != expected_pending_ids
     ):
         raise RuntimeError(
@@ -295,13 +395,23 @@ def main() -> None:
             "coverage or ordering."
         )
 
-    if (
-        CONFIRMED_BOX_ID
-        not in captured["inventory_ids"]
-    ):
+    missing_confirmed_ids = [
+        item_id
+        for item_id
+        in expected_confirmed_ids
+        if (
+            item_id
+            not in captured[
+                "inventory_ids"
+            ]
+        )
+    ]
+
+    if missing_confirmed_ids:
         raise RuntimeError(
-            "Persisted USER_CONFIRMED cardboard box did not reach "
-            "the downstream boundary."
+            "Persisted USER_CONFIRMED items did not reach "
+            "the downstream boundary: "
+            f"{missing_confirmed_ids}"
         )
 
     pending_set = set(
@@ -310,7 +420,8 @@ def main() -> None:
 
     leaked_pending_ids = [
         item_id
-        for item_id in captured["dna_ids"]
+        for item_id
+        in captured["dna_ids"]
         if item_id in pending_set
     ]
 
@@ -318,6 +429,22 @@ def main() -> None:
         raise RuntimeError(
             "NEEDS_CONFIRMATION items leaked into real Object DNA "
             f"handoff: {leaked_pending_ids}"
+        )
+
+    if (
+        captured["goal"]
+        != goal
+    ):
+        raise RuntimeError(
+            "Planning boundary received the wrong goal."
+        )
+
+    if captured[
+        "external_resources"
+    ]:
+        raise RuntimeError(
+            "Unexpected external resources reached the deterministic "
+            "handoff test."
         )
 
     print()
@@ -361,6 +488,11 @@ def main() -> None:
         f"{len(pending_items)}"
     )
 
+    print(
+        f"USER_CONFIRMED items: "
+        f"{len(confirmed_items)}"
+    )
+
     print()
     print("=" * 72)
     print("ORCHESTRATOR HANDOFF")
@@ -393,8 +525,8 @@ def main() -> None:
     print()
 
     print(
-        "Confirmed cardboard box reached downstream: "
-        f"{CONFIRMED_BOX_ID in captured['inventory_ids']}"
+        "Confirmed USER_CONFIRMED items reached downstream: "
+        f"{len(expected_confirmed_ids)}"
     )
 
     print(

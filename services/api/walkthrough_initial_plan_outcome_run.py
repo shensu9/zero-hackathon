@@ -1,33 +1,46 @@
-import argparse
+﻿import argparse
 import hashlib
 import json
 from pathlib import Path
-
-from walkthrough_external_resource_state import (
-    load_external_resource_state,
-)
 
 from pydantic import BaseModel, Field
 
 from plan_outcome_schemas import (
     PlanOutcome,
 )
+from walkthrough_external_resource_state import (
+    load_external_resource_state,
+)
 from walkthrough_goal_relevance_run import (
-    GOAL,
+    GOAL as DEFAULT_GOAL,
     inventory_fingerprint,
 )
-from walkthrough_object_dna_run import (
-    get_eligible_items,
-    load_session_inventory,
-)
+import walkthrough_object_dna_run as object_dna_run
 from walkthrough_real_object_dna_handoff_run import (
     load_validated_real_object_dna,
 )
 
 
-CACHE_PATH = Path(
-    "sample_data/private/"
-    "walkthrough-01-initial-plan-outcome.json"
+DEFAULT_WALKTHROUGH_ID = (
+    object_dna_run.DEFAULT_WALKTHROUGH_ID
+)
+
+
+CACHE_PATH = (
+    object_dna_run.PRIVATE_DIR
+    / (
+        f"{DEFAULT_WALKTHROUGH_ID}"
+        "-initial-plan-outcome.json"
+    )
+)
+
+
+EXTERNAL_RESOURCE_STATE_PATH = (
+    object_dna_run.PRIVATE_DIR
+    / (
+        f"{DEFAULT_WALKTHROUGH_ID}"
+        "-external-resources.json"
+    )
 )
 
 
@@ -53,7 +66,16 @@ class InitialPlanOutcomeCache(BaseModel):
     - bounded repair if required
     - verification-gate audit when CONDITIONAL
     - final semantic recheck
+
+    walkthrough_id defaults to walkthrough-01 so existing
+    Walkthrough 01 caches remain backward compatible.
     """
+
+    walkthrough_id: str = Field(
+        default=DEFAULT_WALKTHROUGH_ID,
+        min_length=1,
+        max_length=128,
+    )
 
     goal: str = Field(
         min_length=1,
@@ -89,6 +111,50 @@ class InitialPlanOutcomeCache(BaseModel):
     outcome: PlanOutcome
 
 
+def configure_walkthrough_context(
+    walkthrough_id: str,
+) -> str:
+    """
+    Configure every walkthrough-scoped artifact used by this runner.
+
+    Object DNA paths are delegated to walkthrough_object_dna_run.
+
+    Initial-plan and external-resource files are namespaced here.
+    """
+
+    global CACHE_PATH
+    global EXTERNAL_RESOURCE_STATE_PATH
+
+    validated_id = (
+        object_dna_run
+        .validate_walkthrough_id(
+            walkthrough_id
+        )
+    )
+
+    object_dna_run.configure_walkthrough_paths(
+        validated_id
+    )
+
+    CACHE_PATH = (
+        object_dna_run.PRIVATE_DIR
+        / (
+            f"{validated_id}"
+            "-initial-plan-outcome.json"
+        )
+    )
+
+    EXTERNAL_RESOURCE_STATE_PATH = (
+        object_dna_run.PRIVATE_DIR
+        / (
+            f"{validated_id}"
+            "-external-resources.json"
+        )
+    )
+
+    return validated_id
+
+
 def sha256_text(
     text: str,
 ) -> str:
@@ -122,10 +188,19 @@ def planner_pipeline_fingerprint() -> str:
 
     digest = hashlib.sha256()
 
-    base_dir = Path(__file__).resolve().parent
+    base_dir = (
+        Path(__file__)
+        .resolve()
+        .parent
+    )
 
-    for filename in INITIAL_PLANNER_PIPELINE_FILES:
-        path = base_dir / filename
+    for filename in (
+        INITIAL_PLANNER_PIPELINE_FILES
+    ):
+        path = (
+            base_dir
+            / filename
+        )
 
         if not path.exists():
             raise RuntimeError(
@@ -134,7 +209,9 @@ def planner_pipeline_fingerprint() -> str:
             )
 
         digest.update(
-            filename.encode("utf-8")
+            filename.encode(
+                "utf-8"
+            )
         )
 
         digest.update(
@@ -179,7 +256,8 @@ def planning_input_fingerprint(
             item.model_dump(
                 mode="json"
             )
-            for item in active_inventory
+            for item
+            in active_inventory
         ],
         "object_dna": (
             object_dna.model_dump(
@@ -200,55 +278,80 @@ def planning_input_fingerprint(
 
 def load_real_planning_context():
     """
-    Load the validated real 33-item session world model.
+    Load the validated real session world model for the currently
+    configured walkthrough.
 
     No model calls occur here.
+
+    There is deliberately no hardcoded item count. Correctness is
+    established by exact eligible-inventory <-> Object-DNA coverage.
     """
 
     (
         canonical_inventory,
         session_inventory,
         canonical_sha256,
-    ) = load_session_inventory()
-
-    active_items = get_eligible_items(
-        session_inventory
+    ) = (
+        object_dna_run
+        .load_session_inventory()
     )
 
-    snapshot = load_validated_real_object_dna(
-        session_inventory=session_inventory,
-        eligible_items=active_items,
+    active_items = (
+        object_dna_run
+        .get_eligible_items(
+            session_inventory
+        )
     )
 
-    if len(active_items) != 33:
-        raise RuntimeError(
-            "Expected exactly 33 active session items, received "
-            f"{len(active_items)}."
+    snapshot = (
+        load_validated_real_object_dna(
+            session_inventory=(
+                session_inventory
+            ),
+            eligible_items=(
+                active_items
+            ),
         )
-
-    if (
-        len(snapshot.object_dna.objects)
-        != 33
-    ):
-        raise RuntimeError(
-            "Expected exactly 33 real Object DNA objects, received "
-            f"{len(snapshot.object_dna.objects)}."
-        )
+    )
 
     active_ids = [
         item.id
-        for item in active_items
+        for item
+        in active_items
     ]
 
     dna_ids = [
         dna.item_id
-        for dna in snapshot.object_dna.objects
+        for dna
+        in snapshot.object_dna.objects
     ]
 
-    if active_ids != dna_ids:
+    if (
+        len(snapshot.object_dna.objects)
+        != len(active_items)
+    ):
+        raise RuntimeError(
+            "Real Object DNA coverage count does not match "
+            "active session inventory. "
+            f"Active={len(active_items)}, "
+            f"ObjectDNA={len(snapshot.object_dna.objects)}."
+        )
+
+    if (
+        active_ids
+        != dna_ids
+    ):
         raise RuntimeError(
             "Real Object DNA IDs do not exactly match active session "
             "inventory IDs."
+        )
+
+    if (
+        len(set(active_ids))
+        != len(active_ids)
+    ):
+        raise RuntimeError(
+            "Active planning inventory contains duplicate item IDs."
         )
 
     return (
@@ -268,6 +371,9 @@ def load_matching_cache(
     planner_pipeline_sha256: str,
     planning_input_sha256: str,
     active_item_ids: list[str],
+    walkthrough_id: str = (
+        DEFAULT_WALKTHROUGH_ID
+    ),
 ) -> PlanOutcome | None:
     """
     Reuse the first-stage model result only when every relevant input and
@@ -288,7 +394,8 @@ def load_matching_cache(
         )
 
         cache = (
-            InitialPlanOutcomeCache.model_validate(
+            InitialPlanOutcomeCache
+            .model_validate(
                 payload
             )
         )
@@ -300,7 +407,16 @@ def load_matching_cache(
             f"inspected: {CACHE_PATH}"
         ) from exc
 
-    if cache.goal != goal:
+    if (
+        cache.walkthrough_id
+        != walkthrough_id
+    ):
+        return None
+
+    if (
+        cache.goal
+        != goal
+    ):
         return None
 
     if (
@@ -345,12 +461,18 @@ def save_cache(
     planning_input_sha256: str,
     active_item_ids: list[str],
     outcome: PlanOutcome,
+    walkthrough_id: str = (
+        DEFAULT_WALKTHROUGH_ID
+    ),
 ) -> None:
     """
     Save one successful initial PlanOutcome atomically.
     """
 
     cache = InitialPlanOutcomeCache(
+        walkthrough_id=(
+            walkthrough_id
+        ),
         goal=goal,
         session_inventory_sha256=(
             session_inventory_sha256
@@ -364,7 +486,9 @@ def save_cache(
         planning_input_sha256=(
             planning_input_sha256
         ),
-        active_item_ids=active_item_ids,
+        active_item_ids=(
+            active_item_ids
+        ),
         outcome=outcome,
     )
 
@@ -373,8 +497,11 @@ def save_cache(
         exist_ok=True,
     )
 
-    temporary_path = CACHE_PATH.with_name(
-        CACHE_PATH.name + ".tmp"
+    temporary_path = (
+        CACHE_PATH.with_name(
+            CACHE_PATH.name
+            + ".tmp"
+        )
     )
 
     temporary_path.write_text(
@@ -398,11 +525,15 @@ def print_outcome_summary(
 
     print()
     print("=" * 72)
-    print("INITIAL PLAN OUTCOME — NOT YET SAFETY APPROVED")
+    print(
+        "INITIAL PLAN OUTCOME - "
+        "NOT YET SAFETY APPROVED"
+    )
     print("=" * 72)
 
     print(
-        f"Status: {outcome.status.value}"
+        f"Status: "
+        f"{outcome.status.value}"
     )
 
     print(
@@ -420,7 +551,10 @@ def print_outcome_summary(
         f"{outcome.plan is not None}"
     )
 
-    if outcome.plan is not None:
+    if (
+        outcome.plan
+        is not None
+    ):
         print(
             f"Plan title: "
             f"{outcome.plan.title}"
@@ -433,9 +567,14 @@ def print_outcome_summary(
 
     if outcome.requirements:
         print()
-        print("Requirements:")
+        print(
+            "Requirements:"
+        )
 
-        for index, requirement in enumerate(
+        for (
+            index,
+            requirement,
+        ) in enumerate(
             outcome.requirements,
             start=1,
         ):
@@ -451,24 +590,35 @@ def print_outcome_summary(
 
     if outcome.blocking_reasons:
         print()
-        print("Blocking reasons:")
+        print(
+            "Blocking reasons:"
+        )
 
-        for reason in outcome.blocking_reasons:
+        for reason in (
+            outcome.blocking_reasons
+        ):
             print(
                 f"- {reason}"
             )
 
-    if outcome.plan is not None:
+    if (
+        outcome.plan
+        is not None
+    ):
         print()
-        print("Initial physical plan:")
+        print(
+            "Initial physical plan:"
+        )
 
         print(
-            outcome.plan.model_dump_json(
+            outcome.plan
+            .model_dump_json(
                 indent=2
             )
         )
 
     print()
+
     print(
         "IMPORTANT: This result has NOT yet passed deterministic "
         "plan validation, semantic audit, repair, or verification-gate "
@@ -477,7 +627,32 @@ def print_outcome_summary(
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser()
+    parser = argparse.ArgumentParser(
+        description=(
+            "Generate or inspect the first paid planning outcome "
+            "for a namespaced ZERO walkthrough."
+        )
+    )
+
+    parser.add_argument(
+        "--walkthrough-id",
+        default=(
+            DEFAULT_WALKTHROUGH_ID
+        ),
+        help=(
+            "Artifact namespace such as walkthrough-02. "
+            "Defaults to walkthrough-01."
+        ),
+    )
+
+    parser.add_argument(
+        "--goal",
+        default=DEFAULT_GOAL,
+        help=(
+            "Goal to send to the planner. "
+            "Defaults to the original Walkthrough 01 goal."
+        ),
+    )
 
     parser.add_argument(
         "--dry-run",
@@ -492,7 +667,10 @@ def main() -> None:
         "--max-new-calls",
         type=int,
         default=0,
-        choices=[0, 1],
+        choices=[
+            0,
+            1,
+        ],
         help=(
             "Maximum new paid initial-planner calls allowed. "
             "Only 0 or 1 is valid. Default 0."
@@ -503,15 +681,39 @@ def main() -> None:
 
     if (
         args.dry_run
-        and args.max_new_calls != 0
+        and
+        args.max_new_calls
+        != 0
     ):
         parser.error(
             "--dry-run cannot authorize a paid call."
         )
 
+    goal = (
+        args.goal.strip()
+    )
+
+    if not goal:
+        parser.error(
+            "--goal may not be empty."
+        )
+
+    walkthrough_id = (
+        configure_walkthrough_context(
+            args.walkthrough_id
+        )
+    )
+
     print("=" * 72)
-    print("ZERO WALKTHROUGH INITIAL PLAN OUTCOME")
+    print(
+        "ZERO WALKTHROUGH INITIAL PLAN OUTCOME"
+    )
     print("=" * 72)
+
+    print(
+        f"Walkthrough: "
+        f"{walkthrough_id}"
+    )
 
     (
         canonical_inventory,
@@ -519,14 +721,20 @@ def main() -> None:
         active_items,
         object_dna,
         canonical_sha256,
-    ) = load_real_planning_context()
-
-    session_sha256 = inventory_fingerprint(
-        session_inventory
+    ) = (
+        load_real_planning_context()
     )
 
-    dna_sha256 = object_dna_fingerprint(
-        object_dna
+    session_sha256 = (
+        inventory_fingerprint(
+            session_inventory
+        )
+    )
+
+    dna_sha256 = (
+        object_dna_fingerprint(
+            object_dna
+        )
     )
 
     planner_sha256 = (
@@ -534,14 +742,26 @@ def main() -> None:
     )
 
     external_resource_state = (
-    load_external_resource_state()
-)
+        load_external_resource_state(
+            path=(
+                EXTERNAL_RESOURCE_STATE_PATH
+            )
+        )
+    )
 
-    if external_resource_state is None:
-        external_resources: list[str] = []
+    if (
+        external_resource_state
+        is None
+    ):
+        external_resources: list[
+            str
+        ] = []
 
     else:
-        if external_resource_state.goal != GOAL:
+        if (
+            external_resource_state.goal
+            != goal
+        ):
             raise RuntimeError(
                 "Persisted external-resource state belongs to a "
                 "different goal."
@@ -553,30 +773,53 @@ def main() -> None:
 
     input_sha256 = (
         planning_input_fingerprint(
-            goal=GOAL,
-            active_inventory=active_items,
-            object_dna=object_dna,
-            external_resources=external_resources,
+            goal=goal,
+            active_inventory=(
+                active_items
+            ),
+            object_dna=(
+                object_dna
+            ),
+            external_resources=(
+                external_resources
+            ),
         )
     )
 
     active_item_ids = [
         item.id
-        for item in active_items
+        for item
+        in active_items
     ]
 
-    cached_outcome = load_matching_cache(
-        goal=GOAL,
-        session_inventory_sha256=session_sha256,
-        object_dna_sha256=dna_sha256,
-        planner_pipeline_sha256=planner_sha256,
-        planning_input_sha256=input_sha256,
-        active_item_ids=active_item_ids,
+    cached_outcome = (
+        load_matching_cache(
+            walkthrough_id=(
+                walkthrough_id
+            ),
+            goal=goal,
+            session_inventory_sha256=(
+                session_sha256
+            ),
+            object_dna_sha256=(
+                dna_sha256
+            ),
+            planner_pipeline_sha256=(
+                planner_sha256
+            ),
+            planning_input_sha256=(
+                input_sha256
+            ),
+            active_item_ids=(
+                active_item_ids
+            ),
+        )
     )
 
     print()
+
     print(
-        f"Goal: {GOAL}"
+        f"Goal: {goal}"
     )
 
     print()
@@ -635,33 +878,64 @@ def main() -> None:
 
     print()
 
-    if cached_outcome is None:
+    print(
+        "Initial planning cache: "
+        f"{CACHE_PATH.resolve()}"
+    )
+
+    print(
+        "External-resource state: "
+        f"{EXTERNAL_RESOURCE_STATE_PATH.resolve()}"
+    )
+
+    print()
+
+    if (
+        cached_outcome
+        is None
+    ):
         print(
-            "Initial PlanOutcome cache: missing/stale"
+            "Initial PlanOutcome cache: "
+            "missing/stale"
         )
 
     else:
         print(
-            "Initial PlanOutcome cache: valid"
+            "Initial PlanOutcome cache: "
+            "valid"
         )
 
     if args.dry_run:
         print()
+
         print(
-            "DRY RUN COMPLETE — NO MODEL CALL MADE"
+            "DRY RUN COMPLETE - "
+            "NO MODEL CALL MADE"
         )
 
-        if cached_outcome is not None:
+        print(
+            "Model calls: 0"
+        )
+
+        if (
+            cached_outcome
+            is not None
+        ):
             print_outcome_summary(
                 cached_outcome
             )
 
         return
 
-    if cached_outcome is not None:
+    if (
+        cached_outcome
+        is not None
+    ):
         print()
+
         print(
-            "Reusing validated initial PlanOutcome cache."
+            "Reusing validated initial "
+            "PlanOutcome cache."
         )
 
         print(
@@ -674,8 +948,12 @@ def main() -> None:
 
         return
 
-    if args.max_new_calls == 0:
+    if (
+        args.max_new_calls
+        == 0
+    ):
         print()
+
         print(
             "No paid initial-planner call authorized "
             "(--max-new-calls is 0)."
@@ -684,8 +962,10 @@ def main() -> None:
         return
 
     print()
+
     print(
-        "Running ONE paid initial PlanOutcome call..."
+        "Running ONE paid initial "
+        "PlanOutcome call..."
     )
 
     # Import lazily so dry runs and cache-only runs do not even
@@ -694,26 +974,49 @@ def main() -> None:
         generate_plan_outcome,
     )
 
-    outcome = generate_plan_outcome(
-        goal=GOAL,
-        inventory=active_items,
-        object_dna=object_dna,
-        external_resources=external_resources,
+    outcome = (
+        generate_plan_outcome(
+            goal=goal,
+            inventory=(
+                active_items
+            ),
+            object_dna=(
+                object_dna
+            ),
+            external_resources=(
+                external_resources
+            ),
+        )
     )
 
     save_cache(
-        goal=GOAL,
-        session_inventory_sha256=session_sha256,
-        object_dna_sha256=dna_sha256,
-        planner_pipeline_sha256=planner_sha256,
-        planning_input_sha256=input_sha256,
-        active_item_ids=active_item_ids,
+        walkthrough_id=(
+            walkthrough_id
+        ),
+        goal=goal,
+        session_inventory_sha256=(
+            session_sha256
+        ),
+        object_dna_sha256=(
+            dna_sha256
+        ),
+        planner_pipeline_sha256=(
+            planner_sha256
+        ),
+        planning_input_sha256=(
+            input_sha256
+        ),
+        active_item_ids=(
+            active_item_ids
+        ),
         outcome=outcome,
     )
 
     print()
+
     print(
-        "Initial PlanOutcome validated by schema and cached."
+        "Initial PlanOutcome validated "
+        "by schema and cached."
     )
 
     print(
@@ -721,7 +1024,8 @@ def main() -> None:
     )
 
     print(
-        "Saved private initial planning cache:"
+        "Saved private initial "
+        "planning cache:"
     )
 
     print(
