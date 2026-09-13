@@ -1,4 +1,4 @@
-﻿import argparse
+import argparse
 import hashlib
 import json
 from pathlib import Path
@@ -63,6 +63,16 @@ class InitialSemanticCriticCache(
     goal: str = Field(
         min_length=1,
         max_length=2000,
+    )
+
+    # None preserves compatibility with older cache files.
+    # Older audits will parse, but become stale because they lack
+    # the current conditional-execution fingerprint.
+    semantic_context_sha256: str | None = Field(
+        default=None,
+        min_length=64,
+        max_length=64,
+        pattern=r"^[0-9a-f]{64}$",
     )
 
     planning_input_sha256: str = Field(
@@ -365,6 +375,7 @@ def load_matching_cache(
     *,
     walkthrough_id: str,
     goal: str,
+    semantic_context_sha256: str,
     planning_input_sha256: str,
     validated_plan_sha256: str,
     semantic_pipeline_sha256: str,
@@ -412,6 +423,12 @@ def load_matching_cache(
         return None
 
     if (
+        cache.semantic_context_sha256
+        != semantic_context_sha256
+    ):
+        return None
+
+    if (
         cache.planning_input_sha256
         != planning_input_sha256
     ):
@@ -436,6 +453,7 @@ def save_cache(
     *,
     walkthrough_id: str,
     goal: str,
+    semantic_context_sha256: str,
     planning_input_sha256: str,
     validated_plan_sha256: str,
     semantic_pipeline_sha256: str,
@@ -450,6 +468,9 @@ def save_cache(
             walkthrough_id
         ),
         goal=goal,
+        semantic_context_sha256=(
+            semantic_context_sha256
+        ),
         planning_input_sha256=(
             planning_input_sha256
         ),
@@ -680,6 +701,26 @@ def main() -> None:
         )
     )
 
+    # Bind the semantic audit to the exact outcome conditions that
+    # determine how the plan is allowed to execute.
+    semantic_context_sha256 = (
+        sha256_payload(
+            {
+                "goal": goal,
+                "status": (
+                    initial_outcome.status.value
+                ),
+                "requirements": [
+                    requirement.model_dump(
+                        mode="json"
+                    )
+                    for requirement
+                    in initial_outcome.requirements
+                ],
+            }
+        )
+    )
+
     semantic_sha256 = (
         semantic_pipeline_fingerprint()
     )
@@ -690,6 +731,9 @@ def main() -> None:
                 walkthrough_id
             ),
             goal=goal,
+            semantic_context_sha256=(
+                semantic_context_sha256
+            ),
             planning_input_sha256=(
                 planning_input_sha256
             ),
@@ -712,6 +756,16 @@ def main() -> None:
     print(
         f"Planning input SHA-256: "
         f"{planning_input_sha256}"
+    )
+
+    print(
+        f"Semantic execution-context SHA-256: "
+        f"{semantic_context_sha256}"
+    )
+
+    print(
+        f"Conditional requirements: "
+        f"{len(initial_outcome.requirements)}"
     )
 
     print(
@@ -833,16 +887,26 @@ def main() -> None:
         "trigger 1 additional formatting-only repair call."
     )
 
-    # Lazy import:
+    # Lazy imports:
     # dry runs and cache-only runs do not instantiate the Nebius client.
+    from plan_outcome_pipeline import (
+        _build_execution_aware_goal,
+    )
     from semantic_critic import (
         audit_plan_semantics,
+    )
+
+    execution_goal = (
+        _build_execution_aware_goal(
+            goal=goal,
+            outcome=initial_outcome,
+        )
     )
 
     critic = (
         audit_plan_semantics(
             plan=validated_plan,
-            goal=goal,
+            goal=execution_goal,
             inventory=active_items,
             object_dna=object_dna,
             external_resources=(
@@ -856,6 +920,9 @@ def main() -> None:
             walkthrough_id
         ),
         goal=goal,
+        semantic_context_sha256=(
+            semantic_context_sha256
+        ),
         planning_input_sha256=(
             planning_input_sha256
         ),

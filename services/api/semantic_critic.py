@@ -808,6 +808,114 @@ adequate external light source exists.
 
 
 ======================================================================
+TARGET FIT / COVERAGE / ATTACHMENT UNCERTAINTY
+======================================================================
+
+Unknown properties remain unresolved even when a related generic capability
+exists.
+
+Audit every natural-language field that relies on an unknown property.
+
+In particular:
+
+- "cover" does NOT establish that an object's dimensions are large enough
+  for a particular target, doorway, opening, person, or surface.
+
+- "large_surface" does NOT establish exact dimensions, target fit, or
+  sufficient coverage area.
+
+- If "dimensions" or "coverage area" are listed as unknown, claims such as
+  "covers the doorway", "covers the opening", "fits across the window",
+  "provides full coverage", or equivalent target-fit claims require
+  verification or must remain explicitly conditional.
+
+- "hang" does NOT by itself establish that a safe attachment method exists
+  for the specific arrangement.
+
+- If "attachment method" is unknown, claims that an object can be securely,
+  safely, or non-damagingly attached must remain conditional on verification.
+
+- "support" or "hang" does NOT establish sufficient load-bearing capacity
+  when "load-bearing capacity" is unknown.
+
+- Do not infer that a mounting surface, frame, hook, shelf, or other support
+  can safely carry a particular object's weight merely from a generic
+  support/hang capability.
+
+CONDITIONAL EXECUTION RULE:
+
+The USER GOAL may include a CONDITIONAL EXECUTION CONTRACT.
+
+When an explicit requirement says a condition must be verified BEFORE
+execution, do not flag the mere existence of that unknown as an immediate
+failure.
+
+Instead audit whether the plan preserves that condition correctly.
+
+A plan is still problematic if it:
+
+- states the unknown condition as already true,
+- promises a result that depends on a different unresolved unknown,
+- omits a required verification from the execution logic,
+- or makes a stronger unconditional fit, coverage, stability, attachment,
+  safety, privacy, or light-blocking claim than the evidence supports.
+
+
+======================================================================
+TARGET FIT / COVERAGE / ATTACHMENT UNCERTAINTY
+======================================================================
+
+Unknown properties remain unresolved even when a related generic capability
+exists.
+
+Audit every natural-language field that relies on an unknown property.
+
+In particular:
+
+- "cover" does NOT establish that an object's dimensions are large enough
+  for a particular target, doorway, opening, person, or surface.
+
+- "large_surface" does NOT establish exact dimensions, target fit, or
+  sufficient coverage area.
+
+- If "dimensions" or "coverage area" are listed as unknown, claims such as
+  "covers the doorway", "covers the opening", "fits across the window",
+  "provides full coverage", or equivalent target-fit claims require
+  verification or must remain explicitly conditional.
+
+- "hang" does NOT by itself establish that a safe attachment method exists
+  for the specific arrangement.
+
+- If "attachment method" is unknown, claims that an object can be securely,
+  safely, or non-damagingly attached must remain conditional on verification.
+
+- "support" or "hang" does NOT establish sufficient load-bearing capacity
+  when "load-bearing capacity" is unknown.
+
+- Do not infer that a mounting surface, frame, hook, shelf, or other support
+  can safely carry a particular object's weight merely from a generic
+  support/hang capability.
+
+CONDITIONAL EXECUTION RULE:
+
+The USER GOAL may include a CONDITIONAL EXECUTION CONTRACT.
+
+When an explicit requirement says a condition must be verified BEFORE
+execution, do not flag the mere existence of that unknown as an immediate
+failure.
+
+Instead audit whether the plan preserves that condition correctly.
+
+A plan is still problematic if it:
+
+- states the unknown condition as already true,
+- promises a result that depends on a different unresolved unknown,
+- omits a required verification from the execution logic,
+- or makes a stronger unconditional fit, coverage, stability, attachment,
+  safety, privacy, or light-blocking claim than the evidence supports.
+
+
+======================================================================
 RETURN FORMAT
 ======================================================================
 

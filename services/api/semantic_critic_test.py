@@ -631,6 +631,128 @@ def test_prompt_contains_exact_coverage_contract():
             f"{field_id}"
         )
 
+def test_prompt_contains_fit_attachment_uncertainty_rules():
+    plan = build_plan()
+
+    field_map = (
+        _build_semantic_field_map(
+            plan
+        )
+    )
+
+    prompt = (
+        _build_semantic_critic_prompt(
+            plan=plan,
+            goal=(
+                "Create a temporary curtain. "
+                "CONDITIONAL EXECUTION CONTRACT: "
+                "Verify the support before execution."
+            ),
+            inventory_payload=[
+                {
+                    "id": "blanket_01",
+                    "name": "blanket",
+                    "description": "Folded blanket.",
+                },
+                {
+                    "id": "frame_01",
+                    "name": "door frame",
+                    "description": "Door frame.",
+                },
+            ],
+            compact_dna=[
+                {
+                    "item_id": "blanket_01",
+                    "traits": [
+                        "flexible",
+                        "large_surface",
+                    ],
+                    "capabilities": [
+                        "cover",
+                        "reposition",
+                    ],
+                    "unknown_properties": [
+                        "dimensions",
+                        "coverage area",
+                    ],
+                    "caution_notes": [],
+                },
+                {
+                    "item_id": "frame_01",
+                    "traits": [
+                        "rigid",
+                    ],
+                    "capabilities": [
+                        "hang",
+                        "support",
+                    ],
+                    "unknown_properties": [
+                        "attachment method",
+                        "load-bearing capacity",
+                    ],
+                    "caution_notes": [
+                        (
+                            "Verify a stable, non-damaging "
+                            "attachment method before hanging."
+                        ),
+                    ],
+                },
+            ],
+            external_resources=[],
+            semantic_field_map=(
+                field_map
+            ),
+        )
+    )
+
+    normalized_prompt = (
+        " ".join(
+            prompt.split()
+        )
+    )
+
+    required_phrases = [
+        (
+            "TARGET FIT / COVERAGE / "
+            "ATTACHMENT UNCERTAINTY"
+        ),
+        (
+            '"cover" does NOT establish'
+        ),
+        (
+            '"large_surface" does NOT establish '
+            "exact dimensions"
+        ),
+        (
+            '"dimensions" or "coverage area" '
+            "are listed as unknown"
+        ),
+        (
+            '"hang" does NOT by itself establish'
+        ),
+        (
+            '"attachment method" is unknown'
+        ),
+        (
+            '"load-bearing capacity" is unknown'
+        ),
+        (
+            "CONDITIONAL EXECUTION RULE"
+        ),
+        (
+            "do not flag the mere existence "
+            "of that unknown as an immediate failure"
+        ),
+    ]
+
+    for phrase in required_phrases:
+        assert phrase in normalized_prompt, (
+            "Missing fit/attachment semantic rule: "
+            f"{phrase}"
+        )
+
+
+
 def test_empty_known_aggregate_keys_are_allowed():
     field_ids = list(
         _build_semantic_field_map(
@@ -823,6 +945,10 @@ def run_tests():
         (
             "prompt exact coverage contract",
             test_prompt_contains_exact_coverage_contract,
+        ),
+        (
+            "fit and attachment uncertainty prompt rules",
+            test_prompt_contains_fit_attachment_uncertainty_rules,
         ),
         (
             "empty known aggregate keys allowed",
