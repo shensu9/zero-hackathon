@@ -1,12 +1,17 @@
+from __future__ import annotations
+
 import argparse
 import hashlib
 import json
+import re
 from pathlib import Path
 
 from pydantic import BaseModel, Field
 
 from human_confirmation_state import (
+    PersistedHumanConfirmationState,
     apply_confirmation_state,
+    validate_confirmation_state,
 )
 from object_dna_validator import (
     validate_object_dna,
@@ -18,23 +23,57 @@ from schemas import (
     ObjectDNAResponse,
     VerificationStatus,
 )
-from walkthrough_goal_relevance_run import (
-    inventory_fingerprint,
-    load_inventory,
-)
-from walkthrough_human_confirmation_run import (
-    load_existing_confirmation_state,
-)
 
 
-CACHE_DIR = Path(
-    "sample_data/private/"
-    "walkthrough-01-object-dna-cache"
+DEFAULT_WALKTHROUGH_ID = "walkthrough-01"
+
+WALKTHROUGH_ID_PATTERN = re.compile(
+    r"^[A-Za-z0-9][A-Za-z0-9_-]*$"
 )
 
-AGGREGATE_PATH = Path(
-    "sample_data/private/"
-    "walkthrough-01-session-object-dna.json"
+
+REPO_ROOT = (
+    Path(__file__)
+    .resolve()
+    .parents[2]
+)
+
+PRIVATE_DIR = (
+    REPO_ROOT
+    / "sample_data"
+    / "private"
+)
+
+INVENTORY_PATH = (
+    PRIVATE_DIR
+    / (
+        f"{DEFAULT_WALKTHROUGH_ID}"
+        "-canonical-inventory.json"
+    )
+)
+
+CONFIRMATION_STATE_PATH = (
+    PRIVATE_DIR
+    / (
+        f"{DEFAULT_WALKTHROUGH_ID}"
+        "-human-confirmation-state.json"
+    )
+)
+
+CACHE_DIR = (
+    PRIVATE_DIR
+    / (
+        f"{DEFAULT_WALKTHROUGH_ID}"
+        "-object-dna-cache"
+    )
+)
+
+AGGREGATE_PATH = (
+    PRIVATE_DIR
+    / (
+        f"{DEFAULT_WALKTHROUGH_ID}"
+        "-session-object-dna.json"
+    )
 )
 
 
@@ -52,7 +91,7 @@ class ObjectDNAItemCache(BaseModel):
     Private per-item Object DNA cache.
 
     A cache is reusable only when:
-    - the canonical item payload is identical
+    - the session item payload is identical
     - the complete Object DNA generation/validation pipeline is identical
     - the returned ObjectDNA belongs to the exact item ID
     """
@@ -79,8 +118,8 @@ class ObjectDNAItemCache(BaseModel):
 
 class ObjectDNAAggregateSnapshot(BaseModel):
     """
-    Convenience snapshot assembled only after every eligible session item
-    has a valid per-item cache.
+    Convenience snapshot assembled only after every eligible
+    session item has a valid per-item cache.
 
     Per-item caches remain the authoritative paid-call cache.
     """
@@ -102,6 +141,67 @@ class ObjectDNAAggregateSnapshot(BaseModel):
     object_dna: ObjectDNAResponse
 
 
+def validate_walkthrough_id(
+    value: str,
+) -> str:
+    if not WALKTHROUGH_ID_PATTERN.fullmatch(
+        value
+    ):
+        raise ValueError(
+            "walkthrough id may contain only letters, "
+            "numbers, hyphens, and underscores"
+        )
+
+    return value
+
+
+def configure_walkthrough_paths(
+    walkthrough_id: str,
+) -> None:
+    global INVENTORY_PATH
+    global CONFIRMATION_STATE_PATH
+    global CACHE_DIR
+    global AGGREGATE_PATH
+
+    walkthrough_id = (
+        validate_walkthrough_id(
+            walkthrough_id
+        )
+    )
+
+    INVENTORY_PATH = (
+        PRIVATE_DIR
+        / (
+            f"{walkthrough_id}"
+            "-canonical-inventory.json"
+        )
+    )
+
+    CONFIRMATION_STATE_PATH = (
+        PRIVATE_DIR
+        / (
+            f"{walkthrough_id}"
+            "-human-confirmation-state.json"
+        )
+    )
+
+    CACHE_DIR = (
+        PRIVATE_DIR
+        / (
+            f"{walkthrough_id}"
+            "-object-dna-cache"
+        )
+    )
+
+    AGGREGATE_PATH = (
+        PRIVATE_DIR
+        / (
+            f"{walkthrough_id}"
+            "-session-object-dna.json"
+        )
+    )
+
+
 def sha256_text(
     text: str,
 ) -> str:
@@ -110,11 +210,35 @@ def sha256_text(
     ).hexdigest()
 
 
+def inventory_fingerprint(
+    inventory: CanonicalInventory,
+) -> str:
+    """
+    Deterministic fingerprint of the exact inventory payload.
+
+    Kept equivalent to the goal-relevance inventory fingerprint,
+    without introducing a goal-dependent runner dependency here.
+    """
+
+    canonical_json = json.dumps(
+        inventory.model_dump(
+            mode="json"
+        ),
+        sort_keys=True,
+        separators=(",", ":"),
+        ensure_ascii=False,
+    )
+
+    return sha256_text(
+        canonical_json
+    )
+
+
 def item_fingerprint(
     item: InventoryItem,
 ) -> str:
     """
-    Fingerprint the exact canonical/session representation supplied to
+    Fingerprint the exact session representation supplied to
     Object DNA generation.
     """
 
@@ -136,26 +260,37 @@ def object_dna_pipeline_fingerprint() -> str:
     """
     Bind caches to the complete local Object DNA implementation.
 
-    If the model prompt, model name, normalizer, sanitizer, validator, or
-    ObjectDNA schema changes, this fingerprint changes and old caches become
-    stale instead of silently being reused.
+    If the model prompt, model name, normalizer, sanitizer, validator,
+    or ObjectDNA schema changes, this fingerprint changes and old caches
+    become stale instead of silently being reused.
     """
 
     digest = hashlib.sha256()
 
-    base_dir = Path(__file__).resolve().parent
+    base_dir = (
+        Path(__file__)
+        .resolve()
+        .parent
+    )
 
-    for filename in OBJECT_DNA_PIPELINE_FILES:
-        path = base_dir / filename
+    for filename in (
+        OBJECT_DNA_PIPELINE_FILES
+    ):
+        path = (
+            base_dir
+            / filename
+        )
 
         if not path.exists():
             raise RuntimeError(
-                "Required Object DNA pipeline file was not found: "
-                f"{path}"
+                "Required Object DNA pipeline file "
+                f"was not found: {path}"
             )
 
         digest.update(
-            filename.encode("utf-8")
+            filename.encode(
+                "utf-8"
+            )
         )
 
         digest.update(
@@ -173,19 +308,124 @@ def object_dna_pipeline_fingerprint() -> str:
     return digest.hexdigest()
 
 
+def load_inventory(
+) -> CanonicalInventory:
+    """
+    Load CanonicalInventory from the deterministic walkthrough
+    normalization wrapper.
+    """
+
+    if not INVENTORY_PATH.exists():
+        raise RuntimeError(
+            "Canonical walkthrough inventory was not found: "
+            f"{INVENTORY_PATH}"
+        )
+
+    payload = json.loads(
+        INVENTORY_PATH.read_text(
+            encoding="utf-8"
+        )
+    )
+
+    if not isinstance(
+        payload,
+        dict,
+    ):
+        raise RuntimeError(
+            "Walkthrough normalization output must be "
+            "a JSON object."
+        )
+
+    inventory_payload = (
+        payload.get(
+            "inventory"
+        )
+    )
+
+    if not isinstance(
+        inventory_payload,
+        dict,
+    ):
+        raise RuntimeError(
+            "Walkthrough normalization output does not "
+            "contain a valid 'inventory' object."
+        )
+
+    return (
+        CanonicalInventory
+        .model_validate(
+            inventory_payload
+        )
+    )
+
+
+def load_existing_confirmation_state(
+    *,
+    inventory: CanonicalInventory,
+    fingerprint: str,
+) -> (
+    PersistedHumanConfirmationState
+    | None
+):
+    """
+    Load persisted human evidence for this exact canonical inventory.
+
+    No goal-relevance dependency is needed here.
+    """
+
+    if not (
+        CONFIRMATION_STATE_PATH.exists()
+    ):
+        return None
+
+    try:
+        payload = json.loads(
+            CONFIRMATION_STATE_PATH
+            .read_text(
+                encoding="utf-8"
+            )
+        )
+
+        state = (
+            PersistedHumanConfirmationState
+            .model_validate(
+                payload
+            )
+        )
+
+        return (
+            validate_confirmation_state(
+                inventory=inventory,
+                inventory_sha256=(
+                    fingerprint
+                ),
+                state=state,
+            )
+        )
+
+    except Exception as exc:
+        raise RuntimeError(
+            "Existing human confirmation state "
+            "is invalid. Refusing to ignore it: "
+            f"{CONFIRMATION_STATE_PATH}"
+        ) from exc
+
+
 def load_session_inventory() -> tuple[
     CanonicalInventory,
     CanonicalInventory,
     str,
 ]:
     """
-    Reconstruct the current real session inventory from immutable canonical
-    inventory plus persisted human confirmation state.
+    Reconstruct the current real session inventory from immutable
+    canonical inventory plus persisted human evidence.
 
     No AI/model calls occur here.
     """
 
-    canonical_inventory = load_inventory()
+    canonical_inventory = (
+        load_inventory()
+    )
 
     canonical_fingerprint = (
         inventory_fingerprint(
@@ -193,14 +433,21 @@ def load_session_inventory() -> tuple[
         )
     )
 
-    state = load_existing_confirmation_state(
-        inventory=canonical_inventory,
-        fingerprint=canonical_fingerprint,
+    state = (
+        load_existing_confirmation_state(
+            inventory=(
+                canonical_inventory
+            ),
+            fingerprint=(
+                canonical_fingerprint
+            ),
+        )
     )
 
     if state is None:
         session_inventory = (
-            canonical_inventory.model_copy(
+            canonical_inventory
+            .model_copy(
                 deep=True
             )
         )
@@ -208,8 +455,12 @@ def load_session_inventory() -> tuple[
     else:
         session_inventory = (
             apply_confirmation_state(
-                inventory=canonical_inventory,
-                inventory_sha256=canonical_fingerprint,
+                inventory=(
+                    canonical_inventory
+                ),
+                inventory_sha256=(
+                    canonical_fingerprint
+                ),
                 state=state,
             )
         )
@@ -230,17 +481,21 @@ def get_eligible_items(
     NEEDS_CONFIRMATION remains excluded.
     """
 
-    seen_ids: set[str] = set()
+    seen_ids: set[
+        str
+    ] = set()
 
     eligible_items: list[
         InventoryItem
     ] = []
 
-    for item in session_inventory.items:
+    for item in (
+        session_inventory.items
+    ):
         if item.id in seen_ids:
             raise ValueError(
-                "Session inventory contains duplicate item ID: "
-                f"{item.id}"
+                "Session inventory contains duplicate "
+                f"item ID: {item.id}"
             )
 
         seen_ids.add(
@@ -249,7 +504,9 @@ def get_eligible_items(
 
         if (
             item.verification_status
-            == VerificationStatus.NEEDS_CONFIRMATION
+            ==
+            VerificationStatus
+            .NEEDS_CONFIRMATION
         ):
             continue
 
@@ -264,31 +521,40 @@ def cache_path_for_item(
     item_id: str,
 ) -> Path:
     """
-    Use a readable ID plus short digest so unusual IDs cannot collide after
-    filename normalization.
+    Use a readable ID plus short digest so unusual IDs cannot
+    collide after filename normalization.
     """
 
     safe_id = "".join(
         character
         if (
             character.isalnum()
-            or character in {"-", "_"}
+            or character
+            in {"-", "_"}
         )
         else "_"
-        for character in item_id
+        for character
+        in item_id
     )
 
     if not safe_id:
         raise ValueError(
-            "Cannot construct cache filename for empty item ID."
+            "Cannot construct cache filename "
+            "for empty item ID."
         )
 
     id_digest = hashlib.sha256(
-        item_id.encode("utf-8")
+        item_id.encode(
+            "utf-8"
+        )
     ).hexdigest()[:12]
 
-    return CACHE_DIR / (
-        f"{safe_id}-{id_digest}.json"
+    return (
+        CACHE_DIR
+        / (
+            f"{safe_id}-"
+            f"{id_digest}.json"
+        )
     )
 
 
@@ -298,11 +564,11 @@ def load_matching_item_cache(
     pipeline_sha256: str,
 ) -> ObjectDNA | None:
     """
-    Return a valid matching per-item cache or None when no reusable cache
-    exists.
+    Return a valid matching per-item cache or None when no
+    reusable cache exists.
 
-    Malformed cache files fail loudly rather than triggering a silent paid
-    replacement.
+    Malformed cache files fail loudly rather than triggering
+    a silent paid replacement.
     """
 
     path = cache_path_for_item(
@@ -319,26 +585,35 @@ def load_matching_item_cache(
             )
         )
 
-        cached = ObjectDNAItemCache.model_validate(
-            payload
+        cached = (
+            ObjectDNAItemCache
+            .model_validate(
+                payload
+            )
         )
 
     except Exception as exc:
         raise RuntimeError(
             "Existing Object DNA item cache is invalid. "
-            "Refusing to overwrite it with another paid call until "
-            f"inspected: {path}"
+            "Refusing to overwrite it with another paid "
+            f"call until inspected: {path}"
         ) from exc
 
-    if cached.item_id != item.id:
+    if (
+        cached.item_id
+        != item.id
+    ):
         raise RuntimeError(
-            "Object DNA cache item ID does not match its expected "
-            f"canonical item: {item.id}"
+            "Object DNA cache item ID does not match "
+            "its expected canonical item: "
+            f"{item.id}"
         )
 
     if (
         cached.item_sha256
-        != item_fingerprint(item)
+        != item_fingerprint(
+            item
+        )
     ):
         return None
 
@@ -353,8 +628,8 @@ def load_matching_item_cache(
         != item.id
     ):
         raise RuntimeError(
-            "Cached Object DNA payload item ID mismatch for "
-            f"{item.id}."
+            "Cached Object DNA payload item ID "
+            f"mismatch for {item.id}."
         )
 
     return validate_object_dna(
@@ -372,22 +647,32 @@ def save_item_cache(
     Save one successful paid result immediately and atomically.
     """
 
-    if object_dna.item_id != item.id:
+    if (
+        object_dna.item_id
+        != item.id
+    ):
         raise RuntimeError(
-            "Cannot cache Object DNA under the wrong item ID. "
-            f"Expected {item.id}, received {object_dna.item_id}."
+            "Cannot cache Object DNA under the wrong "
+            f"item ID. Expected {item.id}, "
+            f"received {object_dna.item_id}."
         )
 
-    validated = validate_object_dna(
-        object_dna
+    validated = (
+        validate_object_dna(
+            object_dna
+        )
     )
 
     cache = ObjectDNAItemCache(
         item_id=item.id,
-        item_sha256=item_fingerprint(
-            item
+        item_sha256=(
+            item_fingerprint(
+                item
+            )
         ),
-        pipeline_sha256=pipeline_sha256,
+        pipeline_sha256=(
+            pipeline_sha256
+        ),
         object_dna=validated,
     )
 
@@ -400,8 +685,11 @@ def save_item_cache(
         item.id
     )
 
-    temporary_path = path.with_name(
-        path.name + ".tmp"
+    temporary_path = (
+        path.with_name(
+            path.name
+            + ".tmp"
+        )
     )
 
     temporary_path.write_text(
@@ -418,7 +706,9 @@ def save_item_cache(
 
 def resolve_requested_items(
     *,
-    eligible_items: list[InventoryItem],
+    eligible_items: list[
+        InventoryItem
+    ],
     requested_item_ids: list[str],
 ) -> list[InventoryItem]:
     """
@@ -428,12 +718,20 @@ def resolve_requested_items(
     if not requested_item_ids:
         return eligible_items
 
-    seen_requested: set[str] = set()
+    seen_requested: set[
+        str
+    ] = set()
 
-    for item_id in requested_item_ids:
-        if item_id in seen_requested:
+    for item_id in (
+        requested_item_ids
+    ):
+        if (
+            item_id
+            in seen_requested
+        ):
             raise ValueError(
-                "Requested Object DNA item IDs contain duplicate ID: "
+                "Requested Object DNA item IDs "
+                "contain duplicate ID: "
                 f"{item_id}"
             )
 
@@ -443,35 +741,52 @@ def resolve_requested_items(
 
     eligible_ids = {
         item.id
-        for item in eligible_items
+        for item
+        in eligible_items
     }
 
     invalid_ids = sorted(
         item_id
-        for item_id in seen_requested
-        if item_id not in eligible_ids
+        for item_id
+        in seen_requested
+        if (
+            item_id
+            not in eligible_ids
+        )
     )
 
     if invalid_ids:
         raise ValueError(
-            "Requested Object DNA IDs are not currently eligible "
-            f"session inventory items: {invalid_ids}"
+            "Requested Object DNA IDs are not "
+            "currently eligible session inventory "
+            f"items: {invalid_ids}"
         )
 
     return [
         item
-        for item in eligible_items
-        if item.id in seen_requested
+        for item
+        in eligible_items
+        if (
+            item.id
+            in seen_requested
+        )
     ]
 
 
 def inspect_cache_status(
     *,
-    eligible_items: list[InventoryItem],
+    eligible_items: list[
+        InventoryItem
+    ],
     pipeline_sha256: str,
 ) -> tuple[
-    dict[str, ObjectDNA],
-    list[InventoryItem],
+    dict[
+        str,
+        ObjectDNA,
+    ],
+    list[
+        InventoryItem
+    ],
 ]:
     """
     Inspect every eligible item without making model calls.
@@ -486,10 +801,16 @@ def inspect_cache_status(
         InventoryItem
     ] = []
 
-    for item in eligible_items:
-        cached = load_matching_item_cache(
-            item=item,
-            pipeline_sha256=pipeline_sha256,
+    for item in (
+        eligible_items
+    ):
+        cached = (
+            load_matching_item_cache(
+                item=item,
+                pipeline_sha256=(
+                    pipeline_sha256
+                ),
+            )
         )
 
         if cached is None:
@@ -511,8 +832,13 @@ def inspect_cache_status(
 
 def build_complete_response(
     *,
-    eligible_items: list[InventoryItem],
-    cached_by_id: dict[str, ObjectDNA],
+    eligible_items: list[
+        InventoryItem
+    ],
+    cached_by_id: dict[
+        str,
+        ObjectDNA,
+    ],
 ) -> ObjectDNAResponse:
     """
     Assemble complete ObjectDNAResponse in canonical eligible-item order.
@@ -520,34 +846,48 @@ def build_complete_response(
 
     missing_ids = [
         item.id
-        for item in eligible_items
-        if item.id not in cached_by_id
+        for item
+        in eligible_items
+        if (
+            item.id
+            not in cached_by_id
+        )
     ]
 
     if missing_ids:
         raise ValueError(
             "Cannot build complete Object DNA response. "
-            f"Missing eligible item IDs: {missing_ids}"
+            "Missing eligible item IDs: "
+            f"{missing_ids}"
         )
 
     objects = [
-        cached_by_id[item.id]
-        for item in eligible_items
+        cached_by_id[
+            item.id
+        ]
+        for item
+        in eligible_items
     ]
 
     actual_ids = [
         object_dna.item_id
-        for object_dna in objects
+        for object_dna
+        in objects
     ]
 
     expected_ids = [
         item.id
-        for item in eligible_items
+        for item
+        in eligible_items
     ]
 
-    if actual_ids != expected_ids:
+    if (
+        actual_ids
+        != expected_ids
+    ):
         raise RuntimeError(
-            "Complete Object DNA ordering/coverage mismatch."
+            "Complete Object DNA ordering/"
+            "coverage mismatch."
         )
 
     return ObjectDNAResponse(
@@ -558,28 +898,38 @@ def build_complete_response(
 def save_aggregate_snapshot(
     *,
     session_inventory: CanonicalInventory,
-    eligible_items: list[InventoryItem],
+    eligible_items: list[
+        InventoryItem
+    ],
     pipeline_sha256: str,
     object_dna: ObjectDNAResponse,
 ) -> None:
     """
-    Save a convenience full-session snapshot after all per-item caches exist.
+    Save a convenience full-session snapshot after all
+    per-item caches exist.
 
     Per-item caches remain authoritative.
     """
 
-    snapshot = ObjectDNAAggregateSnapshot(
-        session_inventory_sha256=(
-            inventory_fingerprint(
-                session_inventory
-            )
-        ),
-        pipeline_sha256=pipeline_sha256,
-        eligible_item_ids=[
-            item.id
-            for item in eligible_items
-        ],
-        object_dna=object_dna,
+    snapshot = (
+        ObjectDNAAggregateSnapshot(
+            session_inventory_sha256=(
+                inventory_fingerprint(
+                    session_inventory
+                )
+            ),
+            pipeline_sha256=(
+                pipeline_sha256
+            ),
+            eligible_item_ids=[
+                item.id
+                for item
+                in eligible_items
+            ],
+            object_dna=(
+                object_dna
+            ),
+        )
     )
 
     AGGREGATE_PATH.parent.mkdir(
@@ -589,7 +939,8 @@ def save_aggregate_snapshot(
 
     temporary_path = (
         AGGREGATE_PATH.with_name(
-            AGGREGATE_PATH.name + ".tmp"
+            AGGREGATE_PATH.name
+            + ".tmp"
         )
     )
 
@@ -608,67 +959,99 @@ def save_aggregate_snapshot(
 def print_inventory_summary(
     *,
     session_inventory: CanonicalInventory,
-    eligible_items: list[InventoryItem],
+    eligible_items: list[
+        InventoryItem
+    ],
 ) -> None:
     pending_count = sum(
         1
-        for item in session_inventory.items
+        for item
+        in session_inventory.items
         if (
             item.verification_status
-            == VerificationStatus.NEEDS_CONFIRMATION
+            ==
+            VerificationStatus
+            .NEEDS_CONFIRMATION
         )
     )
 
     auto_count = sum(
         1
-        for item in session_inventory.items
+        for item
+        in session_inventory.items
         if (
             item.verification_status
-            == VerificationStatus.AUTO_ACCEPTED
+            ==
+            VerificationStatus
+            .AUTO_ACCEPTED
         )
     )
 
     confirmed_count = sum(
         1
-        for item in session_inventory.items
+        for item
+        in session_inventory.items
         if (
             item.verification_status
-            == VerificationStatus.USER_CONFIRMED
+            ==
+            VerificationStatus
+            .USER_CONFIRMED
         )
     )
 
     print(
-        f"Session inventory items: "
+        "Session inventory items: "
         f"{len(session_inventory.items)}"
     )
 
     print(
-        f"AUTO_ACCEPTED: {auto_count}"
+        f"AUTO_ACCEPTED: "
+        f"{auto_count}"
     )
 
     print(
-        f"USER_CONFIRMED: {confirmed_count}"
+        f"USER_CONFIRMED: "
+        f"{confirmed_count}"
     )
 
     print(
-        f"NEEDS_CONFIRMATION: {pending_count}"
+        "NEEDS_CONFIRMATION: "
+        f"{pending_count}"
     )
 
     print(
-        f"Eligible Object DNA items: "
+        "Eligible Object DNA items: "
         f"{len(eligible_items)}"
     )
 
 
-def main() -> None:
-    parser = argparse.ArgumentParser()
+def parse_args() -> (
+    argparse.Namespace
+):
+    parser = argparse.ArgumentParser(
+        description=(
+            "Generate or inspect goal-independent "
+            "Object DNA for a namespaced walkthrough."
+        )
+    )
+
+    parser.add_argument(
+        "--walkthrough-id",
+        default=(
+            DEFAULT_WALKTHROUGH_ID
+        ),
+        help=(
+            "Artifact namespace such as walkthrough-02. "
+            "Defaults to walkthrough-01."
+        ),
+    )
 
     parser.add_argument(
         "--dry-run",
         action="store_true",
         help=(
-            "Inspect eligible items and cache status without "
-            "creating a paid Object DNA client."
+            "Inspect eligible items and cache status "
+            "without creating a paid Object DNA client."
         ),
     )
 
@@ -677,8 +1060,8 @@ def main() -> None:
         type=int,
         default=0,
         help=(
-            "Maximum number of new paid Object DNA calls allowed "
-            "during this run. Default 0."
+            "Maximum number of new paid Object DNA "
+            "calls allowed during this run. Default 0."
         ),
     )
 
@@ -692,24 +1075,72 @@ def main() -> None:
         ),
     )
 
-    args = parser.parse_args()
+    return parser.parse_args()
 
-    if args.max_new_calls < 0:
-        parser.error(
+
+def main() -> None:
+    args = parse_args()
+
+    walkthrough_id = (
+        validate_walkthrough_id(
+            args.walkthrough_id
+        )
+    )
+
+    configure_walkthrough_paths(
+        walkthrough_id
+    )
+
+    if (
+        args.max_new_calls
+        < 0
+    ):
+        raise ValueError(
             "--max-new-calls cannot be negative."
         )
 
     if (
         args.dry_run
-        and args.max_new_calls != 0
+        and args.max_new_calls
+        != 0
     ):
-        parser.error(
-            "--dry-run cannot be combined with paid calls."
+        raise ValueError(
+            "--dry-run cannot be combined "
+            "with paid calls."
         )
 
     print("=" * 72)
-    print("ZERO WALKTHROUGH OBJECT DNA")
+    print(
+        "ZERO WALKTHROUGH OBJECT DNA"
+    )
     print("=" * 72)
+
+    print()
+
+    print(
+        "Walkthrough:",
+        walkthrough_id,
+    )
+
+    print(
+        "Canonical inventory:",
+        INVENTORY_PATH.resolve(),
+    )
+
+    print(
+        "Human-evidence state:",
+        CONFIRMATION_STATE_PATH.resolve(),
+    )
+
+    print(
+        "Per-item cache directory:",
+        CACHE_DIR.resolve(),
+    )
+
+    print(
+        "Aggregate snapshot:",
+        AGGREGATE_PATH.resolve(),
+    )
 
     (
         canonical_inventory,
@@ -717,13 +1148,21 @@ def main() -> None:
         canonical_sha256,
     ) = load_session_inventory()
 
-    eligible_items = get_eligible_items(
-        session_inventory
+    eligible_items = (
+        get_eligible_items(
+            session_inventory
+        )
     )
 
-    selected_items = resolve_requested_items(
-        eligible_items=eligible_items,
-        requested_item_ids=args.item_id,
+    selected_items = (
+        resolve_requested_items(
+            eligible_items=(
+                eligible_items
+            ),
+            requested_item_ids=(
+                args.item_id
+            ),
+        )
     )
 
     pipeline_sha256 = (
@@ -734,49 +1173,66 @@ def main() -> None:
         cached_by_id,
         missing_items,
     ) = inspect_cache_status(
-        eligible_items=eligible_items,
-        pipeline_sha256=pipeline_sha256,
+        eligible_items=(
+            eligible_items
+        ),
+        pipeline_sha256=(
+            pipeline_sha256
+        ),
     )
 
     print()
+
     print(
-        f"Canonical inventory SHA-256: "
+        "Canonical inventory SHA-256: "
         f"{canonical_sha256}"
     )
 
     print(
-        f"Object DNA pipeline SHA-256: "
+        "Object DNA pipeline SHA-256: "
         f"{pipeline_sha256}"
     )
 
     print()
 
     print_inventory_summary(
-        session_inventory=session_inventory,
-        eligible_items=eligible_items,
+        session_inventory=(
+            session_inventory
+        ),
+        eligible_items=(
+            eligible_items
+        ),
     )
 
     print()
 
     print(
-        f"Valid per-item cache hits: "
+        "Valid per-item cache hits: "
         f"{len(cached_by_id)}"
     )
 
     print(
-        f"Missing/stale per-item caches: "
+        "Missing/stale per-item caches: "
         f"{len(missing_items)}"
     )
 
     print(
-        f"Selected items this run: "
+        "Expected new calls for complete "
+        "eligible coverage: "
+        f"{len(missing_items)}"
+    )
+
+    print(
+        "Selected items this run: "
         f"{len(selected_items)}"
     )
 
     print()
 
     print("=" * 72)
-    print("SELECTED OBJECT DNA ITEMS")
+    print(
+        "SELECTED OBJECT DNA ITEMS"
+    )
     print("=" * 72)
 
     for index, item in enumerate(
@@ -784,7 +1240,8 @@ def main() -> None:
         start=1,
     ):
         cached = (
-            item.id in cached_by_id
+            item.id
+            in cached_by_id
         )
 
         print(
@@ -807,14 +1264,24 @@ def main() -> None:
 
     if args.dry_run:
         print()
+
         print(
-            "DRY RUN COMPLETE — NO MODEL CALL MADE"
+            "DRY RUN COMPLETE - "
+            "NO MODEL CALL MADE"
+        )
+
+        print(
+            "Model calls executed by dry run: 0"
         )
 
         return
 
-    if args.max_new_calls == 0:
+    if (
+        args.max_new_calls
+        == 0
+    ):
         print()
+
         print(
             "No paid Object DNA calls authorized "
             "(--max-new-calls is 0)."
@@ -825,15 +1292,21 @@ def main() -> None:
     new_calls = 0
 
     for item in selected_items:
-        existing = load_matching_item_cache(
-            item=item,
-            pipeline_sha256=pipeline_sha256,
+        existing = (
+            load_matching_item_cache(
+                item=item,
+                pipeline_sha256=(
+                    pipeline_sha256
+                ),
+            )
         )
 
         if existing is not None:
             print()
+
             print(
-                f"{item.id}: valid cache hit"
+                f"{item.id}: "
+                "valid cache hit"
             )
 
             continue
@@ -845,39 +1318,49 @@ def main() -> None:
             break
 
         print()
+
         print(
-            f"{item.id}: running one paid Object DNA call..."
+            f"{item.id}: running one "
+            "paid Object DNA call..."
         )
 
         try:
-            # Import lazily so dry runs and cache-only runs do not even
-            # create the Nebius client.
+            # Import lazily so dry runs and cache-only runs
+            # do not even create the Nebius client.
             from object_dna_service import (
                 generate_object_dna,
             )
 
-            result = generate_object_dna(
-                item
+            result = (
+                generate_object_dna(
+                    item
+                )
             )
 
             save_item_cache(
                 item=item,
-                pipeline_sha256=pipeline_sha256,
+                pipeline_sha256=(
+                    pipeline_sha256
+                ),
                 object_dna=result,
             )
 
         except Exception:
             print()
+
             print(
-                f"Object DNA generation failed for {item.id}."
+                "Object DNA generation failed "
+                f"for {item.id}."
             )
 
             print(
-                "All earlier successful per-item caches remain saved."
+                "All earlier successful per-item "
+                "caches remain saved."
             )
 
             print(
-                "Do not rerun blindly before inspecting the failure."
+                "Do not rerun blindly before "
+                "inspecting the failure."
             )
 
             raise
@@ -885,34 +1368,42 @@ def main() -> None:
         new_calls += 1
 
         print(
-            f"{item.id}: validated and cached"
+            f"{item.id}: "
+            "validated and cached"
         )
 
     (
         refreshed_cached_by_id,
         refreshed_missing_items,
     ) = inspect_cache_status(
-        eligible_items=eligible_items,
-        pipeline_sha256=pipeline_sha256,
+        eligible_items=(
+            eligible_items
+        ),
+        pipeline_sha256=(
+            pipeline_sha256
+        ),
     )
 
     print()
+
     print("=" * 72)
-    print("OBJECT DNA RUN SUMMARY")
+    print(
+        "OBJECT DNA RUN SUMMARY"
+    )
     print("=" * 72)
 
     print(
-        f"Paid calls made this run: "
+        "Paid calls made this run: "
         f"{new_calls}"
     )
 
     print(
-        f"Valid cached eligible items: "
+        "Valid cached eligible items: "
         f"{len(refreshed_cached_by_id)}"
     )
 
     print(
-        f"Remaining uncached eligible items: "
+        "Remaining uncached eligible items: "
         f"{len(refreshed_missing_items)}"
     )
 
@@ -923,7 +1414,9 @@ def main() -> None:
             "Remaining item IDs:"
         )
 
-        for item in refreshed_missing_items:
+        for item in (
+            refreshed_missing_items
+        ):
             print(
                 f"- {item.id}"
             )
@@ -931,32 +1424,50 @@ def main() -> None:
         print()
 
         print(
-            "Aggregate Object DNA snapshot was NOT written "
-            "because coverage is incomplete."
+            "Aggregate Object DNA snapshot was "
+            "NOT written because coverage "
+            "is incomplete."
         )
 
         return
 
-    complete_response = build_complete_response(
-        eligible_items=eligible_items,
-        cached_by_id=refreshed_cached_by_id,
+    complete_response = (
+        build_complete_response(
+            eligible_items=(
+                eligible_items
+            ),
+            cached_by_id=(
+                refreshed_cached_by_id
+            ),
+        )
     )
 
     save_aggregate_snapshot(
-        session_inventory=session_inventory,
-        eligible_items=eligible_items,
-        pipeline_sha256=pipeline_sha256,
-        object_dna=complete_response,
+        session_inventory=(
+            session_inventory
+        ),
+        eligible_items=(
+            eligible_items
+        ),
+        pipeline_sha256=(
+            pipeline_sha256
+        ),
+        object_dna=(
+            complete_response
+        ),
     )
 
     print()
 
     print(
-        "Complete Object DNA coverage: 33/33"
+        "Complete Object DNA coverage: "
+        f"{len(eligible_items)}/"
+        f"{len(eligible_items)}"
     )
 
     print(
-        "Saved private aggregate Object DNA snapshot:"
+        "Saved private aggregate "
+        "Object DNA snapshot:"
     )
 
     print(
