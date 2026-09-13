@@ -1,7 +1,57 @@
+from __future__ import annotations
+
 from schemas import (
     CapabilityType,
+    EvidenceBasis,
     ObjectDNA,
     PhysicalTraitType,
+)
+
+
+# External methods that should not be converted into an intrinsic
+# HANG affordance for the object being analyzed.
+#
+# ZERO may later choose an available fastening object during planning,
+# but Object DNA must not pretend the analyzed object itself already
+# provides that capability.
+DESTRUCTIVE_OR_ADDED_ATTACHMENT_TERMS = (
+    "nail",
+    "nails",
+    "screw",
+    "screws",
+    "drill",
+    "drilling",
+    "adhesive",
+    "adhesives",
+    "tape",
+    "glue",
+    "wall anchor",
+    "wall anchors",
+    "staple",
+    "staples",
+)
+
+
+INTRINSIC_HANG_MECHANISM_TERMS = (
+    "handle",
+    "handles",
+    "loop",
+    "loops",
+    "strap",
+    "straps",
+    "eyelet",
+    "eyelets",
+    "grommet",
+    "grommets",
+    "clip",
+    "clips",
+    "clamp",
+    "clamps",
+    "rod pocket",
+    "built-in hook",
+    "built in hook",
+    "drape over",
+    "draped over",
 )
 
 
@@ -10,7 +60,8 @@ def _trait_names(
 ) -> set[PhysicalTraitType]:
     return {
         trait.trait
-        for trait in dna.physical_traits
+        for trait
+        in dna.physical_traits
     }
 
 
@@ -19,7 +70,8 @@ def _capability_names(
 ) -> set[CapabilityType]:
     return {
         affordance.capability
-        for affordance in dna.affordances
+        for affordance
+        in dna.affordances
     }
 
 
@@ -35,24 +87,120 @@ def _prioritize_strings(
 
     result: list[str] = []
 
-    for value in required + existing:
-        normalized = value.strip()
+    for value in (
+        required
+        + existing
+    ):
+        normalized = (
+            value.strip()
+        )
 
         if not normalized:
             continue
 
         if normalized.lower() in {
             item.lower()
-            for item in result
+            for item
+            in result
         }:
             continue
 
-        result.append(normalized)
+        result.append(
+            normalized
+        )
 
-        if len(result) >= maximum:
+        if (
+            len(result)
+            >= maximum
+        ):
             break
 
     return result
+
+
+def _contains_any(
+    text: str,
+    terms: tuple[str, ...],
+) -> bool:
+    lowered = text.lower()
+
+    return any(
+        term in lowered
+        for term
+        in terms
+    )
+
+
+def _hang_depends_on_added_attachment(
+    description: str,
+) -> bool:
+    """
+    Return True when a HANG claim depends on introducing
+    nails, screws, drilling, adhesive, tape, etc.
+
+    Those methods may be considered separately during planning
+    if such resources actually exist, but they are not an
+    intrinsic affordance of the analyzed object.
+    """
+
+    return _contains_any(
+        description,
+        DESTRUCTIVE_OR_ADDED_ATTACHMENT_TERMS,
+    )
+
+
+def _hang_has_intrinsic_mechanism(
+    description: str,
+) -> bool:
+    """
+    Identify descriptions that establish a built-in or
+    body-geometry hanging mechanism.
+
+    This is deliberately conservative.
+    """
+
+    return _contains_any(
+        description,
+        INTRINSIC_HANG_MECHANISM_TERMS,
+    )
+
+
+def _downgrade_structural_evidence(
+    affordance,
+):
+    """
+    SUPPORT/ELEVATE are easy for a model to over-label as
+    visually observed.
+
+    Without the source image at this deterministic boundary,
+    downgrade these functional claims to common_property.
+
+    This never creates a new affordance and never raises
+    certainty.
+    """
+
+    if (
+        affordance.capability
+        not in {
+            CapabilityType.SUPPORT,
+            CapabilityType.ELEVATE,
+        }
+    ):
+        return affordance
+
+    if (
+        affordance.evidence_basis
+        != EvidenceBasis.VISUALLY_OBSERVED
+    ):
+        return affordance
+
+    return affordance.model_copy(
+        update={
+            "evidence_basis":
+                EvidenceBasis.COMMON_PROPERTY,
+        },
+        deep=True,
+    )
 
 
 def sanitize_object_dna(
@@ -64,6 +212,8 @@ def sanitize_object_dna(
     This function is allowed to:
 
     - remove affordances whose required physical evidence is missing
+    - remove affordances that depend on ungrounded external modification
+    - conservatively downgrade overly strong evidence labels
     - preserve mandatory unknown physical properties
     - preserve mandatory safety cautions
 
@@ -74,10 +224,24 @@ def sanitize_object_dna(
         dna
     )
 
-    cleaned_affordances = []
+    # -------------------------------------------------------------------
+    # First-pass affordance filtering
+    # -------------------------------------------------------------------
 
-    for affordance in dna.affordances:
-        capability = affordance.capability
+    first_pass_affordances = []
+
+    for raw_affordance in (
+        dna.affordances
+    ):
+        affordance = (
+            _downgrade_structural_evidence(
+                raw_affordance
+            )
+        )
+
+        capability = (
+            affordance.capability
+        )
 
         # ---------------------------------------------------------------
         # Electrical
@@ -122,8 +286,24 @@ def sanitize_object_dna(
             if (
                 PhysicalTraitType.HOLLOW
                 not in traits
-                and PhysicalTraitType.CAN_HOLD_LIQUID
+                and
+                PhysicalTraitType.CAN_HOLD_LIQUID
                 not in traits
+            ):
+                continue
+
+        # ---------------------------------------------------------------
+        # Hanging
+        # ---------------------------------------------------------------
+
+        if (
+            capability
+            == CapabilityType.HANG
+        ):
+            if (
+                _hang_depends_on_added_attachment(
+                    affordance.description
+                )
             ):
                 continue
 
@@ -141,7 +321,8 @@ def sanitize_object_dna(
                 and (
                     PhysicalTraitType.LARGE_SURFACE
                     in traits
-                    or PhysicalTraitType.SMALL_SURFACE
+                    or
+                    PhysicalTraitType.SMALL_SURFACE
                     in traits
                 )
             )
@@ -183,37 +364,101 @@ def sanitize_object_dna(
             ):
                 continue
 
-        if capability in {
-            CapabilityType.ABSORB_SOUND,
-            CapabilityType.DAMPEN_SOUND,
-        }:
+        if (
+            capability
+            in {
+                CapabilityType.ABSORB_SOUND,
+                CapabilityType.DAMPEN_SOUND,
+            }
+        ):
             if (
                 PhysicalTraitType.SOFT
                 not in traits
-                and PhysicalTraitType.FLEXIBLE
+                and
+                PhysicalTraitType.FLEXIBLE
                 not in traits
             ):
                 continue
+
+        first_pass_affordances.append(
+            affordance
+        )
+
+    # -------------------------------------------------------------------
+    # Elevation semantics
+    # -------------------------------------------------------------------
+
+    first_pass_capabilities = {
+        affordance.capability
+        for affordance
+        in first_pass_affordances
+    }
+
+    cleaned_affordances = []
+
+    for affordance in (
+        first_pass_affordances
+    ):
+        if (
+            affordance.capability
+            != CapabilityType.ELEVATE
+        ):
+            cleaned_affordances.append(
+                affordance
+            )
+
+            continue
+
+        # Elevating something necessarily implies supporting it.
+        if (
+            CapabilityType.SUPPORT
+            not in first_pass_capabilities
+        ):
+            continue
+
+        # Being tall, fixed, or structural is not enough.
+        #
+        # Require either:
+        # - flat placement geometry, or
+        # - a valid hanging/suspension capability.
+        has_elevation_geometry = (
+            PhysicalTraitType.FLAT
+            in traits
+            or
+            CapabilityType.HANG
+            in first_pass_capabilities
+        )
+
+        if not has_elevation_geometry:
+            continue
 
         cleaned_affordances.append(
             affordance
         )
 
-    cleaned_dna = dna.model_copy(
-        update={
-            "affordances": cleaned_affordances,
-        }
+    cleaned_dna = (
+        dna.model_copy(
+            update={
+                "affordances":
+                    cleaned_affordances,
+            },
+            deep=True,
+        )
     )
 
-    capabilities = _capability_names(
-        cleaned_dna
+    capabilities = (
+        _capability_names(
+            cleaned_dna
+        )
     )
 
     # -------------------------------------------------------------------
     # Required unknown physical properties
     # -------------------------------------------------------------------
 
-    required_unknowns: list[str] = []
+    required_unknowns: list[
+        str
+    ] = []
 
     if (
         PhysicalTraitType.ELECTRICAL
@@ -246,7 +491,8 @@ def sanitize_object_dna(
     if (
         CapabilityType.SUPPORT
         in capabilities
-        or CapabilityType.ELEVATE
+        or
+        CapabilityType.ELEVATE
         in capabilities
     ):
         required_unknowns.append(
@@ -261,17 +507,76 @@ def sanitize_object_dna(
             "stacking stability"
         )
 
-    unknown_properties = _prioritize_strings(
-        required=required_unknowns,
-        existing=dna.unknown_properties,
-        maximum=4,
+    # Flexible, sheet-like cover materials must not silently
+    # imply that they are large enough for a later target.
+    if (
+        PhysicalTraitType.FLEXIBLE
+        in traits
+        and
+        PhysicalTraitType.FLAT
+        in traits
+        and (
+            CapabilityType.COVER
+            in capabilities
+            or
+            CapabilityType.BLOCK_LIGHT
+            in capabilities
+        )
+    ):
+        required_unknowns.append(
+            "dimensions"
+        )
+
+        required_unknowns.append(
+            "coverage area"
+        )
+
+    # If an object can hang but no intrinsic hanging feature is
+    # established in the affordance description, preserve the
+    # method as unknown rather than silently assuming hardware.
+    hang_affordances = [
+        affordance
+        for affordance
+        in cleaned_dna.affordances
+        if (
+            affordance.capability
+            == CapabilityType.HANG
+        )
+    ]
+
+    if hang_affordances:
+        intrinsic_hang_established = any(
+            _hang_has_intrinsic_mechanism(
+                affordance.description
+            )
+            for affordance
+            in hang_affordances
+        )
+
+        if not intrinsic_hang_established:
+            required_unknowns.append(
+                "attachment method"
+            )
+
+    unknown_properties = (
+        _prioritize_strings(
+            required=(
+                required_unknowns
+            ),
+            existing=(
+                dna.unknown_properties
+            ),
+            maximum=4,
+        )
     )
 
     # -------------------------------------------------------------------
     # Required safety cautions
     # -------------------------------------------------------------------
 
-    required_cautions: list[str] = []
+    required_cautions: list[
+        str
+    ] = []
 
     if (
         PhysicalTraitType.ELECTRICAL
@@ -300,11 +605,13 @@ def sanitize_object_dna(
     if (
         CapabilityType.SUPPORT
         in capabilities
-        or CapabilityType.ELEVATE
+        or
+        CapabilityType.ELEVATE
         in capabilities
     ):
         required_cautions.append(
-            "Verify stability and load-bearing capacity before supporting or elevating objects."
+            "Verify stability and load-bearing capacity before "
+            "supporting or elevating objects."
         )
 
     if (
@@ -315,19 +622,38 @@ def sanitize_object_dna(
             "Verify stacking stability before reuse."
         )
 
-    caution_notes = _prioritize_strings(
-        required=required_cautions,
-        existing=dna.caution_notes,
-        maximum=3,
+    if (
+        hang_affordances
+        and "attachment method"
+        in {
+            value.lower()
+            for value
+            in unknown_properties
+        }
+    ):
+        required_cautions.append(
+            "Verify a stable, non-damaging attachment method "
+            "before hanging."
+        )
+
+    caution_notes = (
+        _prioritize_strings(
+            required=(
+                required_cautions
+            ),
+            existing=(
+                dna.caution_notes
+            ),
+            maximum=3,
+        )
     )
 
     return cleaned_dna.model_copy(
         update={
-            "unknown_properties": (
-                unknown_properties
-            ),
-            "caution_notes": (
-                caution_notes
-            ),
-        }
+            "unknown_properties":
+                unknown_properties,
+            "caution_notes":
+                caution_notes,
+        },
+        deep=True,
     )
