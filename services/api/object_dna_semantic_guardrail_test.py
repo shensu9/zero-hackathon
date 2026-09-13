@@ -1,4 +1,4 @@
-from object_dna_sanitizer import (
+﻿from object_dna_sanitizer import (
     sanitize_object_dna,
 )
 from object_dna_validator import (
@@ -603,6 +603,197 @@ def test_portable_weight_is_preserved():
     )
 
 
+def test_fixed_floor_block_light_is_removed():
+    dna = ObjectDNA(
+        item_id="wood_flooring",
+        physical_traits=[
+            make_trait(
+                PhysicalTraitType.RIGID
+            ),
+            make_trait(
+                PhysicalTraitType.FLAT
+            ),
+            make_trait(
+                PhysicalTraitType.LARGE_SURFACE
+            ),
+            make_trait(
+                PhysicalTraitType.OPAQUE
+            ),
+        ],
+        affordances=[
+            make_affordance(
+                CapabilityType.BLOCK_LIGHT,
+                (
+                    "As an opaque panel, it can "
+                    "obstruct light transmission."
+                ),
+            ),
+        ],
+        unknown_properties=[],
+        caution_notes=[],
+    )
+
+    sanitized = sanitize_object_dna(
+        dna
+    )
+
+    assert (
+        CapabilityType.BLOCK_LIGHT
+        not in {
+            affordance.capability
+            for affordance
+            in sanitized.affordances
+        }
+    )
+
+    validate_object_dna(
+        sanitized
+    )
+
+    print(
+        "FIXED FLOOR BLOCK-LIGHT REMOVAL TEST: passed"
+    )
+
+
+def test_repositionable_light_blocker_is_preserved():
+    dna = ObjectDNA(
+        item_id="curtain_material",
+        physical_traits=[
+            make_trait(
+                PhysicalTraitType.FLEXIBLE
+            ),
+            make_trait(
+                PhysicalTraitType.FLAT
+            ),
+            make_trait(
+                PhysicalTraitType.LARGE_SURFACE
+            ),
+            make_trait(
+                PhysicalTraitType.OPAQUE
+            ),
+        ],
+        affordances=[
+            make_affordance(
+                CapabilityType.BLOCK_LIGHT,
+                (
+                    "Opaque flexible material can "
+                    "block light when positioned "
+                    "across an opening."
+                ),
+            ),
+        ],
+        unknown_properties=[],
+        caution_notes=[],
+    )
+
+    sanitized = sanitize_object_dna(
+        dna
+    )
+
+    capabilities = {
+        affordance.capability
+        for affordance
+        in sanitized.affordances
+    }
+
+    assert (
+        CapabilityType.BLOCK_LIGHT
+        in capabilities
+    )
+
+    unknowns = {
+        value.lower()
+        for value
+        in sanitized.unknown_properties
+    }
+
+    assert (
+        "dimensions"
+        in unknowns
+    )
+
+    assert (
+        "coverage area"
+        in unknowns
+    )
+
+    validate_object_dna(
+        sanitized
+    )
+
+    print(
+        "REPOSITIONABLE BLOCK-LIGHT PRESERVATION TEST: passed"
+    )
+
+
+def test_unknown_property_semantic_dedup():
+    dna = ObjectDNA(
+        item_id="water_bottle",
+        physical_traits=[
+            make_trait(
+                PhysicalTraitType.RIGID
+            ),
+            make_trait(
+                PhysicalTraitType.HOLLOW
+            ),
+            make_trait(
+                PhysicalTraitType.CAN_HOLD_LIQUID
+            ),
+        ],
+        affordances=[
+            make_affordance(
+                CapabilityType.CONTAIN,
+                "Can hold liquid inside its interior.",
+            ),
+        ],
+        unknown_properties=[
+            "current_liquid_contents",
+            "insulation_effectiveness",
+        ],
+        caution_notes=[],
+    )
+
+    sanitized = sanitize_object_dna(
+        dna
+    )
+
+    semantic_unknowns = [
+        " ".join(
+            value
+            .lower()
+            .replace("_", " ")
+            .split()
+        )
+        for value
+        in sanitized.unknown_properties
+    ]
+
+    assert (
+        semantic_unknowns.count(
+            "current liquid contents"
+        )
+        == 1
+    )
+
+    assert (
+        "current liquid contents"
+        in semantic_unknowns
+    )
+
+    assert (
+        "insulation effectiveness"
+        in semantic_unknowns
+    )
+
+    validate_object_dna(
+        sanitized
+    )
+
+    print(
+        "UNKNOWN PROPERTY SEMANTIC DEDUP TEST: passed"
+    )
+
+
 def main() -> None:
     tests = [
         test_removes_destructive_hang_claim,
@@ -615,6 +806,9 @@ def main() -> None:
         test_validator_rejects_cover_without_size_unknowns,
         test_trash_can_weight_is_removed,
         test_portable_weight_is_preserved,
+        test_fixed_floor_block_light_is_removed,
+        test_repositionable_light_blocker_is_preserved,
+        test_unknown_property_semantic_dedup,
     ]
 
     for test in tests:

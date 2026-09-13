@@ -75,12 +75,28 @@ def capability_names(
     }
 
 
+def _semantic_string_key(
+    value: str,
+) -> str:
+    return " ".join(
+        value
+        .strip()
+        .lower()
+        .replace("_", " ")
+        .split()
+    )
+
+
 def _combined_text(
     values: list[str],
 ) -> str:
     return " ".join(
-        values
-    ).lower()
+        _semantic_string_key(
+            value
+        )
+        for value
+        in values
+    )
 
 
 def _contains_any(
@@ -116,16 +132,12 @@ def validate_object_dna(
         dna
     )
 
-    unknown_text = (
-        _combined_text(
-            dna.unknown_properties
-        )
+    unknown_text = _combined_text(
+        dna.unknown_properties
     )
 
-    caution_text = (
-        _combined_text(
-            dna.caution_notes
-        )
+    caution_text = _combined_text(
+        dna.caution_notes
     )
 
     errors: list[str] = []
@@ -479,17 +491,34 @@ def validate_object_dna(
     if (
         CapabilityType.BLOCK_LIGHT
         in capabilities
-        and (
+    ):
+        if (
             PhysicalTraitType.OPAQUE
             not in traits
             or
             PhysicalTraitType.LARGE_SURFACE
             not in traits
+        ):
+            errors.append(
+                "block_light requires opaque and large_surface traits."
+            )
+
+        is_repositionable_material = any(
+            trait
+            in traits
+            for trait
+            in {
+                PhysicalTraitType.FLEXIBLE,
+                PhysicalTraitType.MOVABLE,
+                PhysicalTraitType.PORTABLE,
+            }
         )
-    ):
-        errors.append(
-            "block_light requires opaque and large_surface traits."
-        )
+
+        if not is_repositionable_material:
+            errors.append(
+                "block_light requires a reusable repositionable "
+                "object: flexible, movable, or portable."
+            )
 
     if (
         CapabilityType.DAMPEN_SOUND

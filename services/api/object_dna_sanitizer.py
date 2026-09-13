@@ -69,17 +69,40 @@ def _capability_names(
     }
 
 
+def _semantic_string_key(
+    value: str,
+) -> str:
+    """
+    Normalize equivalent human-readable property strings.
+
+    Examples:
+    - "current_liquid_contents"
+    - "current liquid contents"
+
+    are treated as the same semantic fact for deduplication.
+    """
+
+    return " ".join(
+        value
+        .strip()
+        .lower()
+        .replace("_", " ")
+        .split()
+    )
+
+
 def _prioritize_strings(
     required: list[str],
     existing: list[str],
     maximum: int,
 ) -> list[str]:
     """
-    Put required safety facts first, remove duplicates,
+    Put required safety facts first, remove semantic duplicates,
     and stay inside the schema's maximum list length.
     """
 
     result: list[str] = []
+    seen: set[str] = set()
 
     for value in (
         required
@@ -90,15 +113,19 @@ def _prioritize_strings(
         if not normalized:
             continue
 
-        if normalized.lower() in {
-            item.lower()
-            for item
-            in result
-        }:
+        key = _semantic_string_key(
+            normalized
+        )
+
+        if key in seen:
             continue
 
         result.append(
             normalized
+        )
+
+        seen.add(
+            key
         )
 
         if (
@@ -204,9 +231,11 @@ def sanitize_object_dna(
     - remove affordances whose required physical evidence is missing
     - remove affordances that depend on ungrounded external modification
     - remove overly broad generic-weight affordances
+    - prevent fixed structural surfaces from becoming reusable light blockers
     - conservatively downgrade overly strong structural evidence labels
     - preserve mandatory unknown physical properties
     - preserve mandatory safety cautions
+    - semantically deduplicate equivalent unknown-property strings
 
     It does NOT invent new creative affordances.
     """
@@ -230,6 +259,10 @@ def sanitize_object_dna(
             affordance.capability
         )
 
+        # ---------------------------------------------------------------
+        # Electrical
+        # ---------------------------------------------------------------
+
         if (
             capability
             == CapabilityType.PROVIDE_POWER_CONNECTION
@@ -243,6 +276,10 @@ def sanitize_object_dna(
                 traits
             ):
                 continue
+
+        # ---------------------------------------------------------------
+        # Liquid / container handling
+        # ---------------------------------------------------------------
 
         if (
             capability
@@ -271,6 +308,10 @@ def sanitize_object_dna(
             ):
                 continue
 
+        # ---------------------------------------------------------------
+        # Hanging
+        # ---------------------------------------------------------------
+
         if (
             capability
             == CapabilityType.HANG
@@ -281,6 +322,10 @@ def sanitize_object_dna(
                 )
             ):
                 continue
+
+        # ---------------------------------------------------------------
+        # Physical reuse
+        # ---------------------------------------------------------------
 
         if (
             capability
@@ -329,13 +374,29 @@ def sanitize_object_dna(
             capability
             == CapabilityType.BLOCK_LIGHT
         ):
-            required = {
-                PhysicalTraitType.OPAQUE,
-                PhysicalTraitType.LARGE_SURFACE,
-            }
+            has_light_blocking_material = (
+                PhysicalTraitType.OPAQUE
+                in traits
+                and
+                PhysicalTraitType.LARGE_SURFACE
+                in traits
+            )
 
-            if not required.issubset(
-                traits
+            is_repositionable_material = any(
+                trait
+                in traits
+                for trait
+                in {
+                    PhysicalTraitType.FLEXIBLE,
+                    PhysicalTraitType.MOVABLE,
+                    PhysicalTraitType.PORTABLE,
+                }
+            )
+
+            if (
+                not has_light_blocking_material
+                or
+                not is_repositionable_material
             ):
                 continue
 
@@ -358,6 +419,10 @@ def sanitize_object_dna(
         first_pass_affordances.append(
             affordance
         )
+
+    # -------------------------------------------------------------------
+    # Elevation semantics
+    # -------------------------------------------------------------------
 
     first_pass_capabilities = {
         affordance.capability
@@ -412,6 +477,10 @@ def sanitize_object_dna(
     capabilities = _capability_names(
         cleaned_dna
     )
+
+    # -------------------------------------------------------------------
+    # Required unknown physical properties
+    # -------------------------------------------------------------------
 
     required_unknowns: list[str] = []
 
@@ -519,6 +588,10 @@ def sanitize_object_dna(
             maximum=4,
         )
     )
+
+    # -------------------------------------------------------------------
+    # Required safety cautions
+    # -------------------------------------------------------------------
 
     required_cautions: list[str] = []
 
