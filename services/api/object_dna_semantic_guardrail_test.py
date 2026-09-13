@@ -103,10 +103,8 @@ def test_removes_destructive_hang_claim():
         caution_notes=[],
     )
 
-    sanitized = (
-        sanitize_object_dna(
-            dna
-        )
+    sanitized = sanitize_object_dna(
+        dna
     )
 
     assert (
@@ -184,10 +182,8 @@ def test_handle_hang_is_preserved():
         caution_notes=[],
     )
 
-    sanitized = (
-        sanitize_object_dna(
-            dna
-        )
+    sanitized = sanitize_object_dna(
+        dna
     )
 
     assert (
@@ -253,10 +249,8 @@ def test_blanket_preserves_fit_uncertainty():
         caution_notes=[],
     )
 
-    sanitized = (
-        sanitize_object_dna(
-            dna
-        )
+    sanitized = sanitize_object_dna(
+        dna
     )
 
     unknowns = {
@@ -323,10 +317,8 @@ def test_column_elevate_is_removed():
         caution_notes=[],
     )
 
-    sanitized = (
-        sanitize_object_dna(
-            dna
-        )
+    sanitized = sanitize_object_dna(
+        dna
     )
 
     capabilities = {
@@ -408,10 +400,8 @@ def test_flat_shelf_elevate_is_preserved():
         caution_notes=[],
     )
 
-    sanitized = (
-        sanitize_object_dna(
-            dna
-        )
+    sanitized = sanitize_object_dna(
+        dna
     )
 
     capabilities = {
@@ -524,6 +514,95 @@ def test_validator_rejects_cover_without_size_unknowns():
     )
 
 
+def test_trash_can_weight_is_removed():
+    dna = ObjectDNA(
+        item_id="trash_can",
+        physical_traits=[
+            make_trait(
+                PhysicalTraitType.WEIGHTED
+            ),
+        ],
+        affordances=[
+            make_affordance(
+                CapabilityType.PROVIDE_WEIGHT,
+                (
+                    "Its mass can be used to hold down "
+                    "lightweight objects."
+                ),
+            ),
+        ],
+        unknown_properties=[],
+        caution_notes=[],
+    )
+
+    sanitized = sanitize_object_dna(
+        dna
+    )
+
+    assert (
+        CapabilityType.PROVIDE_WEIGHT
+        not in {
+            affordance.capability
+            for affordance
+            in sanitized.affordances
+        }
+    )
+
+    validate_object_dna(
+        sanitized
+    )
+
+    print(
+        "TRASH CAN WEIGHT REMOVAL TEST: passed"
+    )
+
+
+def test_portable_weight_is_preserved():
+    dna = ObjectDNA(
+        item_id="paperweight",
+        physical_traits=[
+            make_trait(
+                PhysicalTraitType.WEIGHTED
+            ),
+            make_trait(
+                PhysicalTraitType.PORTABLE
+            ),
+        ],
+        affordances=[
+            make_affordance(
+                CapabilityType.PROVIDE_WEIGHT,
+                (
+                    "Portable weighted object "
+                    "can hold papers down."
+                ),
+            ),
+        ],
+        unknown_properties=[],
+        caution_notes=[],
+    )
+
+    sanitized = sanitize_object_dna(
+        dna
+    )
+
+    assert (
+        CapabilityType.PROVIDE_WEIGHT
+        in {
+            affordance.capability
+            for affordance
+            in sanitized.affordances
+        }
+    )
+
+    validate_object_dna(
+        sanitized
+    )
+
+    print(
+        "PORTABLE WEIGHT PRESERVATION TEST: passed"
+    )
+
+
 def main() -> None:
     tests = [
         test_removes_destructive_hang_claim,
@@ -534,6 +613,8 @@ def main() -> None:
         test_flat_shelf_elevate_is_preserved,
         test_validator_rejects_elevate_without_geometry,
         test_validator_rejects_cover_without_size_unknowns,
+        test_trash_can_weight_is_removed,
+        test_portable_weight_is_preserved,
     ]
 
     for test in tests:

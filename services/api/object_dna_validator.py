@@ -1,4 +1,4 @@
-from __future__ import annotations
+﻿from __future__ import annotations
 
 from schemas import (
     CapabilityType,
@@ -57,9 +57,7 @@ INTRINSIC_HANG_MECHANISM_TERMS = (
 
 def trait_names(
     dna: ObjectDNA,
-) -> set[
-    PhysicalTraitType
-]:
+) -> set[PhysicalTraitType]:
     return {
         trait.trait
         for trait
@@ -69,9 +67,7 @@ def trait_names(
 
 def capability_names(
     dna: ObjectDNA,
-) -> set[
-    CapabilityType
-]:
+) -> set[CapabilityType]:
     return {
         affordance.capability
         for affordance
@@ -132,9 +128,7 @@ def validate_object_dna(
         )
     )
 
-    errors: list[
-        str
-    ] = []
+    errors: list[str] = []
 
     # ------------------------------------------------------------------
     # Electrical guardrails
@@ -465,13 +459,22 @@ def validate_object_dna(
     if (
         CapabilityType.PROVIDE_WEIGHT
         in capabilities
-        and
-        PhysicalTraitType.WEIGHTED
-        not in traits
     ):
-        errors.append(
-            "provide_weight requires a grounded weighted trait."
-        )
+        if (
+            PhysicalTraitType.WEIGHTED
+            not in traits
+        ):
+            errors.append(
+                "provide_weight requires a grounded weighted trait."
+            )
+
+        if (
+            PhysicalTraitType.PORTABLE
+            not in traits
+        ):
+            errors.append(
+                "provide_weight requires a portable weighted object."
+            )
 
     if (
         CapabilityType.BLOCK_LIGHT
@@ -507,9 +510,10 @@ def validate_object_dna(
                 "soft or flexible material trait."
             )
 
-    # Flexible sheet-like cover objects must preserve target-fit
-    # uncertainty instead of turning generic cover into guaranteed
-    # full-area coverage.
+    # ------------------------------------------------------------------
+    # Flexible cover / target-fit uncertainty
+    # ------------------------------------------------------------------
+
     if (
         PhysicalTraitType.FLEXIBLE
         in traits
