@@ -34,6 +34,10 @@ from schemas import (
 from semantic_critic import (
     audit_plan_semantics,
 )
+from semantic_requirement_promotion import (
+    promote_semantic_findings_to_requirements,
+    promotion_ineligibility_reason,
+)
 from verification_gate_auditor import (
     audit_verification_gates,
 )
@@ -465,11 +469,92 @@ def _make_outcome_plan_safe(
             repair_attempts
             >= MAX_PLAN_REPAIR_ATTEMPTS
         ):
+            promotion_reason = (
+                promotion_ineligibility_reason(
+                    outcome=outcome,
+                    critic=last_critic,
+                )
+            )
+
+            if promotion_reason is not None:
+                raise UnsafePhysicalPlanError(
+                    "ZERO could not produce a plan that "
+                    "passes deterministic and semantic "
+                    "physical validation within the bounded "
+                    "repair limit, and the remaining semantic "
+                    "failure cannot be safely promoted into "
+                    "pre-execution requirements. "
+                    f"Promotion reason: {promotion_reason} "
+                    f"Findings: "
+                    f"{last_critic.model_dump_json()}"
+                )
+
+            print(
+                "PhysicalPlan repair budget exhausted; "
+                "promoting eligible semantic uncertainty "
+                "into pre-execution requirements..."
+            )
+
+            try:
+                promoted_requirements = (
+                    promote_semantic_findings_to_requirements(
+                        outcome=outcome,
+                        critic=last_critic,
+                        goal=goal,
+                        inventory=inventory,
+                        external_resources=list(
+                            external_resources
+                        ),
+                    )
+                )
+
+            except Exception as exc:
+                raise UnsafePhysicalPlanError(
+                    "ZERO could not safely promote the "
+                    "remaining semantic uncertainty into "
+                    "pre-execution requirements."
+                ) from exc
+
+            outcome = _replace_requirements(
+                outcome=outcome,
+                requirements=[
+                    *outcome.requirements,
+                    *promoted_requirements,
+                ],
+            )
+
+            last_critic = (
+                _audit_outcome_plan(
+                    outcome=outcome,
+                    goal=goal,
+                    inventory=inventory,
+                    object_dna=object_dna,
+                    external_resources=(
+                        external_resources
+                    ),
+                )
+            )
+
+            if last_critic.passed:
+                print(
+                    "Promoted verification requirements "
+                    "closed the remaining semantic gap."
+                )
+
+                return (
+                    outcome,
+                    last_critic,
+                    repair_attempts,
+                    repair_validation_failures,
+                )
+
             raise UnsafePhysicalPlanError(
-                "ZERO could not produce a plan that "
-                "passes deterministic and semantic "
-                "physical validation within the bounded "
-                "repair limit. "
+                "ZERO promoted the eligible semantic "
+                "uncertainty into pre-execution requirements, "
+                "but the PhysicalPlan still failed semantic "
+                "validation under the expanded execution "
+                "contract. No further PhysicalPlan repair or "
+                "requirement promotion is allowed. "
                 f"Findings: "
                 f"{last_critic.model_dump_json()}"
             )
