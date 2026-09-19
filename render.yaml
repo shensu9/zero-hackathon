@@ -1,0 +1,11 @@
+services:
+  - type: web
+    name: zero-hackathon-demo
+    runtime: python
+    plan: free
+    buildCommand: pip install -r services/api/demo_requirements.txt
+    startCommand: uvicorn demo_app:app --app-dir services/api --host 0.0.0.0 --port $PORT
+    healthCheckPath: /api/health
+    envVars:
+      - key: PYTHON_VERSION
+        value: '3.13.15'
