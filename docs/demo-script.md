@@ -5,7 +5,7 @@ Target length: approximately 2:30-3:00
 ## Demo structure
 
 1. Problem and idea
-2. W1 visual walkthrough - SOLVED
+2. W1 hosted decision trace - SOLVED
 3. W2 - CONDITIONAL
 4. W3 - CANNOT_SAFELY_SOLVE
 5. W4 - NEEDS_CONFIRMATION
@@ -15,7 +15,7 @@ Target length: approximately 2:30-3:00
 
 ## 0:00-0:20 - Opening
 
-**Visual:** ZERO title, then a short shot of the room.
+**Visual:** Open the hosted ZERO demo at the hero, then pause on the "How ZERO reasons" flow.
 
 **Narration:**
 
@@ -27,7 +27,7 @@ Target length: approximately 2:30-3:00
 
 ## 0:20-1:00 - W1: Product photography
 
-**Visual:** Play selected portions of `walkthrough-01.mov`, then show a few keyframes and the final plan.
+**Visual:** Scroll to W1, open "View decision trace", and show the grounded SOLVED reasoning steps.
 
 **Goal:** Create a $0 product photography setup using only what is already available, with no permanent modifications.
 
@@ -45,7 +45,7 @@ Target length: approximately 2:30-3:00
 
 ## 1:00-1:25 - W2: Temporary curtain
 
-**Visual:** Show the W2 goal, then a compact result card with `CONDITIONAL` and the two verification requirements.
+**Visual:** Close W1, open W2, and show the `CONDITIONAL` trace with its two verification requirements.
 
 **Goal:** Create a temporary curtain using only what is already available, without spending money or drilling, while minimizing damage to painted surfaces.
 
@@ -68,7 +68,7 @@ Target length: approximately 2:30-3:00
 
 ## 1:25-1:50 - W3: Full-length mirror
 
-**Visual:** Show the mirror walkthrough briefly, then highlight the mirror, hook rack, and clothing rack with the final `CANNOT_SAFELY_SOLVE` result.
+**Visual:** Open W3 and hold on the `CANNOT_SAFELY_SOLVE` trace, especially the steps explaining why garment hooks and racks are insufficient evidence.
 
 **Goal:** Hang a full-length mirror on a painted wall using only what is already available, without drilling, adhesives, or buying anything, while making sure it cannot fall.
 
@@ -90,7 +90,7 @@ Target length: approximately 2:30-3:00
 
 ## 1:50-2:10 - W4: Focal display choice
 
-**Visual:** Reuse the W3 room world and highlight the acoustic guitar and canvas artwork, then show the `NEEDS_CONFIRMATION` result.
+**Visual:** Open W4 and show the `NEEDS_CONFIRMATION` trace explaining that the missing guitar-versus-canvas preference selects the plan.
 
 **Goal:** Create one focal display using either the guitar or the canvas artwork, without damaging the wall, but the user has not chosen which item to feature.
 
@@ -112,7 +112,7 @@ Target length: approximately 2:30-3:00
 
 ## 2:10-2:45 - Benchmark evidence and closing
 
-**Visual:** Show the four outcome states together, then the repeated benchmark numbers.
+**Visual:** Return to the four outcome cards, then scroll to the benchmark evidence panel and hold on the 63.2% reduction.
 
 **Narration:**
 
