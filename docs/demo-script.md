@@ -23,15 +23,21 @@ Target length: approximately 2:30-3:00
 
 "ZERO adds an evidence boundary: first model what each object can do, then let the planner use only validated capabilities."
 
+---
+
+## 0:20-1:00 - W1: Product photography
+
 **Visual:** Play selected portions of `walkthrough-01.mov`, then show a few keyframes and the final plan.
 
 **Goal:** Create a $0 product photography setup using only what is already available, with no permanent modifications.
 
 **Narration:**
 
-"AI can look at a room and suggest clever physical solutions. But it can also imagine capabilities that were never actually established."
+"ZERO turns the walkthrough into a canonical inventory and capability graph."
 
-"ZERO adds an evidence boundary: first model what each object can do, then let the planner use only validated capabilities."
+"For this goal, the blanket and wardrobe door provide the backdrop, the window provides grounded light handling, and the desk provides the product surface."
+
+"Because each object use is supported by the validated world model, ZERO returns a solved plan."
 
 **Result:** `SOLVED`
 
