@@ -400,6 +400,15 @@ Install dependencies:
 pip install -r services\api\requirements.txt
 ```
 
+Run the offline evidence demo locally without an API key:
+
+```powershell
+pip install -r services\api\demo_requirements.txt
+python -m uvicorn demo_app:app --app-dir services\api --host 127.0.0.1 --port 8000
+```
+
+Then open `http://127.0.0.1:8000`. This demo reads only committed public evidence and makes **0 model calls**.
+
 Create a local `.env` containing a valid Nebius API key when running model-backed stages.
 
 Do not commit `.env`.
