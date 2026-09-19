@@ -1,0 +1,82 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link rel="stylesheet" href="/demo.css">
+  <title>ZERO — Evidence-Bound Physical Reasoning</title>
+</head>
+<body>
+  <main>
+    <header>
+      <p>ZERO / HACKATHON DEMO</p>
+      <h1>Physical reasoning inside an evidence boundary.</h1>
+      <p>
+        ZERO reasons about what the objects around you can actually do,
+        then solves goals without inventing unsupported capabilities.
+      </p>
+    </header>
+
+    <section class="flow-section" aria-labelledby="flow-title">
+      <p class="section-kicker">HOW ZERO REASONS</p>
+      <h2 id="flow-title">From a room walkthrough to a grounded decision.</h2>
+
+      <div class="reasoning-flow">
+        <div class="flow-step">
+          <span class="flow-number">01</span>
+          <strong>Walkthrough</strong>
+          <span>Observe the real environment across frames.</span>
+        </div>
+
+        <div class="flow-arrow" aria-hidden="true">→</div>
+
+        <div class="flow-step">
+          <span class="flow-number">02</span>
+          <strong>Canonical inventory</strong>
+          <span>Resolve repeated sightings and confirmation state.</span>
+        </div>
+
+        <div class="flow-arrow" aria-hidden="true">→</div>
+
+        <div class="flow-step">
+          <span class="flow-number">03</span>
+          <strong>Object DNA</strong>
+          <span>Ground capabilities, unknowns, and cautions.</span>
+        </div>
+
+        <div class="flow-arrow" aria-hidden="true">→</div>
+
+        <div class="flow-step">
+          <span class="flow-number">04</span>
+          <strong>Guarded planning</strong>
+          <span>Solve, verify, ask, or refuse without inventing capabilities.</span>
+        </div>
+      </div>
+    </section>
+
+    <section aria-labelledby="outcomes-title">
+      <h2 id="outcomes-title">Four outcomes. One safety boundary.</h2>
+      <div id="scenario-grid">Loading preserved walkthrough evidence...</div>
+    </section>
+
+    <section aria-labelledby="scenario-detail-title" id="scenario-detail-section" hidden>
+      <div class="detail-panel">
+        <p class="card-kicker">DECISION TRACE</p>
+        <h2 id="scenario-detail-title">Scenario details</h2>
+        <div id="scenario-detail"></div>
+        <button id="close-detail" type="button">Close</button>
+      </div>
+    </section>
+
+    <section aria-labelledby="benchmark-title">
+      <h2 id="benchmark-title">Preserved benchmark evidence</h2>
+      <div id="benchmark-grid">Loading benchmark evidence...</div>
+    </section>
+
+    <footer>
+      <p>Offline evidence mode · 0 model calls</p>
+    </footer>
+  </main>
+  <script src="/demo.js" defer></script>
+</body>
+</html>
