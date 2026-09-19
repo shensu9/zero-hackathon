@@ -87,13 +87,31 @@ IMPORTANT RULES:
   unknown.
 - A generic hook/support does NOT prove compatible attachment to the
   target object.
-- If an existing relevant item has an UNKNOWN property that could,
-  if verified, materially change whether the goal is achievable, flag
-  a CANNOT_SAFELY_SOLVE claim that incorrectly treats that unknown as
-  proof of impossibility.
+- If an existing relevant item has an UNKNOWN property, that unknown
+  may challenge CANNOT_SAFELY_SOLVE only when resolving it could complete
+  an otherwise fully grounded, constraint-compatible solution path.
+- A PARTIAL COUNTEREXAMPLE IS NOT ENOUGH. Do not reject a negative outcome
+  merely because one object has a generic related capability or one
+  unresolved property.
+- Before using an unknown property to challenge the negative outcome,
+  verify that every OTHER required physical link in at least one candidate
+  solution path is already grounded by inventory/Object DNA.
+- For hanging or mounting tasks, reason through the complete chain:
+    1. target-object connection or attachment interface,
+    2. any intermediate connector/support relationship,
+    3. support-to-destination attachment or compatibility,
+    4. required load-bearing/stability,
+    5. every user constraint.
+- If a required link is ABSENT from grounded capabilities rather than merely
+  UNKNOWN, do not treat an unrelated unknown property as evidence that the
+  whole solution might work.
+- A generic hang/support affordance for garments or another object does not
+  automatically establish compatibility with the target object.
+- An unknown attachment method on a support does not establish that the
+  target object itself has a usable attachment interface.
 - Conversely, do not invent a hypothetical solution merely because an
-  unknown exists. Only flag the negative claim when the wording goes
-  beyond what the grounded evidence establishes.
+  unknown exists. Only flag the negative claim when a COMPLETE candidate
+  path would exist if the specifically identified unknown were verified.
 - Respect all user constraints exactly.
 - Do not recommend buying, drilling, adhesives, or other unlisted
   resources when the goal forbids them.
