@@ -4,6 +4,14 @@
 
 ZERO turns a walkthrough of a real environment into a grounded physical world model, then plans against that world instead of relying on object names and imagination alone.
 
+## Live demo
+
+**Hosted demo:** https://zero-hackathon-demo.onrender.com
+
+The hosted demo is an offline, evidence-backed interface over ZERO's committed frozen walkthrough and benchmark results. It makes **0 model calls** and does not read private caches.
+
+---
+
 The core idea is simple:
 
 > Before an AI tells you what to do with an object, it should prove that the object has a validated capability that authorizes that use.
