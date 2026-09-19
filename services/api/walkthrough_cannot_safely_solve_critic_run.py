@@ -206,7 +206,7 @@ def blocker_audit_input_fingerprint(
     )
 
 
-def cache_path(
+def preserved_v1_cache_path(
 ) -> Path:
     return (
         initial_run
@@ -215,6 +215,19 @@ def cache_path(
         / (
             f"{WALKTHROUGH_ID}"
             "-cannot-safely-solve-critic.json"
+        )
+    )
+
+
+def cache_path(
+) -> Path:
+    return (
+        initial_run
+        .object_dna_run
+        .PRIVATE_DIR
+        / (
+            f"{WALKTHROUGH_ID}"
+            "-cannot-safely-solve-critic-v2.json"
         )
     )
 
@@ -783,7 +796,12 @@ def main() -> None:
 
     print()
     print(
-        "Blocker audit cache: "
+        "Preserved V1 blocker audit: "
+        f"{preserved_v1_cache_path().resolve()}"
+    )
+
+    print(
+        "V2 blocker audit cache: "
         f"{cache_path().resolve()}"
     )
 
