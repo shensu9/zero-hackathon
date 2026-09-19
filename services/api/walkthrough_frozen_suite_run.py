@@ -137,6 +137,76 @@ W3_V2_CRITIC_PIPELINE_SHA256 = (
 )
 
 
+W4_GOAL = (
+    "Create one focal display in this room using either the guitar "
+    "or the canvas artwork, using only what I already have and "
+    "without damaging the wall. I only want one focal item, but "
+    "I have not decided which one I want to feature."
+)
+
+W4_PLANNING_INPUT_SHA256 = (
+    "4b8c0d7b0e328693644432f13430d3a5"
+    "122331a9852080900a4b1e7701b86a67"
+)
+
+W4_PLANNER_PIPELINE_SHA256 = (
+    "8ab2fe1630773d6d30f68f7926e3bb5c"
+    "762bc06de87cb35d19c3471017953d35"
+)
+
+W4_INITIAL_CACHE_SHA256 = (
+    "1e1a9c8fa6b8f544f6d29f28477bbe48"
+    "2f448e4db3c00f1e22f2d357dbe37886"
+)
+
+W4_INITIAL_OUTCOME_SHA256 = (
+    "59500a819fa3c0a09e459470d09c5821"
+    "2794826b1a12be1266e60a038ecf4e0e"
+)
+
+W4_SOURCE_CANONICAL_SHA256 = (
+    "6c3a4d47bfc46e59f666ef44fe1bc8ba"
+    "989be527242160299d625e54bfc727df"
+)
+
+W4_SOURCE_SESSION_SHA256 = (
+    "a27c535683216f4871d4855ee69803b85"
+    "ca55d2f1de25f2637f2e98ec47752e5"
+)
+
+W4_SOURCE_OBJECT_DNA_SHA256 = (
+    "24ee7c57b96f05518f47b0821932a4f4"
+    "b77eccf2fe82ca257193828dc82bd6a2"
+)
+
+W4_CONFIRMATION_INPUT_SHA256 = (
+    "b5be1f1af67f36ab33bb49e012b57cab"
+    "2b8a7d147fcd7834b7363312c424893e"
+)
+
+W4_CONFIRMATION_PIPELINE_SHA256 = (
+    "aa4eff3bcdc8847139034b02ba67c60f"
+    "2ab523be56ab8945b688118445e065e7"
+)
+
+W4_CONFIRMATION_CACHE_SHA256 = (
+    "7e01bcb717512ed4c3257bf670eaa02d9"
+    "b698734f57f9048b9e0a8e068107bb2"
+)
+
+W4_CONFIRMATION_RESULT_SHA256 = (
+    "3def2a20106f4de4b153ea201a2acade"
+    "a4ea2508331010c8ea7ed70b4053bd28"
+)
+
+W4_EXPECTED_ACTIVE_COUNT = 27
+
+W4_REQUIRED_CANDIDATE_IDS = {
+    "canvas_artwork_f05_o01",
+    "acoustic_guitar_f06_o05",
+}
+
+
 # ---------------------------------------------------------------------------
 # PATHS
 # ---------------------------------------------------------------------------
@@ -199,6 +269,17 @@ W3_V2_PATH = (
         "walkthrough-03-cannot-safely-solve-"
         "critic-v2.json"
     )
+)
+
+
+W4_INITIAL_PATH = (
+    PRIVATE
+    / "walkthrough-04-initial-plan-outcome.json"
+)
+
+W4_CONFIRMATION_PATH = (
+    PRIVATE
+    / "walkthrough-04-needs-confirmation-critic.json"
 )
 
 
@@ -438,6 +519,10 @@ def require_freeze_documents(
         (
             CHECKPOINTS
             / "walkthrough-03-terminal-freeze.md"
+        ),
+        (
+            CHECKPOINTS
+            / "walkthrough-04-terminal-freeze.md"
         ),
     ]
 
@@ -1031,6 +1116,324 @@ def validate_w3() -> dict:
 
 
 # ---------------------------------------------------------------------------
+# WALKTHROUGH 04
+# ---------------------------------------------------------------------------
+
+
+def validate_w4() -> dict:
+    initial = load_json(
+        W4_INITIAL_PATH
+    )
+
+    confirmation = load_json(
+        W4_CONFIRMATION_PATH
+    )
+
+    expect_equal(
+        sha256_file(
+            W4_INITIAL_PATH
+        ),
+        W4_INITIAL_CACHE_SHA256,
+        "W4 initial cache SHA256",
+    )
+
+    expect_equal(
+        initial.get(
+            "source_world_walkthrough_id"
+        ),
+        "walkthrough-03",
+        "W4 source world",
+    )
+
+    expect_equal(
+        initial.get(
+            "walkthrough_id"
+        ),
+        "walkthrough-04",
+        "W4 walkthrough id",
+    )
+
+    expect_equal(
+        initial.get(
+            "goal"
+        ),
+        W4_GOAL,
+        "W4 goal",
+    )
+
+    expect_equal(
+        initial.get(
+            "planning_input_sha256"
+        ),
+        W4_PLANNING_INPUT_SHA256,
+        "W4 planning input SHA256",
+    )
+
+    expect_equal(
+        initial.get(
+            "planner_pipeline_sha256"
+        ),
+        W4_PLANNER_PIPELINE_SHA256,
+        "W4 planner pipeline SHA256",
+    )
+
+    expect_equal(
+        initial.get(
+            "canonical_inventory_sha256"
+        ),
+        W4_SOURCE_CANONICAL_SHA256,
+        "W4 source canonical inventory SHA256",
+    )
+
+    expect_equal(
+        initial.get(
+            "session_inventory_sha256"
+        ),
+        W4_SOURCE_SESSION_SHA256,
+        "W4 source session inventory SHA256",
+    )
+
+    expect_equal(
+        initial.get(
+            "object_dna_sha256"
+        ),
+        W4_SOURCE_OBJECT_DNA_SHA256,
+        "W4 source Object DNA SHA256",
+    )
+
+    active_item_ids = initial.get(
+        "active_item_ids"
+    )
+
+    require(
+        isinstance(
+            active_item_ids,
+            list,
+        ),
+        "W4 active-item list is missing.",
+    )
+
+    expect_equal(
+        len(
+            active_item_ids
+        ),
+        W4_EXPECTED_ACTIVE_COUNT,
+        "W4 active eligible item count",
+    )
+
+    missing_candidates = (
+        W4_REQUIRED_CANDIDATE_IDS
+        - set(
+            active_item_ids
+        )
+    )
+
+    require(
+        not missing_candidates,
+        "W4 required candidate objects are missing: "
+        f"{sorted(missing_candidates)}",
+    )
+
+    outcome = initial.get(
+        "outcome"
+    )
+
+    require(
+        isinstance(
+            outcome,
+            dict,
+        ),
+        "W4 initial outcome is missing.",
+    )
+
+    expect_equal(
+        sha256_json(
+            outcome
+        ),
+        W4_INITIAL_OUTCOME_SHA256,
+        "W4 initial outcome SHA256",
+    )
+
+    expect_equal(
+        outcome.get(
+            "status"
+        ),
+        "needs_confirmation",
+        "W4 terminal status",
+    )
+
+    expect_equal(
+        outcome.get(
+            "plan"
+        ),
+        None,
+        "W4 plan",
+    )
+
+    requirements = outcome.get(
+        "requirements"
+    )
+
+    require(
+        isinstance(
+            requirements,
+            list,
+        ),
+        "W4 requirements are missing.",
+    )
+
+    expect_equal(
+        len(
+            requirements
+        ),
+        1,
+        "W4 requirement count",
+    )
+
+    expect_equal(
+        outcome.get(
+            "blocking_reasons"
+        ),
+        [],
+        "W4 blocking reasons",
+    )
+
+    requirement_text = (
+        canonical_json(
+            requirements[0]
+        )
+        .lower()
+    )
+
+    require(
+        "guitar"
+        in requirement_text,
+        "W4 confirmation requirement no longer "
+        "references the guitar.",
+    )
+
+    require(
+        "canvas"
+        in requirement_text,
+        "W4 confirmation requirement no longer "
+        "references the canvas.",
+    )
+
+    require(
+        "preference"
+        in requirement_text,
+        "W4 confirmation requirement no longer "
+        "requires the user's target preference.",
+    )
+
+    expect_equal(
+        sha256_file(
+            W4_CONFIRMATION_PATH
+        ),
+        W4_CONFIRMATION_CACHE_SHA256,
+        "W4 confirmation cache SHA256",
+    )
+
+    expect_equal(
+        confirmation.get(
+            "walkthrough_id"
+        ),
+        "walkthrough-04",
+        "W4 confirmation walkthrough id",
+    )
+
+    expect_equal(
+        confirmation.get(
+            "goal"
+        ),
+        W4_GOAL,
+        "W4 confirmation goal",
+    )
+
+    expect_equal(
+        confirmation.get(
+            "planning_input_sha256"
+        ),
+        W4_PLANNING_INPUT_SHA256,
+        "W4 confirmation planning input SHA256",
+    )
+
+    expect_equal(
+        confirmation.get(
+            "initial_cache_sha256"
+        ),
+        W4_INITIAL_CACHE_SHA256,
+        "W4 confirmation initial-cache SHA256",
+    )
+
+    expect_equal(
+        confirmation.get(
+            "initial_outcome_sha256"
+        ),
+        W4_INITIAL_OUTCOME_SHA256,
+        "W4 confirmation initial-outcome SHA256",
+    )
+
+    expect_equal(
+        confirmation.get(
+            "confirmation_audit_input_sha256"
+        ),
+        W4_CONFIRMATION_INPUT_SHA256,
+        "W4 confirmation audit-input SHA256",
+    )
+
+    expect_equal(
+        confirmation.get(
+            "critic_pipeline_sha256"
+        ),
+        W4_CONFIRMATION_PIPELINE_SHA256,
+        "W4 confirmation critic-pipeline SHA256",
+    )
+
+    expect_equal(
+        confirmation.get(
+            "active_item_ids"
+        ),
+        active_item_ids,
+        "W4 confirmation active-item ids",
+    )
+
+    critic = confirmation.get(
+        "critic"
+    )
+
+    critic_passed(
+        critic,
+        label="W4 NEEDS_CONFIRMATION critic",
+    )
+
+    expect_equal(
+        sha256_json(
+            critic
+        ),
+        W4_CONFIRMATION_RESULT_SHA256,
+        "W4 confirmation critic result SHA256",
+    )
+
+    return {
+        "id":
+            "W4",
+
+        "name":
+            "Focal display choice",
+
+        "status":
+            "NEEDS_CONFIRMATION",
+
+        "details":
+            (
+                "1 preference requirement, "
+                "confirmation semantic PASS"
+            ),
+    }
+
+
+# ---------------------------------------------------------------------------
 # SUITE
 # ---------------------------------------------------------------------------
 
@@ -1065,6 +1468,7 @@ def main() -> None:
         validate_w1,
         validate_w2,
         validate_w3,
+        validate_w4,
     ]
 
     for validator in validators:
@@ -1104,7 +1508,7 @@ def main() -> None:
 
     print(
         f"Frozen walkthroughs: "
-        f"{len(results)}/3 valid"
+        f"{len(results)}/{len(validators)} valid"
     )
 
     print(
