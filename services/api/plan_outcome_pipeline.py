@@ -1,5 +1,8 @@
 from pydantic import BaseModel, Field
 
+from cannot_safely_solve_critic import (
+    audit_cannot_safely_solve_semantics,
+)
 from critic_schemas import (
     CriticIssueType,
     CriticSeverity,
@@ -767,26 +770,51 @@ def generate_safe_plan_outcome(
         ),
     )
 
-    final_semantic_critic = (
-        _audit_outcome_plan(
-            outcome=outcome,
-            goal=goal,
-            inventory=inventory,
-            object_dna=object_dna,
-            external_resources=(
-                external_resources
-            ),
+    if (
+        outcome.status
+        == PlanOutcomeStatus.CANNOT_SAFELY_SOLVE
+    ):
+        final_semantic_critic = (
+            audit_cannot_safely_solve_semantics(
+                outcome=outcome,
+                goal=goal,
+                inventory=inventory,
+                object_dna=object_dna,
+                external_resources=(
+                    external_resources
+                ),
+            )
         )
-    )
 
-    if not final_semantic_critic.passed:
-        raise UnsafePhysicalPlanError(
-            "Final outcome failed semantic physical "
-            "validation after verification-gate "
-            "processing. "
-            f"Findings: "
-            f"{final_semantic_critic.model_dump_json()}"
+        if not final_semantic_critic.passed:
+            raise UnsafePhysicalPlanError(
+                "Final CANNOT_SAFELY_SOLVE outcome "
+                "failed semantic blocker grounding. "
+                f"Findings: "
+                f"{final_semantic_critic.model_dump_json()}"
+            )
+
+    else:
+        final_semantic_critic = (
+            _audit_outcome_plan(
+                outcome=outcome,
+                goal=goal,
+                inventory=inventory,
+                object_dna=object_dna,
+                external_resources=(
+                    external_resources
+                ),
+            )
         )
+
+        if not final_semantic_critic.passed:
+            raise UnsafePhysicalPlanError(
+                "Final outcome failed semantic physical "
+                "validation after verification-gate "
+                "processing. "
+                f"Findings: "
+                f"{final_semantic_critic.model_dump_json()}"
+            )
 
     return SafePlanOutcomeResult(
         outcome=outcome,
