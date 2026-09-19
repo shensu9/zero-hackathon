@@ -3,6 +3,9 @@ from pydantic import BaseModel, Field
 from cannot_safely_solve_critic import (
     audit_cannot_safely_solve_semantics,
 )
+from needs_confirmation_critic import (
+    audit_needs_confirmation_semantics,
+)
 from critic_schemas import (
     CriticIssueType,
     CriticSeverity,
@@ -790,6 +793,30 @@ def generate_safe_plan_outcome(
             raise UnsafePhysicalPlanError(
                 "Final CANNOT_SAFELY_SOLVE outcome "
                 "failed semantic blocker grounding. "
+                f"Findings: "
+                f"{final_semantic_critic.model_dump_json()}"
+            )
+
+    elif (
+        outcome.status
+        == PlanOutcomeStatus.NEEDS_CONFIRMATION
+    ):
+        final_semantic_critic = (
+            audit_needs_confirmation_semantics(
+                outcome=outcome,
+                goal=goal,
+                inventory=inventory,
+                object_dna=object_dna,
+                external_resources=(
+                    external_resources
+                ),
+            )
+        )
+
+        if not final_semantic_critic.passed:
+            raise UnsafePhysicalPlanError(
+                "Final NEEDS_CONFIRMATION outcome "
+                "failed semantic confirmation grounding. "
                 f"Findings: "
                 f"{final_semantic_critic.model_dump_json()}"
             )

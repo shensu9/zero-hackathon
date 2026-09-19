@@ -107,6 +107,7 @@ def run_case(
         "plan_safety": 0,
         "gate": 0,
         "blocker": 0,
+        "confirmation": 0,
         "plan_semantic": 0,
     }
 
@@ -119,6 +120,8 @@ def run_case(
             pipeline._make_verification_gate_safe,
         "blocker":
             pipeline.audit_cannot_safely_solve_semantics,
+        "confirmation":
+            pipeline.audit_needs_confirmation_semantics,
         "plan_semantic":
             pipeline._audit_outcome_plan,
     }
@@ -152,6 +155,10 @@ def run_case(
         calls["blocker"] += 1
         return blocker_result
 
+    def fake_confirmation(**_kwargs):
+        calls["confirmation"] += 1
+        return passing_critic()
+
     def fake_plan_semantic(**_kwargs):
         calls["plan_semantic"] += 1
         return passing_critic()
@@ -170,6 +177,10 @@ def run_case(
 
     pipeline.audit_cannot_safely_solve_semantics = (
         fake_blocker
+    )
+
+    pipeline.audit_needs_confirmation_semantics = (
+        fake_confirmation
     )
 
     pipeline._audit_outcome_plan = (
@@ -219,6 +230,10 @@ def run_case(
             originals["blocker"]
         )
 
+        pipeline.audit_needs_confirmation_semantics = (
+            originals["confirmation"]
+        )
+
         pipeline._audit_outcome_plan = (
             originals["plan_semantic"]
         )
@@ -245,6 +260,7 @@ def main() -> None:
         "plan_safety": 1,
         "gate": 1,
         "blocker": 1,
+        "confirmation": 0,
         "plan_semantic": 0,
     }
     passed += 1
@@ -260,6 +276,7 @@ def main() -> None:
         "plan_safety": 1,
         "gate": 1,
         "blocker": 1,
+        "confirmation": 0,
         "plan_semantic": 0,
     }
     passed += 1
@@ -281,7 +298,8 @@ def main() -> None:
         "plan_safety": 1,
         "gate": 1,
         "blocker": 0,
-        "plan_semantic": 1,
+        "confirmation": 1,
+        "plan_semantic": 0,
     }
     passed += 1
 
